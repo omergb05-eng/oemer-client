@@ -1,4 +1,4 @@
-# Ömer Client – Version 4
+# Ömer Client – Version 5
 
 Fabric-Mod für **Minecraft 1.21.11** (braucht **Fabric API**).
 
@@ -12,9 +12,30 @@ Fabric-Mod für **Minecraft 1.21.11** (braucht **Fabric API**).
 | Tab | Unter-Reiter |
 |---|---|
 | Settings | Allgemein · Kits · Material List |
-| Skins | Cape · Cosmetics · Totem · Sounds |
+| Skins | Cape · Cosmetics · Eigene · Totem · Sounds |
 | Layout | Design · HUD |
-| Graphics | Looks |
+| Graphics | Looks · Crosshair |
+| Musik | Spotify |
+
+## Neu in Version 5
+- **Galaxy-Design** (Layout → Design → Design-Stil): dunkelblau, lila, pink, leuchtender Planet mit Ring
+  und Strahlen, schwebt sanft, auch im Startscreen. Dazu das Cape „Ömer Galaxy“.
+- **Custom Crosshair** (Graphics → Crosshair): 7 Designs, eigene PNGs aus `crosshairs/` oder selbst malen,
+  8 Farben, 3 Größen
+- **Totem**: PNG mit Transparenz („Ganzes Bild“ oder „Füllen“), selbst malen oder **„Mein Skin“**
+  (Figur aus deinem eigenen Skin)
+- **Eigene Cosmetics** (Skins → Eigene): Pixelbild malen oder PNG in `cosmetics/` legen → wird 3D,
+  Platz wählbar: über dem Kopf, Rücken, Schulter oder Begleiter
+- **Spotify** (Musik): Song + Cover sehen, Play/Pause, vor/zurück, Zufall, Lautstärke, Playlists starten,
+  Now-Playing-HUD, frei belegbare Tasten
+- Der Editor überschreibt nie deine eigenen Fotos – er legt immer eine neue Datei an
+
+### Spotify einrichten
+1. Auf https://developer.spotify.com/dashboard eine App erstellen (Web API).
+2. Als Redirect-URI genau `http://127.0.0.1:43821/callback` eintragen.
+3. Die Client-ID im Ömer-Menü unter **Musik** einfügen → **Mit Spotify verbinden** → im Browser erlauben.
+
+Spotify verlangt seit Februar 2026 für eigene Apps ein **Premium**-Konto, und Songs steuern geht nur mit Premium.
 
 ## Funktionen
 - **Fullbright** (Taste **G**) und **Free Cam** (Taste **F4**, fliegt nicht durch Blöcke, 4 Tempo-Stufen)
@@ -41,7 +62,7 @@ Cape, Cosmetics, Totem und Sounds siehst bzw. hörst nur du (Client-Mod).
 GitHub baut die Mod bei jedem Hochladen automatisch und testet sie in einem echten Minecraft.
 1. Auf GitHub im Repository oben auf **Actions** gehen.
 2. Den neuesten grünen Lauf öffnen → unten bei **Artifacts** `OemerClient-jar` herunterladen.
-3. Im ZIP liegt `oemer-client-4.0.0.jar` → in den `mods`-Ordner, zusammen mit **Fabric API**.
+3. Im ZIP liegt `oemer-client-5.0.0.jar` → in den `mods`-Ordner, zusammen mit **Fabric API**.
 
 Wenn der Build rot wird: auf den roten Schritt klicken, Fehlermeldung kopieren und an Claude schicken.
 
