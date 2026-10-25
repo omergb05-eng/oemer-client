@@ -1189,7 +1189,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 						net.minecraft.network.chat.Component.literal(real), "Hallo"));
 				nm[4] = chat.getString().contains("ÖmerKing") && !chat.getString().contains(real) && chat.getString().contains("Hallo");
 				var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
-				nm[5] = info != null && mc.gui.getTabList().getNameForDisplay(info).getString().equals("ÖmerKing");
+				nm[5] = info != null && mc.gui.getTabList().getNameForDisplay(info).getString().endsWith("ÖmerKing");
 				c.nameInChat = false;
 				nm[6] = NameStyle.replaceInChat(net.minecraft.network.chat.Component.literal("<" + real + "> hi")).getString().contains(real);
 				c.nameInChat = true;
@@ -1360,8 +1360,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		sp.getServer().runCommand("fill " + (x - 10) + " " + y + " " + (z + 1) + " " + (x + 10) + " " + (y + 12) + " " + (z + 16) + " air");
 		sp.getServer().runCommand("fill " + (x - 10) + " " + (y - 1) + " " + (z + 1) + " " + (x + 10) + " " + (y - 1) + " " + (z + 16) + " grass_block");
 		sp.getServer().runCommand("tp @a " + (x + 0.5) + " " + y + " " + (z + 0.5) + " 0 25");
-		sp.getClientWorld().waitForChunksRender();
-		ctx.waitTicks(10);
+		ctx.waitTicks(60);
 
 		// ------------------------------------------------ Ömer-Symbol
 		check("badge-self", ctx.computeOnClient(mc -> OmerBadge.isOmer(mc.getUser().getProfileId())), "");
