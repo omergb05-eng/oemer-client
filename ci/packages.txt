@@ -1,0 +1,10 @@
+^net/minecraft/client/renderer/fog/
+^net/minecraft/client/gui/screens/inventory/tooltip/
+^net/fabricmc/fabric/api/client/rendering/v1/
+^net/fabricmc/fabric/api/client/item/
+^net/fabricmc/fabric/api/event/player/
+Graphics
+Tnt
+^org/lwjgl/util/tinyfd/
+^net/minecraft/client/renderer/[A-Z]
+^net/minecraft/client/[A-Z]
