@@ -168,9 +168,9 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		// ---------------------------------------------- Startscreen
 		ctx.waitFor(mc -> mc.screen != null && mc.getOverlay() == null, 1200);
 		ctx.waitTicks(20);
-		String first = ctx.computeOnClient(mc -> mc.screen == null ? "null" : mc.screen.getClass().getName());
-		check("first-screen-title", first.equals(TitleScreen.class.getName()), first);
-		if (!first.equals(TitleScreen.class.getName())) {
+		String firstScreen = ctx.computeOnClient(mc -> mc.screen == null ? "null" : mc.screen.getClass().getName());
+		check("first-screen-title", firstScreen.equals(TitleScreen.class.getName()), firstScreen);
+		if (!firstScreen.equals(TitleScreen.class.getName())) {
 			ctx.takeScreenshot("00-erster-screen");
 			ctx.setScreen(() -> new TitleScreen());
 		}
