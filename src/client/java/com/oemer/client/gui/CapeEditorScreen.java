@@ -232,7 +232,7 @@ public class CapeEditorScreen extends Screen {
 			canvas.clear(color);
 		}).tip("Ganze Fläche mit der Farbe füllen"));
 		y += rowH + gap;
-		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, rw, rowH, "Aktuelles Cape laden", this::loadCurrent));
+		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, rw, rowH, "Aktuelles laden", this::loadCurrent));
 		y += rowH + gap + 2;
 
 		// Speichern

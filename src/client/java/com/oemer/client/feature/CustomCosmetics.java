@@ -159,7 +159,7 @@ public final class CustomCosmetics {
 				}
 				case 2 -> { // Rücken (schaut nach hinten)
 					model.body.translateAndRotate(pose);
-					pose.translate(0f, (6f + b.height() * k / 2f) / 16f, 2.7f / 16f + 0.5f * k / 16f);
+					pose.translate(0f, (6f + b.height() * k / 2f) / 16f, 4.4f / 16f + 0.5f * k / 16f); // hinter dem Cape
 					pose.mulPose(new Quaternionf().rotationY((float) Math.PI));
 					pose.scale(k, k, k);
 				}

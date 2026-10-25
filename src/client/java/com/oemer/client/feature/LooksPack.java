@@ -107,13 +107,17 @@ public final class LooksPack {
 			PackRepository repo = mc.getResourcePackRepository();
 			repo.reload();
 			List<String> selected = new ArrayList<>(repo.getSelectedIds());
+			List<String> before = new ArrayList<>(selected);
 			boolean was = selected.remove(PACK_ID);
 			if (active) {
 				selected.add(PACK_ID); // ganz oben = gewinnt gegen andere Pakete
 			}
 			repo.setSelected(selected);
-			if (active || was) {
+			if (!selected.equals(before)) {
 				mc.options.updateResourcePacks(repo);
+			} else if (active || was) {
+				// gleiche Pakete, aber neuer Inhalt (anderes Totem/Sound) → trotzdem neu laden
+				mc.reloadResourcePacks();
 			}
 		} catch (Exception e) {
 			OemerClient.LOGGER.warn("Ömer Client Looks konnte nicht gebaut werden", e);

@@ -228,8 +228,16 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				// kleiner Stern
 				int[][] star = {{7,1},{8,1},{7,2},{8,2},{6,3},{9,3},{1,5},{2,5},{3,5},{4,5},{5,5},{6,5},{9,5},{10,5},{11,5},{12,5},{13,5},{14,5},
 						{3,6},{12,6},{4,7},{11,7},{5,8},{10,8},{4,9},{11,9},{3,10},{7,10},{8,10},{12,10},{2,11},{6,11},{9,11},{13,11},{2,12},{5,12},{10,12},{13,12}};
-				for (int[] p : star) ed.paintForTest(p[0], p[1], 0xFFFFD23F, CapeEditorScreen.Tool.PINSEL);
-				ed.paintForTest(7, 6, 0xFFFFE066, CapeEditorScreen.Tool.EIMER);
+				// gefüllter Stern Zeile für Zeile
+				String[] rows = {
+						"       ##       ", "       ##       ", "      ####      ", "      ####      ",
+						"##############  ", " ############   ", "  ##########    ", "   ########     ",
+						"   ########     ", "  ####  ####    ", "  ###    ###    ", " ##        ##   "};
+				for (int y = 0; y < rows.length; y++) {
+					for (int x = 0; x < rows[y].length(); x++) {
+						if (rows[y].charAt(x) == '#') ed.paintForTest(x, y + 2, (y < 4 ? 0xFFFFE066 : 0xFFFFC21A), CapeEditorScreen.Tool.PINSEL);
+					}
+				}
 				ed.saveForTest();
 			}
 		});

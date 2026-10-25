@@ -107,6 +107,7 @@ public class OmerScreen extends Screen {
 	private int colW, colCount;
 	private int nextIndex;
 	private int tabsX, tabsW, tabsY = 13, tabsH = 20;
+	private boolean compactLogo;
 	private final int[] tabX = new int[Tab.values().length];
 	private final int[] tabW = new int[Tab.values().length];
 	/** Rechte Hälfte der Glas-Fläche für Vorschauen (null = keine). */
@@ -155,13 +156,19 @@ public class OmerScreen extends Screen {
 
 		// ---- Tabs oben rechts (in einer Glas-Pille)
 		Tab[] tabs = Tab.values();
-		int total = 0;
-		for (int i = 0; i < tabs.length; i++) {
-			tabW[i] = Draw.width(tabs[i].title) + 22;
-			total += tabW[i];
+		int logoRight = PAD + 30 + Math.round((Draw.width("§lÖMER") + 4 + Draw.width("CLIENT")) * 1.25f);
+		compactLogo = false;
+		for (int pad : new int[]{22, 14, 10}) {
+			int total = 0;
+			for (int i = 0; i < tabs.length; i++) {
+				tabW[i] = Draw.width(tabs[i].title) + pad;
+				total += tabW[i];
+			}
+			tabsW = total + 4;
+			tabsX = this.width - PAD - tabsW;
+			if (tabsX >= logoRight + 8) break;
 		}
-		tabsW = total + 4;
-		tabsX = this.width - PAD - tabsW;
+		if (tabsX < logoRight + 8) compactLogo = true; // dann nur "ÖMER" ohne "CLIENT"
 		int x = tabsX + 2;
 		for (int i = 0; i < tabs.length; i++) {
 			Tab tab = tabs[i];
@@ -664,9 +671,10 @@ public class OmerScreen extends Screen {
 		g.pose().translate(lx + 30, ly + 3);
 		g.pose().scale(1.25f);
 		Draw.text(g, "§lÖMER", 0, 0, Theme.TEXT);
-		Draw.text(g, "CLIENT", Draw.width("§lÖMER") + 4, 0, Theme.TEXT_DIM);
+		if (!compactLogo) Draw.text(g, "CLIENT", Draw.width("§lÖMER") + 4, 0, Theme.TEXT_DIM);
 		g.pose().popMatrix();
-		Draw.text(g, "dein eigener Client", lx + 30, ly + 15, Theme.TEXT_FAINT);
+		if (!compactLogo) Draw.text(g, "dein eigener Client", lx + 30, ly + 15, Theme.TEXT_FAINT);
+		else Draw.text(g, "client", lx + 30, ly + 15, Theme.TEXT_FAINT);
 
 		// ---- Tabs: Glas-Pille + gleitende weiße Markierung
 		Draw.glass(g, tabsX, tabsY, tabsW, tabsH, tabsH / 2, Theme.white(0x12), Theme.white(0x2A));
@@ -870,6 +878,18 @@ public class OmerScreen extends Screen {
 	}
 
 	private void drawSpotifyPreview(GuiGraphics g) {
+		if (Spotify.status() != Spotify.Status.CONNECTED) {
+			int cx = previewX + previewW / 2, cy = previewY + Math.min(previewH, 110) / 2 - 6;
+			// Spotify-artiger grüner Kreis mit Wellen
+			Draw.round(g, cx - 18, cy - 18, 36, 36, 18, 0xFF1ED760);
+			for (int i = 0; i < 3; i++) {
+				int w = 20 - i * 5;
+				Draw.round(g, cx - w / 2, cy - 7 + i * 6, w, 2, 1, 0xFF0B0B0F);
+			}
+			Draw.centered(g, SpotifyScreen.statusText(), cx, cy + 26, Theme.TEXT_SOFT);
+			if (!Spotify.message().isEmpty()) Draw.centered(g, Draw.fit(Spotify.message(), previewW - 12), cx, cy + 38, Theme.accent());
+			return;
+		}
 		SpotifyScreen.drawNowPlaying(g, previewX, previewY, previewW, 78, true);
 	}
 
