@@ -1552,7 +1552,7 @@ public class OmerScreen extends Screen {
 		addContent(new OmerWidgets.Painter(cx0 + 120, cy, Math.max(40, cw - 120), 22, (g, px, py, pw, ph, mx, my) ->
 				Draw.text(g, Draw.fit(head, pw), px, py + 7, Theme.TEXT), null));
 		cy += 22 + GAP;
-		int avail = panelY + panelH - 10 - cy - ROW_H - GAP;
+		int avail = panelY + panelH - 18 - cy - ROW_H - GAP;
 		final int chatH = Math.max(80, avail);
 		final String uid = chatWith;
 		addContent(new OmerWidgets.Painter(cx0, cy, cw, chatH, (g, px, py, pw, ph, mx, my) -> paintChat(g, uid, px, py, pw, ph), null));

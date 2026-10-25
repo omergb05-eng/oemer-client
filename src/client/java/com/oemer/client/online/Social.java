@@ -106,6 +106,7 @@ public final class Social {
 	private static final Map<String, Long> INBOX_SEEN = new ConcurrentHashMap<>();
 	private static final Map<String, Boolean> SHARING = new ConcurrentHashMap<>();
 	private static volatile String publishedSig = "";
+	private static volatile boolean published = true; // es könnte noch ein alter Eintrag auf dem Server liegen
 	private static volatile String skinSig = "";
 	private static volatile int tickNr;
 
@@ -430,6 +431,7 @@ public final class Social {
 	private static void afterLogin() {
 		firstSync = true;
 		publishedSig = "";
+		published = true;
 		skinSig = "";
 		tickNr = 0;
 		bump();
@@ -648,10 +650,11 @@ public final class Social {
 		Music.Now now = c.shareMusic ? Music.now() : null;
 		YouTubeMusic.Track yt = Music.youtube() ? YouTubeMusic.current() : null;
 		if (now == null) {
-			if (!publishedSig.isEmpty()) {
+			if (published) {
 				Firebase.delete(s, "listening/" + s.uid);
-				publishedSig = "";
+				published = false;
 			}
+			publishedSig = "";
 			return;
 		}
 		String id = yt != null ? yt.id : "";
@@ -668,6 +671,7 @@ public final class Social {
 		o.addProperty("playing", now.playing());
 		Firebase.put(s, "listening/" + s.uid, o);
 		publishedSig = sig;
+		published = true;
 	}
 
 	private static String cut(String s, int n) {

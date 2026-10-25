@@ -349,6 +349,22 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.runOnClient(mc -> {
 			var uuid = java.util.UUID.fromString(bobMc);
 			var rp = new net.minecraft.client.player.RemotePlayer(mc.level, new com.mojang.authlib.GameProfile(uuid, "Anna"));
+			try {
+				// Spielereinstellung "Cape zeigen" (echte Spieler schicken sie vom Server)
+				for (Class<?> k = rp.getClass(); k != null; k = k.getSuperclass()) {
+					try {
+						var f = k.getDeclaredField("DATA_PLAYER_MODE_CUSTOMISATION");
+						f.setAccessible(true);
+						@SuppressWarnings("unchecked")
+						var acc = (net.minecraft.network.syncher.EntityDataAccessor<Byte>) f.get(null);
+						rp.getEntityData().set(acc, (byte) 0x7F);
+						break;
+					} catch (NoSuchFieldException ignored) {
+					}
+				}
+			} catch (Throwable t) {
+				System.out.println("[OEMER-TEST] Hinweis: Cape-Einstellung nicht gesetzt: " + t);
+			}
 			rp.setPos(mc.player.getX(), mc.player.getY(), mc.player.getZ() + 2.5);
 			rp.setYRot(0);
 			rp.setYHeadRot(0);
