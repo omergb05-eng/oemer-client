@@ -126,9 +126,9 @@ public final class OmerLoading {
 		Draw.vGradient(g, 0, h - 60, w, 60, 0x00000000, Draw.fade(0x88000000, alpha));
 
 		// Logo
-		int ls = Math.max(56, Math.min(120, Math.round(Math.min(w, h) * 0.22f)));
+		int ls = Math.max(48, Math.min(120, Math.round(Math.min(w, h) * 0.2f)));
 		int lx = (w - ls) / 2;
-		int ly = Math.round(h * 0.5f) - ls / 2 - 22;
+		int ly = Math.round(h * 0.34f) - ls / 2;
 		float pulse = 0.5f + 0.5f * (float) Math.sin(t * 1.6);
 		glow(g, w / 2, ly + ls / 2, Math.round(ls * (0.95f + 0.12f * pulse)), Theme.accent(), 34, alpha);
 		Textures.Tex tex = logo();
@@ -157,7 +157,7 @@ public final class OmerLoading {
 		int bw = Math.max(160, Math.min(360, Math.round(w * 0.42f)));
 		int bh = 6;
 		int bx = (w - bw) / 2;
-		int by = h - 70;
+		int by = Math.max(h - 62, ly + ls + 34 + 34);
 		Draw.round(g, bx, by, bw, bh, 3, Draw.fade(0x30FFFFFF, alpha));
 		if (progress >= 0) {
 			shown += (Math.max(0f, Math.min(1f, progress)) - shown) * 0.12f;
