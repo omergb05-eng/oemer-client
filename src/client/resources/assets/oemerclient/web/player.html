@@ -52,6 +52,7 @@
   .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; }
   .ic:hover { background: rgba(255,255,255,.1); }
   .ic.liked { color: var(--a2); }
+  .ic.del:hover { background: rgba(255,80,80,.25); color: #ff7b7b; }
   .player { padding: 0; overflow: hidden; }
   .video { position: relative; aspect-ratio: 16/9; background: #000; }
   .video > div, .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -251,6 +252,7 @@ function rowEl(t, opts) {
   if (opts.queue !== false) add('＋', 'In die Warteschlange', () => cmd('do=queueid&id=' + t.id + '&title=' + enc(t.title) + '&artist=' + enc(t.artist)));
   const liked = (st.library || []).some(x => x.id === t.id);
   add(liked ? '♥' : '♡', liked ? 'Aus Meine Songs entfernen' : 'Zu Meine Songs', () => cmd('do=like&id=' + t.id), liked ? 'liked' : '');
+  if (opts.remove) add('✕', opts.removeTitle || 'Löschen', opts.remove, 'del');
   row.append(img, tx, act);
   row.onclick = opts.onplay;
   return row;
@@ -289,12 +291,14 @@ function render() {
   mk('lib', '♥ Meine Songs');
   (st.playlists || []).forEach((p, i) => mk('pl' + i, p.name));
   if (libTab === 'lib') {
-    fill($('library'), st.library || [], (t, i) => rowEl(t, {onplay: () => cmd('do=playlib&i=' + i)}), 'Klick bei einem Song auf ♡, dann landet er hier.');
+    fill($('library'), st.library || [], (t, i) => rowEl(t, {onplay: () => cmd('do=playlib&i=' + i), remove: () => cmd('do=unlib&id=' + t.id), removeTitle: 'Aus Meine Songs löschen'}), 'Klick bei einem Song auf ♡, dann landet er hier.');
   } else {
     const pi = +libTab.slice(2); const pl = (st.playlists || [])[pi];
-    fill($('library'), pl ? pl.tracks : [], (t, i) => rowEl(t, {onplay: () => cmd('do=playpl&p=' + pi + '&i=' + i)}), 'Leer');
+    if (pl) { const d = document.createElement('button'); d.className = 'tab'; d.textContent = '✕ Playlist löschen'; d.onclick = () => { libTab = 'lib'; cmd('do=delpl&p=' + pi); }; tabs.appendChild(d); }
+    fill($('library'), pl ? pl.tracks : [], (t, i) => rowEl(t, {onplay: () => cmd('do=playpl&p=' + pi + '&i=' + i), remove: () => cmd('do=unpl&p=' + pi + '&id=' + t.id), removeTitle: 'Aus der Playlist löschen'}), 'Leer');
   }
-  fill($('queue'), st.queue || [], (t, i) => rowEl(t, {now: i === st.index, queue: false, onplay: () => cmd('do=jump&i=' + i)}), 'Leer – such dir was aus!');
+  { const qh = document.querySelector('#queue').previousElementSibling; if (qh && !qh.dataset.clr && (st.queue || []).length) { qh.dataset.clr = 1; const b = document.createElement('button'); b.className = 'tab'; b.textContent = 'Leeren'; b.style.float = 'right'; b.onclick = () => cmd('do=clearqueue'); qh.appendChild(b); } }
+  fill($('queue'), st.queue || [], (t, i) => rowEl(t, {now: i === st.index, queue: false, onplay: () => cmd('do=jump&i=' + i), remove: () => cmd('do=unqueue&i=' + i), removeTitle: 'Aus der Warteschlange löschen'}), 'Leer – such dir was aus!');
 }
 
 // Playlist ohne Schlüssel auslesen (unsichtbarer zweiter YouTube-Player)

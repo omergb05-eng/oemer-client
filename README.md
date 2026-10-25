@@ -1,4 +1,4 @@
-# Ömer Client – Version 6
+# Ömer Client – Version 6.1
 
 Fabric-Mod für **Minecraft 1.21.11** (braucht **Fabric API**).
 
@@ -34,6 +34,12 @@ Kit anklicken = wechseln, **Speichern** merkt sich die aktuellen Einstellungen. 
   (öffnet sich automatisch, einmal „Musik starten“ klicken) – gesteuert wird aus Minecraft (Tasten + HUD). Ohne Premium.
 - **Spotify** bleibt wie in v5.
 
+## Löschen
+- **Musik:** ✕ bei jedem Song in *Meine Songs*, in Playlists und in der Warteschlange · „Alle Songs hier löschen“ · „Warteschlange leeren“
+- **Playlists im Spiel:** Namen eintippen → **＋ Erstellen**, bei einem Song auf **☰** → Playlist wählen, Playlist anklicken = Songs ansehen/löschen/gezielt abspielen
+- **Eigene Dateien:** kleines **✕** oben rechts auf deinen eigenen Hintergründen, Capes, Totems und Cosmetics (mit „Wirklich löschen?“), dazu Crosshair, Schematic und „Gespeichertes löschen“ pro Kit
+- Der Player im Browser hat die ✕ ebenfalls
+
 ## Material List
 `.litematic` oder `.schem` in `schematics/`. **Sneaken + Rechtsklick mit Spitzhacke auf eine Kiste** markiert sie,
 einmal öffnen – dann zählt ihr Inhalt in der Liste mit, und die Kiste leuchtet.
@@ -48,7 +54,7 @@ Alle Ordner liegen in `.minecraft/config/oemerclient/`. Cape, Cosmetics, Totem u
 ## .jar bekommen
 1. Auf GitHub im Repository oben auf **Actions** gehen.
 2. Den neuesten grünen Lauf öffnen → unten bei **Artifacts** `OemerClient-jar` herunterladen.
-3. Im ZIP liegt `oemer-client-6.0.0.jar` → in den `mods`-Ordner, zusammen mit **Fabric API**.
+3. Im ZIP liegt `oemer-client-6.1.0.jar` → in den `mods`-Ordner, zusammen mit **Fabric API**.
 
 ## Hinweis
 Free Cam basiert auf der Freecam-Mod (MIT), Distant Horizons ist LGPL-3.0, Fotos von Unsplash – siehe `THIRD_PARTY_NOTICES.md`.

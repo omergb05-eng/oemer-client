@@ -16,6 +16,7 @@ import com.oemer.client.feature.KitProfiles;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.MaterialList;
+import com.oemer.client.feature.OwnFiles;
 import com.oemer.client.feature.Music;
 import com.oemer.client.feature.PresetArt;
 import com.oemer.client.feature.SkinTotem;
@@ -28,6 +29,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
@@ -119,6 +121,10 @@ public class OmerScreen extends Screen {
 	private EditBox search;
 	private EditBox ytBox;
 	private EditBox keyBox;
+	private EditBox plBox;
+	/** Playlist, die gerade offen ist (null = Übersicht), und Song, der in eine Playlist soll. */
+	private static YouTubeMusic.Playlist openPlaylist;
+	private static YouTubeMusic.Track pickTrack;
 	private String focusName = "";
 	private KeyMapping listening;
 
@@ -172,6 +178,7 @@ public class OmerScreen extends Screen {
 		contentBaseY.clear();
 		ytBox = null;
 		keyBox = null;
+		plBox = null;
 
 		boolean narrow = this.width < 420;
 		sideW = narrow ? 34 : 104;
@@ -256,6 +263,7 @@ public class OmerScreen extends Screen {
 			case "search" -> search;
 			case "yt" -> ytBox;
 			case "key" -> keyBox;
+			case "pl" -> plBox;
 			default -> null;
 		};
 		if (focus != null) {
@@ -263,6 +271,17 @@ public class OmerScreen extends Screen {
 			focus.setFocused(true);
 		}
 		dynKey = dynamicKey();
+	}
+
+	/** „Wirklich löschen?“ – erst bei Ja wird die Aktion ausgeführt. */
+	private void confirmDelete(String what, Runnable action) {
+		this.minecraft.setScreen(new ConfirmScreen(yes -> {
+			this.minecraft.setScreen(this);
+			if (yes) {
+				action.run();
+				refresh();
+			}
+		}, Component.literal("Wirklich löschen?"), Component.literal(what)));
 	}
 
 	private void refresh() {
@@ -277,6 +296,7 @@ public class OmerScreen extends Screen {
 		return switch (section) {
 			case MUSIK -> YouTubeMusic.results().size() + ":" + (YouTubeMusic.results().isEmpty() ? "" : YouTubeMusic.results().get(0).id)
 					+ ":" + OemerConfig.get().ytLibrary.size() + ":" + OemerConfig.get().ytPlaylists.size() + ":" + YouTubeMusic.queue().size()
+					+ ":" + OemerConfig.get().ytPlaylists.stream().mapToInt(x -> x.tracks.size()).sum()
 					+ ":" + Spotify.status();
 			case SKIN -> CapeManager.choices().size() + ":" + LooksPack.totemChoices().size() + ":" + CustomCosmetics.files().size();
 			case DESIGN -> Looks.files().size() + "";
@@ -291,6 +311,7 @@ public class OmerScreen extends Screen {
 		String k = dynamicKey();
 		if (!k.equals(dynKey)) {
 			if (ytBox != null && ytBox.isFocused()) focusName = "yt";
+			if (plBox != null && plBox.isFocused()) focusName = "pl";
 			refresh();
 		}
 	}
@@ -660,6 +681,12 @@ public class OmerScreen extends Screen {
 			OemerConfig.save();
 			refresh();
 		}), OmerWidgets.Style.GLASS);
+		if (!c.crosshairSelection.startsWith("design:")) {
+			button("Gewähltes Crosshair löschen", () -> {
+				String sel = c.crosshairSelection;
+				confirmDelete("Crosshair „" + Crosshair.displayName(sel) + "“ löschen?", () -> OwnFiles.crosshair(sel));
+			}, OmerWidgets.Style.GLASS, "Löscht dein eigenes Bild");
+		}
 		heading("Vorlagen");
 		List<String> list = Crosshair.choices();
 		flow(Math.max(3, cw / 70), 64);
@@ -703,6 +730,10 @@ public class OmerScreen extends Screen {
 		cycle("Ort im HUD", OemerConfig.CORNERS, () -> c.materialListCorner, v -> c.materialListCorner = v);
 		button("Liste öffnen & abhaken", () -> this.minecraft.setScreen(new MaterialListScreen(this)), OmerWidgets.Style.PRIMARY);
 		button("Schematic-Ordner öffnen", () -> open(MaterialList.folder()), OmerWidgets.Style.GLASS);
+	button("Schematic löschen", () -> {
+		String sn = c.schematic;
+		if (!sn.isEmpty()) confirmDelete("Schematic „" + sn + "“ löschen?", () -> OwnFiles.schematic(sn));
+	}, OmerWidgets.Style.GLASS, "Löscht die gewählte Schematic-Datei");
 		if (c.schematic.isEmpty() && !MaterialList.files().isEmpty()) c.schematic = MaterialList.files().get(0);
 
 		heading("Kisten");
@@ -845,7 +876,9 @@ public class OmerScreen extends Screen {
 				c.lookImage = ch;
 				c.lookMode = true;
 				OemerConfig.save();
-			}).cover().badge(ch.startsWith(Looks.WEB) ? "" : "Eigenes"));
+			}).cover().badge(ch.startsWith(Looks.WEB) ? "" : "Eigenes")
+					.deletable(ch.startsWith(Looks.WEB) ? null : () -> confirmDelete("„" + Looks.displayName(ch) + "“ aus deinen Hintergründen löschen?",
+							() -> OwnFiles.look(ch))));
 			i++;
 		}
 		int gridBottom = gy + ((i + cols - 1) / cols) * (th + 6);
@@ -981,28 +1014,87 @@ public class OmerScreen extends Screen {
 		List<YouTubeMusic.Track> results = YouTubeMusic.results();
 		if (!results.isEmpty()) {
 			heading("Ergebnisse");
-			for (YouTubeMusic.Track t : results) trackRow(t, () -> YouTubeMusic.play(t), true);
+			for (YouTubeMusic.Track t : results) trackRow(t, () -> YouTubeMusic.play(t), TrackKind.RESULT, null, -1);
 		}
-		heading("♥ Meine Songs (" + c.ytLibrary.size() + ")");
-		if (c.ytLibrary.isEmpty()) note("Klick bei einem Song auf ♡ – dann landet er hier.");
-		for (int i = 0; i < c.ytLibrary.size(); i++) {
-			final int idx = i;
-			trackRow(c.ytLibrary.get(i), () -> YouTubeMusic.playList(c.ytLibrary, idx), true);
-		}
-		heading("Playlists");
-		if (c.ytPlaylists.isEmpty()) note("Füg oben einen YouTube-Playlist-Link ein – sie wird hier gespeichert.");
-		flow(cw >= 440 ? 2 : 1, ROW_H + 6);
-		for (YouTubeMusic.Playlist p : new ArrayList<>(c.ytPlaylists)) {
-			if (!match(p.name)) continue;
-			int[] s = flowSlot();
-			addContent(new OmerWidgets.Flat(s[0], s[1], s[2] - 30, s[3], "▶ " + p.name + " (" + p.tracks.size() + ")",
-					() -> YouTubeMusic.playList(p.tracks, 0)).tip("Playlist abspielen"));
-			addContent(new OmerWidgets.Flat(s[0] + s[2] - 26, s[1], 26, s[3], "✕", () -> {
-				YouTubeMusic.deletePlaylist(p);
+		// Ein Song soll in eine Playlist
+		if (pickTrack != null) {
+			final YouTubeMusic.Track pt = pickTrack;
+			openPlaylist = null;
+			heading("Zu Playlist hinzufügen");
+			note("„" + Draw.fit(pt.shownTitle(), cw - 70) + "“ – such dir eine Playlist aus oder erstell unten eine neue.");
+			flow(cw >= 440 ? 2 : 1, ROW_H);
+			for (YouTubeMusic.Playlist p : new ArrayList<>(c.ytPlaylists)) {
+				int[] sl = flowSlot();
+				addContent(new OmerWidgets.Flat(sl[0], sl[1], sl[2], sl[3], "＋ " + p.name + " (" + p.tracks.size() + ")", () -> {
+					YouTubeMusic.addToPlaylist(p, pt);
+					pickTrack = null;
+					refresh();
+				}).style(OmerWidgets.Style.PRIMARY));
+			}
+			int[] sl = flowSlot();
+			addContent(new OmerWidgets.Flat(sl[0], sl[1], sl[2], sl[3], "Abbrechen", () -> {
+				pickTrack = null;
 				refresh();
-			}).tip("Playlist löschen"));
+			}));
+			endFlow();
 		}
-		endFlow();
+		if (openPlaylist != null && !c.ytPlaylists.contains(openPlaylist)) openPlaylist = null;
+		if (openPlaylist != null) {
+			buildPlaylistDetail(openPlaylist);
+		} else {
+			// Warteschlange
+			List<YouTubeMusic.Track> queue = YouTubeMusic.queue();
+			if (!queue.isEmpty()) {
+				heading("Warteschlange (" + queue.size() + ")");
+				button("Warteschlange leeren", () -> {
+					YouTubeMusic.clearQueue();
+					refresh();
+				}, OmerWidgets.Style.GLASS, "Wirft alle Songs aus der Warteschlange und stoppt die Musik");
+				endFlow();
+				for (int i = 0; i < queue.size(); i++) {
+					final int idx = i;
+					trackRow(queue.get(i), () -> YouTubeMusic.jump(idx), TrackKind.QUEUE, null, idx);
+				}
+			}
+			heading("♥ Meine Songs (" + c.ytLibrary.size() + ")");
+			if (c.ytLibrary.isEmpty()) {
+				note("Klick bei einem Song auf ♡ – dann landet er hier.");
+			} else {
+				button("Alle Songs hier löschen", () -> confirmDelete("Alle " + c.ytLibrary.size() + " Songs aus „Meine Songs“ löschen?",
+						YouTubeMusic::clearLibrary), OmerWidgets.Style.GLASS, "Leert Meine Songs (Playlists bleiben)");
+				endFlow();
+			}
+			for (int i = 0; i < c.ytLibrary.size(); i++) {
+				final int idx = i;
+				trackRow(c.ytLibrary.get(i), () -> YouTubeMusic.playList(c.ytLibrary, idx), TrackKind.LIBRARY, null, idx);
+			}
+			heading("Playlists");
+			// Neue Playlist direkt im Spiel
+			plBox = new EditBox(this.font, cx0 + 10, cy + 8, cw - 120, 12, Component.literal("Playlist"));
+			plBox.setBordered(false);
+			plBox.setMaxLength(40);
+			plBox.setTextColor(0xFFFFFFFF);
+			plBox.setHint(Component.literal("Name für eine neue Playlist …"));
+			addContent(plBox);
+			addContent(new OmerWidgets.Flat(cx0 + cw - 100, cy, 100, ROW_H, "＋ Erstellen", this::createPlaylistFromBox)
+					.style(OmerWidgets.Style.PRIMARY).tip("Neue leere Playlist – Songs fügst du mit ☰ hinzu"));
+			cy += ROW_H + GAP;
+			if (c.ytPlaylists.isEmpty()) note("Noch keine Playlist. Name eingeben + Erstellen, oder oben einen YouTube-Playlist-Link einfügen.");
+			flow(cw >= 440 ? 2 : 1, ROW_H + 6);
+			for (YouTubeMusic.Playlist p : new ArrayList<>(c.ytPlaylists)) {
+				if (!match(p.name)) continue;
+				int[] sl = flowSlot();
+				addContent(new OmerWidgets.Flat(sl[0], sl[1], sl[2] - 62, sl[3], "☰ " + p.name + " (" + p.tracks.size() + ")", () -> {
+					openPlaylist = p;
+					scroll = 0;
+					refresh();
+				}).tip("Playlist öffnen – Songs ansehen, aussuchen, löschen"));
+				addContent(new OmerWidgets.Flat(sl[0] + sl[2] - 58, sl[1], 26, sl[3], "▶", () -> YouTubeMusic.playList(p.tracks, 0)).tip("Playlist abspielen"));
+				addContent(new OmerWidgets.Flat(sl[0] + sl[2] - 28, sl[1], 26, sl[3], "✕", () ->
+						confirmDelete("Playlist „" + p.name + "“ mit " + p.tracks.size() + " Songs löschen?", () -> YouTubeMusic.deletePlaylist(p))).tip("Playlist löschen"));
+			}
+			endFlow();
+		}
 		heading("Einstellungen");
 		button("Player im Browser öffnen", YouTubeMusic::openPlayer, OmerWidgets.Style.GLASS,
 				"Die Musik läuft im offiziellen YouTube-Player in deinem Browser – Tab einfach offen lassen");
@@ -1038,14 +1130,95 @@ public class OmerScreen extends Screen {
 				: "Beim ersten Song öffnet sich der Ömer-Player im Browser (kostenlos, ohne Premium).");
 	}
 
-	private void trackRow(YouTubeMusic.Track t, Runnable play, boolean withButtons) {
+	private enum TrackKind { RESULT, LIBRARY, PLAYLIST, QUEUE }
+
+	private void createPlaylistFromBox() {
+		String name = plBox == null ? "" : plBox.getValue();
+		YouTubeMusic.Playlist p = YouTubeMusic.createPlaylist(name);
+		if (pickTrack != null) {
+			YouTubeMusic.addToPlaylist(p, pickTrack);
+			pickTrack = null;
+		}
+		focusName = "";
+		refresh();
+	}
+
+	private void buildPlaylistDetail(YouTubeMusic.Playlist p) {
+		heading("☰ " + p.name + " (" + p.tracks.size() + " Songs)");
+		button("◀ Zurück", () -> {
+			openPlaylist = null;
+			scroll = 0;
+			refresh();
+		}, OmerWidgets.Style.GLASS);
+		button("▶ Abspielen", () -> YouTubeMusic.playList(p.tracks, 0), OmerWidgets.Style.PRIMARY);
+		button("✕ Playlist löschen", () -> confirmDelete("Playlist „" + p.name + "“ mit " + p.tracks.size() + " Songs löschen?", () -> {
+			YouTubeMusic.deletePlaylist(p);
+			openPlaylist = null;
+		}), OmerWidgets.Style.GLASS);
+		endFlow();
+		if (p.tracks.isEmpty()) note("Leer – klick bei einem Song auf ☰ und wähl diese Playlist.");
+		else note("Klick auf einen Song = genau den hören · ✕ = aus der Playlist löschen");
+		for (int i = 0; i < p.tracks.size(); i++) {
+			final int idx = i;
+			trackRow(p.tracks.get(i), () -> YouTubeMusic.playList(p.tracks, idx), TrackKind.PLAYLIST, p, idx);
+		}
+	}
+
+	private void trackRow(YouTubeMusic.Track t, Runnable play, TrackKind kind, YouTubeMusic.Playlist pl, int idx) {
 		if (!match(t.title, t.artist)) return;
 		endFlow();
-		int w = cw - (withButtons ? 64 : 0);
+		List<String> labels = new ArrayList<>();
+		List<String> tips = new ArrayList<>();
+		List<Runnable> acts = new ArrayList<>();
+		Runnable toQueue = () -> YouTubeMusic.enqueue(t);
+		Runnable heart = () -> {
+			YouTubeMusic.toggleLibrary(t);
+			refresh();
+		};
+		Runnable toList = () -> {
+			pickTrack = t;
+			openPlaylist = null;
+			scroll = 0;
+			refresh();
+		};
+		String heartLabel = YouTubeMusic.inLibrary(t.id) ? "♥" : "♡";
+		switch (kind) {
+			case RESULT -> {
+				labels.addAll(List.of("＋", heartLabel, "☰"));
+				tips.addAll(List.of("In die Warteschlange", "Zu Meine Songs", "Zu einer Playlist hinzufügen"));
+				acts.addAll(List.of(toQueue, heart, toList));
+			}
+			case LIBRARY -> {
+				labels.addAll(List.of("＋", "☰", "✕"));
+				tips.addAll(List.of("In die Warteschlange", "Zu einer Playlist hinzufügen", "Aus Meine Songs löschen"));
+				acts.addAll(List.of(toQueue, toList, () -> {
+					YouTubeMusic.removeFromLibrary(t);
+					refresh();
+				}));
+			}
+			case PLAYLIST -> {
+				labels.addAll(List.of("＋", heartLabel, "✕"));
+				tips.addAll(List.of("In die Warteschlange", "Zu Meine Songs", "Aus der Playlist löschen"));
+				acts.addAll(List.of(toQueue, heart, () -> {
+					YouTubeMusic.removeFromPlaylist(pl, t);
+					refresh();
+				}));
+			}
+			default -> {
+				labels.add("✕");
+				tips.add("Aus der Warteschlange löschen");
+				acts.add(() -> {
+					YouTubeMusic.removeFromQueue(idx);
+					refresh();
+				});
+			}
+		}
+		int n = labels.size();
+		int w = cw - n * 32;
 		addContent(new OmerWidgets.Painter(cx0, cy, w, 30, (g, x, y, ww, h, mx, my) -> {
 			boolean hover = mx >= x && mx < x + ww && my >= y && my < y + h;
 			YouTubeMusic.Track cur = YouTubeMusic.current();
-			boolean now = cur != null && cur.id.equals(t.id);
+			boolean now = cur != null && cur.id.equals(t.id) && (kind != TrackKind.QUEUE || idx == YouTubeMusic.index());
 			Draw.round(g, x, y, ww, h, 5, now ? Theme.accent(0x30) : Theme.white(hover ? 0x18 : 0x0A));
 			int iw = 44;
 			Draw.round(g, x + 3, y + 3, iw, h - 6, 3, Theme.white(0x12));
@@ -1058,12 +1231,8 @@ public class OmerScreen extends Screen {
 			Draw.text(g, Draw.fit(t.artist, ww - iw - 40), x + iw + 10, y + 17, Theme.TEXT_DIM);
 			if (hover || now) Draw.text(g, now ? "♪" : "▶", x + ww - 14, y + 11, Theme.accent());
 		}, play));
-		if (withButtons) {
-			addContent(new OmerWidgets.Flat(cx0 + w + 4, cy, 28, 30, "＋", () -> YouTubeMusic.enqueue(t)).tip("In die Warteschlange"));
-			addContent(new OmerWidgets.Flat(cx0 + w + 34, cy, 28, 30, YouTubeMusic.inLibrary(t.id) ? "♥" : "♡", () -> {
-				YouTubeMusic.toggleLibrary(t);
-				refresh();
-			}).tip("Zu Meine Songs"));
+		for (int k = 0; k < n; k++) {
+			addContent(new OmerWidgets.Flat(cx0 + w + 4 + k * 32, cy, 28, 30, labels.get(k), acts.get(k)).tip(tips.get(k)));
 		}
 		cy += 30 + 4;
 	}
@@ -1157,7 +1326,9 @@ public class OmerScreen extends Screen {
 				c.customCape = true;
 				CapeManager.invalidate();
 				OemerConfig.save();
-			}).badge(ch.startsWith("design:") ? "" : "Eigenes"));
+			}).badge(ch.startsWith("design:") ? "" : "Eigenes")
+					.deletable(ch.startsWith("design:") ? null : () -> confirmDelete("Cape „" + CapeManager.displayName(ch) + "“ löschen?",
+							() -> OwnFiles.cape(ch))));
 		}
 		endFlow();
 		info(() -> "Bilder werden automatisch aufs Cape zugeschnitten.");
@@ -1249,7 +1420,9 @@ public class OmerScreen extends Screen {
 				c.customTotem = true;
 				looksChanged = true;
 				OemerConfig.save();
-			}).badge("Eigenes"));
+			}).badge("Eigenes").deletable(() -> confirmDelete("Totem „" + LooksPack.displayName(f) + "“ löschen?", () -> {
+				if (OwnFiles.totem(f)) looksChanged = true;
+			})));
 		}
 		endFlow();
 		info(() -> "Totems sind jetzt 256x256 – Fotos bleiben scharf. Lädt beim Schließen vom Menü.");
@@ -1305,7 +1478,7 @@ public class OmerScreen extends Screen {
 			}), () -> SpriteCosmetics.equipped(slot).equals(it.id()), () -> {
 				SpriteCosmetics.equip(slot, it.id());
 				refresh();
-			}));
+			}).deletable(() -> confirmDelete("Cosmetic „" + it.name() + "“ löschen?", () -> OwnFiles.cosmetic(file))));
 		}
 		endFlow();
 		info(() -> inWorld ? "Klick = ausrüsten/ablegen · pro Platz eins · F5 = dich von außen sehen"
@@ -1388,6 +1561,10 @@ public class OmerScreen extends Screen {
 		p = flowSlot();
 		addContent(new OmerWidgets.Flat(p[0], p[1], p[2], p[3], "Minecraft-Optionen", () ->
 				this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options))).tip("FOV, Maus, Grafik … – danach hier speichern"));
+		p = flowSlot();
+		addContent(new OmerWidgets.Flat(p[0], p[1], p[2], p[3], "✕ Gespeichertes löschen", () ->
+				confirmDelete("Die gespeicherten Einstellungen von Kit „" + KitProfiles.name(KitProfiles.active()) + "“ löschen?",
+						() -> KitProfiles.delete(KitProfiles.active()))).tip("Löscht nur die Kit-Datei – deine aktuellen Einstellungen bleiben"));
 		endFlow();
 		toggle("Beim Wechseln automatisch speichern", () -> c.kitAutoSave, v -> c.kitAutoSave = v,
 				"Speichert das alte Kit, bevor das neue geladen wird");
@@ -1504,7 +1681,16 @@ public class OmerScreen extends Screen {
 			focusName = "yt";
 			return true;
 		}
-		if (event.key() == GLFW.GLFW_KEY_ESCAPE && openMod != null) {
+		if ((event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) && plBox != null && plBox.isFocused()) {
+		createPlaylistFromBox();
+		return true;
+	}
+	if (event.key() == GLFW.GLFW_KEY_ESCAPE && pickTrack != null) {
+		pickTrack = null;
+		refresh();
+		return true;
+	}
+	if (event.key() == GLFW.GLFW_KEY_ESCAPE && openMod != null) {
 			openMod = null;
 			refresh();
 			return true;
@@ -1733,6 +1919,12 @@ public class OmerScreen extends Screen {
 	/** Für den automatischen Test: Suchbegriff setzen. */
 	public void searchForTest(String q) {
 		search.setValue(q);
+	}
+
+	/** Für den automatischen Test: Playlist öffnen / Song zum Hinzufügen wählen. */
+	public static void musicForTest(YouTubeMusic.Playlist open, YouTubeMusic.Track pick) {
+		openPlaylist = open;
+		pickTrack = pick;
 	}
 
 	/** Für den automatischen Test: Bereich öffnen. */

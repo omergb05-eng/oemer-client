@@ -315,6 +315,8 @@ public final class OmerWidgets {
 		private final Runnable action;
 		private String badge = "";
 		private boolean wide;
+		private Runnable onDelete;
+		private double clickX = -1, clickY = -1;
 
 		public Tile(int x, int y, int w, int h, String label, Supplier<com.oemer.client.feature.Textures.Tex> image,
 					BooleanSupplier selected, Runnable action) {
@@ -327,6 +329,12 @@ public final class OmerWidgets {
 		/** Kleines Schild oben links, z. B. "Eigenes". */
 		public Tile badge(String text) {
 			this.badge = text;
+			return this;
+		}
+
+		/** Kleines ✕ oben rechts: löscht das Bild (die Frage „Wirklich löschen?“ stellt der Aufrufer). */
+		public Tile deletable(Runnable onDelete) {
+			this.onDelete = onDelete;
 			return this;
 		}
 
@@ -367,19 +375,36 @@ public final class OmerWidgets {
 				Draw.round(g, x + 5, y + 5, bw, 11, 5, 0xC0000000);
 				Draw.text(g, badge, x + 9, y + 7, Theme.TEXT_SOFT);
 			}
+			if (onDelete != null) {
+				boolean over = mouseX >= x + w - 19 && mouseX < x + w - 3 && mouseY >= y + 3 && mouseY < y + 19;
+				Draw.round(g, x + w - 17, y + 5, 12, 12, 6, over ? 0xF0D83A3A : 0xB0000000);
+				Draw.text(g, "✕", x + w - 14, y + 7, over ? 0xFFFFFFFF : Theme.TEXT_SOFT);
+			}
 			if (sel) {
 				Draw.roundBorder(g, x, y, w, h, 6, Theme.accent(0xF0));
-				Draw.round(g, x + w - 17, y + 5, 12, 12, 6, Theme.accent(0xF0));
+				int kx = onDelete != null ? x + w - 31 : x + w - 17;
+				Draw.round(g, kx, y + 5, 12, 12, 6, Theme.accent(0xF0));
 				int knob = (Theme.accent() & 0xFFFFFF) == 0xFFFFFF ? 0xFF0B0B0F : 0xFFFFFFFF;
-				Draw.text(g, "✔", x + w - 14, y + 7, knob);
+				Draw.text(g, "✔", kx + 3, y + 7, knob);
 			} else {
 				Draw.roundBorder(g, x, y, w, h, 6, Theme.border(hover));
 			}
 		}
 
 		@Override
+		public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+			clickX = event.x();
+			clickY = event.y();
+			return super.mouseClicked(event, doubleClick);
+		}
+
+		@Override
 		public void onPress(InputWithModifiers input) {
-			action.run();
+			boolean corner = onDelete != null && clickX >= getX() + width - 20 && clickY <= getY() + 20;
+			clickX = -1;
+			clickY = -1;
+			if (corner) onDelete.run();
+			else action.run();
 		}
 	}
 

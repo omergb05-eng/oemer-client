@@ -8,6 +8,7 @@ import com.oemer.client.feature.ImageTools;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.MaterialList;
+import com.oemer.client.feature.OwnFiles;
 import com.oemer.client.feature.Sounds;
 import com.oemer.client.gui.CapeEditorScreen;
 import com.oemer.client.gui.MaterialListScreen;
@@ -43,7 +44,9 @@ import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.world.item.Items;
 import org.lwjgl.glfw.GLFW;
 
+import java.awt.image.BufferedImage;
 import java.io.InputStream;
+import javax.imageio.ImageIO;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -245,7 +248,145 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		YouTubeMusic.Track zoo = YouTubeMusic.resolve("jNQXAC9IVRw");
 		check("yt-oembed", zoo.title.toLowerCase().contains("zoo"), zoo.title);
 
-		// ---------------------------------------------- Spotify (ohne Konto: nur prüfen, was offline geht)
+		// ---------------------------------------------- Songs löschen, Playlists im Spiel
+	httpGet(page + "api/state"); // Player-Seite gilt als verbunden → im Browser öffnet sich nichts
+	YouTubeMusic.Track[] tr = {
+			new YouTubeMusic.Track("jNQXAC9IVRw", "Me at the zoo", "jawed"),
+			new YouTubeMusic.Track("dQw4w9WgXcQ", "Madison Beer - Fools (Lyrics)", "Good Taste Only"),
+			new YouTubeMusic.Track("9bZkp7q19f0", "Madison Beer - bittersweet (Lyrics)", "Vibe Music"),
+			new YouTubeMusic.Track("kJQP7kiw5Fk", "Madison Beer - yes baby (Lyrics)", "Vibe Music")};
+	ctx.runOnClient(mc -> {
+		OemerConfig c = OemerConfig.get();
+		c.ytLibrary.clear();
+		c.ytPlaylists.clear();
+		YouTubeMusic.clearQueue();
+		for (YouTubeMusic.Track t : tr) YouTubeMusic.toggleLibrary(t);
+	});
+	check("lib-add", ctx.computeOnClient(mc -> OemerConfig.get().ytLibrary.size() == 4), "");
+	ctx.runOnClient(mc -> YouTubeMusic.removeFromLibrary(tr[0]));
+	check("lib-remove", ctx.computeOnClient(mc -> OemerConfig.get().ytLibrary.size() == 3 && !YouTubeMusic.inLibrary(tr[0].id)), "");
+
+	YouTubeMusic.Playlist[] pls = new YouTubeMusic.Playlist[2];
+	ctx.runOnClient(mc -> {
+		pls[0] = YouTubeMusic.createPlaylist("Test Liste");
+		pls[1] = YouTubeMusic.createPlaylist("Test Liste");
+		for (int i = 1; i < 4; i++) YouTubeMusic.addToPlaylist(pls[0], tr[i]);
+		YouTubeMusic.addToPlaylist(pls[0], tr[1]); // doppelt → ignoriert
+	});
+	check("playlist-create", pls[0].name.equals("Test Liste") && pls[0].tracks.size() == 3, pls[0].name + " " + pls[0].tracks.size());
+	check("playlist-unique-name", pls[1].name.equals("Test Liste 2"), pls[1].name);
+	ctx.runOnClient(mc -> YouTubeMusic.removeFromPlaylist(pls[0], tr[2]));
+	check("playlist-track-remove", pls[0].tracks.size() == 2 && pls[0].tracks.stream().noneMatch(t -> t.id.equals(tr[2].id)), "");
+
+	// Menü: Meine Songs mit ✕, Playlist-Verwaltung, Song zu Playlist
+	OemerScreen.sectionForTest("MUSIK", null);
+	OemerScreen.musicForTest(null, null);
+	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+	ctx.waitTicks(30);
+	ctx.takeScreenshot("11a-musik-loeschen");
+	ctx.runOnClient(mc -> mc.screen.mouseScrolled(mc.screen.width / 2.0, mc.screen.height / 2.0, 0, -12));
+	ctx.waitTicks(10);
+	ctx.takeScreenshot("11b-musik-playlists");
+	OemerScreen.musicForTest(null, tr[3]);
+	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+	ctx.waitTicks(20);
+	ctx.takeScreenshot("11c-musik-zu-playlist");
+	OemerScreen.musicForTest(pls[0], null);
+	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+	ctx.waitTicks(30);
+	ctx.takeScreenshot("11d-musik-playlist-offen");
+	check("playlist-open-menu", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
+	OemerScreen.musicForTest(null, null);
+
+	// Warteschlange: Song entfernen, aktueller Song entfernen, leeren
+	httpGet(page + "api/state");
+	ctx.runOnClient(mc -> {
+		YouTubeMusic.enqueue(tr[1]);
+		YouTubeMusic.enqueue(tr[2]);
+		YouTubeMusic.enqueue(tr[3]);
+	});
+	check("queue-add", YouTubeMusic.queue().size() == 3 && YouTubeMusic.current() != null && YouTubeMusic.current().id.equals(tr[1].id), "");
+	ctx.runOnClient(mc -> YouTubeMusic.removeFromQueue(2));
+	check("queue-remove", YouTubeMusic.queue().size() == 2 && YouTubeMusic.index() == 0, "size=" + YouTubeMusic.queue().size());
+	httpGet(page + "api/state");
+	ctx.runOnClient(mc -> YouTubeMusic.removeFromQueue(0));
+	check("queue-remove-current", YouTubeMusic.queue().size() == 1 && YouTubeMusic.current() != null && YouTubeMusic.current().id.equals(tr[2].id), "");
+	httpGet(page + "api/cmd?do=clearqueue");
+	check("queue-clear", YouTubeMusic.queue().isEmpty() && YouTubeMusic.current() == null, "");
+	// dieselben Löschbefehle wie in der Player-Seite
+	httpGet(page + "api/cmd?do=unlib&id=" + tr[1].id);
+	check("web-unlib", !YouTubeMusic.inLibrary(tr[1].id), "");
+	httpGet(page + "api/cmd?do=unpl&p=0&id=" + tr[3].id);
+	check("web-unpl", pls[0].tracks.size() == 1, "" + pls[0].tracks.size());
+	httpGet(page + "api/cmd?do=delpl&p=1");
+	check("web-delpl", ctx.computeOnClient(mc -> OemerConfig.get().ytPlaylists.size() == 1), "");
+	ctx.runOnClient(mc -> {
+		YouTubeMusic.clearLibrary();
+		YouTubeMusic.deletePlaylist(pls[0]);
+	});
+	check("lib-playlist-clear", ctx.computeOnClient(mc -> OemerConfig.get().ytLibrary.isEmpty() && OemerConfig.get().ytPlaylists.isEmpty()), "");
+
+	// ---------------------------------------------- Eigene Dateien löschen (Design, Cape, Totem, Cosmetic, Crosshair, Schematic, Kit)
+	ctx.runOnClient(mc -> {
+		try {
+			BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+			for (int x = 0; x < 16; x++) for (int y = 0; y < 16; y++) img.setRGB(x, y, 0xFFFF4F9A);
+			for (Path dir : new Path[]{Looks.folder(), CapeManager.folder(), LooksPack.totemFolder(), CustomCosmetics.folder(), Crosshair.folder()}) {
+				Files.createDirectories(dir);
+				ImageIO.write(img, "png", dir.resolve("zz_del.png").toFile());
+			}
+			Files.createDirectories(MaterialList.folder());
+			Files.writeString(MaterialList.folder().resolve("zz_del.litematic"), "x");
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		OemerConfig c = OemerConfig.get();
+		c.lookImage = "zz_del.png";
+		c.lookMode = true;
+	});
+	OemerScreen.sectionForTest("DESIGN", null);
+	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+	ctx.waitFor(mc -> Looks.photoReady(0), 600);
+	ctx.waitTicks(40);
+	ctx.takeScreenshot("11e-design-loeschen");
+	ctx.runOnClient(mc -> OwnFiles.look("zz_del.png"));
+	check("delete-look", ctx.computeOnClient(mc -> !Files.exists(Looks.folder().resolve("zz_del.png")) && OemerConfig.get().lookImage.equals("web:0")), "");
+	ctx.runOnClient(mc -> {
+		OemerConfig.get().capeSelection = "zz_del.png";
+		OwnFiles.cape("zz_del.png");
+	});
+	check("delete-cape", ctx.computeOnClient(mc -> !Files.exists(CapeManager.folder().resolve("zz_del.png")) && OemerConfig.get().capeSelection.equals("design:0")), "");
+	boolean[] wasTotem = new boolean[1];
+	ctx.runOnClient(mc -> {
+		OemerConfig c = OemerConfig.get();
+		c.totemMode = 0;
+		c.totemSelection = "zz_del.png";
+		wasTotem[0] = OwnFiles.totem("zz_del.png");
+	});
+	check("delete-totem", wasTotem[0] && ctx.computeOnClient(mc -> !Files.exists(LooksPack.totemFolder().resolve("zz_del.png")) && OemerConfig.get().totemSelection.isEmpty()), "");
+	ctx.runOnClient(mc -> {
+		SpriteCosmetics.equip(SpriteCosmetics.Slot.HEAD, "custom:zz_del.png");
+		OwnFiles.cosmetic("zz_del.png");
+	});
+	check("delete-cosmetic", ctx.computeOnClient(mc -> !Files.exists(CustomCosmetics.folder().resolve("zz_del.png"))
+			&& SpriteCosmetics.equipped(SpriteCosmetics.Slot.HEAD).isEmpty()), "");
+	ctx.runOnClient(mc -> {
+		OemerConfig.get().crosshairSelection = "zz_del.png";
+		OwnFiles.crosshair("zz_del.png");
+	});
+	check("delete-crosshair", ctx.computeOnClient(mc -> !Files.exists(Crosshair.folder().resolve("zz_del.png"))
+			&& OemerConfig.get().crosshairSelection.equals("design:0")), "");
+	ctx.runOnClient(mc -> OwnFiles.schematic("zz_del.litematic"));
+	check("delete-schematic", ctx.computeOnClient(mc -> !Files.exists(MaterialList.folder().resolve("zz_del.litematic"))), "");
+	check("delete-safe-path", ctx.computeOnClient(mc -> !OwnFiles.remove(Looks.folder(), "../oemerclient.json") && !OwnFiles.remove(Looks.folder(), "a/b.png")), "");
+	check("delete-kit", ctx.computeOnClient(mc -> {
+		KitProfiles.save(4);
+		boolean saved = KitProfiles.hasSaved(4);
+		KitProfiles.delete(4);
+		return saved && !KitProfiles.hasSaved(4);
+	}), "");
+
+	// ---------------------------------------------- Spotify (ohne Konto: nur prüfen, was offline geht)
 		check("spotify-pkce", ctx.computeOnClient(mc -> {
 			try {
 				return Spotify.challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk").equals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");

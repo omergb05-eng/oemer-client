@@ -40,6 +40,15 @@ public final class KitProfiles {
 		return folder().resolve(Math.floorMod(kit, OemerConfig.KITS.length) + "_" + name + ".txt");
 	}
 
+	/** Gespeicherte Einstellungen dieses Kits löschen (die aktuellen Minecraft-Einstellungen bleiben, wie sie sind). */
+	public static boolean delete(int kit) {
+		try {
+			return Files.deleteIfExists(file(kit));
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
 	public static boolean hasSaved(int kit) {
 		return Files.isRegularFile(file(kit));
 	}

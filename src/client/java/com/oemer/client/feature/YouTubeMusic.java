@@ -360,6 +360,74 @@ public final class YouTubeMusic {
 		OemerConfig.save();
 	}
 
+	/** Neue, leere Playlist (Name wird bei Bedarf durchnummeriert). */
+	public static Playlist createPlaylist(String name) {
+		OemerConfig c = OemerConfig.get();
+		String base = name == null || name.isBlank() ? "Meine Playlist" : name.trim();
+		String n = base;
+		int k = 2;
+		while (true) {
+			final String test = n;
+			if (c.ytPlaylists.stream().noneMatch(p -> p.name.equalsIgnoreCase(test))) break;
+			n = base + " " + k++;
+		}
+		Playlist p = new Playlist(n);
+		c.ytPlaylists.add(p);
+		OemerConfig.save();
+		return p;
+	}
+
+	public static void addToPlaylist(Playlist p, Track t) {
+		if (p.tracks.stream().noneMatch(x -> x.id.equals(t.id))) p.tracks.add(t);
+		OemerConfig.save();
+	}
+
+	public static void removeFromPlaylist(Playlist p, Track t) {
+		p.tracks.removeIf(x -> x.id.equals(t.id));
+		OemerConfig.save();
+	}
+
+	public static void removeFromLibrary(Track t) {
+		OemerConfig.get().ytLibrary.removeIf(x -> x.id.equals(t.id));
+		OemerConfig.save();
+	}
+
+	public static void clearLibrary() {
+		OemerConfig.get().ytLibrary.clear();
+		OemerConfig.save();
+	}
+
+	/** Song aus der Warteschlange nehmen. Läuft er gerade, geht es mit dem nächsten weiter. */
+	public static void removeFromQueue(int i) {
+		boolean restart = false;
+		synchronized (QUEUE) {
+			if (i < 0 || i >= QUEUE.size()) return;
+			QUEUE.remove(i);
+			if (QUEUE.isEmpty()) {
+				index = -1;
+				wantPlay = false;
+			} else if (i < index) {
+				index--;
+			} else if (i == index) {
+				if (index >= QUEUE.size()) {
+					index = OemerConfig.get().ytRepeat ? 0 : QUEUE.size() - 1;
+					wantPlay = wantPlay && OemerConfig.get().ytRepeat;
+				}
+				restart = wantPlay;
+			}
+		}
+		if (restart) startCurrent();
+	}
+
+	public static void clearQueue() {
+		synchronized (QUEUE) {
+			QUEUE.clear();
+			index = -1;
+		}
+		wantPlay = false;
+		seq++;
+	}
+
 	// ------------------------------------------- Suchen / Link einfügen
 
 	/**
@@ -658,6 +726,26 @@ public final class YouTubeMusic {
 				String id = q.getOrDefault("id", "");
 				Track t = findKnown(id);
 				if (t != null) toggleLibrary(t);
+			}
+			case "unqueue" -> removeFromQueue((int) parseLong(q.get("i")));
+			case "clearqueue" -> clearQueue();
+			case "unlib" -> {
+				Track t = findKnown(q.getOrDefault("id", ""));
+				if (t != null) removeFromLibrary(t);
+			}
+			case "unpl" -> {
+				int p = (int) parseLong(q.get("p"));
+				List<Playlist> pls = OemerConfig.get().ytPlaylists;
+				if (p >= 0 && p < pls.size()) {
+					String id = q.getOrDefault("id", "");
+					pls.get(p).tracks.removeIf(x -> x.id.equals(id));
+					OemerConfig.save();
+				}
+			}
+			case "delpl" -> {
+				int p = (int) parseLong(q.get("p"));
+				List<Playlist> pls = OemerConfig.get().ytPlaylists;
+				if (p >= 0 && p < pls.size()) deletePlaylist(pls.get(p));
 			}
 			case "playlib" -> playList(OemerConfig.get().ytLibrary, (int) parseLong(q.get("i")));
 			case "playpl" -> {
