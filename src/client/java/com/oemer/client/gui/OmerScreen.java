@@ -16,6 +16,7 @@ import com.oemer.client.feature.KitProfiles;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.MaterialList;
+import com.oemer.client.feature.NameStyle;
 import com.oemer.client.feature.OwnFiles;
 import com.oemer.client.feature.Music;
 import com.oemer.client.feature.PresetArt;
@@ -122,6 +123,7 @@ public class OmerScreen extends Screen {
 	private EditBox ytBox;
 	private EditBox keyBox;
 	private EditBox plBox;
+	private EditBox nameBox;
 	/** Playlist, die gerade offen ist (null = Übersicht), und Song, der in eine Playlist soll. */
 	private static YouTubeMusic.Playlist openPlaylist;
 	private static YouTubeMusic.Track pickTrack;
@@ -179,6 +181,7 @@ public class OmerScreen extends Screen {
 		ytBox = null;
 		keyBox = null;
 		plBox = null;
+		nameBox = null;
 
 		boolean narrow = this.width < 420;
 		sideW = narrow ? 34 : 104;
@@ -264,6 +267,7 @@ public class OmerScreen extends Screen {
 			case "yt" -> ytBox;
 			case "key" -> keyBox;
 			case "pl" -> plBox;
+			case "nm" -> nameBox;
 			default -> null;
 		};
 		if (focus != null) {
@@ -312,6 +316,7 @@ public class OmerScreen extends Screen {
 		if (!k.equals(dynKey)) {
 			if (ytBox != null && ytBox.isFocused()) focusName = "yt";
 			if (plBox != null && plBox.isFocused()) focusName = "pl";
+			if (nameBox != null && nameBox.isFocused()) focusName = "nm";
 			refresh();
 		}
 	}
@@ -525,6 +530,12 @@ public class OmerScreen extends Screen {
 		l.add(new ModInfo("shulker", "▣", "Shulker Box Tooltip", "Inhalt als Raster im Tooltip", () -> c.shulkerTooltip, v -> c.shulkerTooltip = v, null));
 		l.add(new ModInfo("smalltotem", "✦", "Smaller Totem", "Kleineres Totem + Animation", () -> c.smallerTotem, v -> c.smallerTotem = v, null));
 		l.add(new ModInfo("tnttimer", "⏱", "TNT Timer", "Sekunden bis zur Explosion", () -> c.tntTimer, v -> c.tntTimer = v, null));
+		l.add(new ModInfo("noexplosion", "✹", "No Explosion Particles", "Keine Explosions-Wolken", () -> c.noExplosionParticles, v -> c.noExplosionParticles = v, null));
+		l.add(new ModInfo("clearportal", "◈", "Transparente Netherportale", "Portale durchsichtig", () -> c.clearPortal, v -> {
+			c.clearPortal = v;
+			looksChanged = true;
+		}, null));
+		l.add(new ModInfo("customname", "✎", "Own Custom Name", "Name mit Farbe, Verlauf, Rainbow", () -> c.customName, v -> c.customName = v, null));
 		l.add(new ModInfo("musichud", "♪", "Musik-HUD", "Zeigt den Song im Spiel", () -> c.spotifyHud, v -> c.spotifyHud = v, null));
 		l.add(new ModInfo("cosmetics", "☺", "Cosmetics", "Deine eigenen Bild-Cosmetics", () -> c.cosmeticsOn, v -> c.cosmeticsOn = v, null));
 		l.add(new ModInfo("totem", "♥", "Custom Totem", "Eigenes Totem-Bild", () -> c.customTotem, v -> {
@@ -631,6 +642,16 @@ public class OmerScreen extends Screen {
 						: "Distant Horizons ist nicht geladen.");
 				info(() -> "Braucht viel Leistung – für PvP lieber aus.");
 			}
+			case "noexplosion" -> info(() -> "Explosionen machen weiter Geräusche und Schaden – nur die Rauch-/Explosions-Wolken fehlen.");
+			case "clearportal" -> {
+				cycle("Wie durchsichtig", OemerConfig.PORTAL_NAMES, () -> c.portalLevel, v -> {
+					c.portalLevel = v;
+					looksChanged = true;
+				});
+				toggle("Portal-Wackeln beim Durchgehen aus", () -> c.portalOverlayOff, v -> c.portalOverlayOff = v, "Kein lila Bildschirm, wenn du im Portal stehst");
+				info(() -> "Die Textur wird beim Schließen vom Menü geladen (dauert kurz).");
+			}
+			case "customname" -> buildCustomName();
 			case "lowfire" -> cycle("Wie tief", OemerConfig.LOW_NAMES, () -> c.lowFireLevel, v -> c.lowFireLevel = v);
 			case "lowshield" -> cycle("Wie tief", OemerConfig.LOW_NAMES, () -> c.lowShieldLevel, v -> c.lowShieldLevel = v);
 			case "smalltotem" -> cycle("Größe", OemerConfig.SMALL_NAMES, () -> c.smallerTotemLevel, v -> c.smallerTotemLevel = v);
@@ -712,6 +733,44 @@ public class OmerScreen extends Screen {
 		endFlow();
 		keyRow(OemerKeys.crosshairToggle, "Taste: Crosshair an/aus", "");
 		info(() -> "PNGs (z. B. 15x15) gehen auch – „Datei wählen“ oder in den Ordner crosshairs/ legen.");
+	}
+
+	private void buildCustomName() {
+		OemerConfig c = OemerConfig.get();
+		endFlow();
+		addContent(new OmerWidgets.Painter(cx0, cy, cw, 34, (g, x, y, w, h, mx, my) -> {
+			Draw.round(g, x, y, w, h, 8, 0x50000000);
+			Draw.roundBorder(g, x, y, w, h, 8, Theme.white(0x22));
+			g.pose().pushMatrix();
+			g.pose().translate(x + 14, y + 10);
+			g.pose().scale(1.5f);
+			g.drawString(this.font, NameStyle.display(), 0, 0, 0xFFFFFFFF);
+			g.pose().popMatrix();
+		}, null));
+		cy += 34 + GAP;
+		nameBox = new EditBox(this.font, cx0 + 10, cy + 8, cw - 20, 12, Component.literal("Name"));
+		nameBox.setBordered(false);
+		nameBox.setMaxLength(32);
+		nameBox.setTextColor(0xFFFFFFFF);
+		nameBox.setHint(Component.literal("Dein Name (leer = dein echter Name)"));
+		nameBox.setValue(c.customNameText);
+		nameBox.setResponder(v -> {
+			c.customNameText = v;
+			OemerConfig.save();
+		});
+		addContent(nameBox);
+		cy += ROW_H + GAP;
+		cycle("Stil", NameStyle.MODES, () -> c.nameMode, v -> {
+			c.nameMode = v;
+			refresh();
+		});
+		cycle("Farbe", NameStyle.COLOR_NAMES, () -> c.nameColor1, v -> c.nameColor1 = v);
+		if (c.nameMode == 1) cycle("Zweite Farbe (Verlauf)", NameStyle.COLOR_NAMES, () -> c.nameColor2, v -> c.nameColor2 = v);
+		toggle("Fett", () -> c.nameBold, v -> c.nameBold = v, "");
+		toggle("Im Chat ersetzen", () -> c.nameInChat, v -> c.nameInChat = v, "Dein Name erscheint im Chat in deiner Farbe");
+		toggle("Namensschild bei mir", () -> c.nameShowSelf, v -> c.nameShowSelf = v, "In F5 und mit Free Cam siehst du dein Schild");
+		endFlow();
+		info(() -> "Nur du siehst den Namen (Tab-Liste, Chat, Schild). Andere sehen weiter deinen echten Namen.");
 	}
 
 	private void buildMaterial() {

@@ -108,6 +108,18 @@ public class OemerConfig {
 	public boolean clearGlass = false;
 	public boolean darkGui = false;
 	public boolean noBedrock = false;
+	public boolean noExplosionParticles = false;
+	public boolean clearPortal = false;
+	public int portalLevel = 1;           // Index in PORTAL_NAMES
+	public boolean portalOverlayOff = true; // Portal-Wackeln/Overlay beim Durchgehen aus
+	public boolean customName = false;
+	public String customNameText = "";   // leer = dein echter Name
+	public int nameMode = 1;              // 0 Farbe, 1 Verlauf, 2 Rainbow
+	public int nameColor1 = 8;            // Index in NAME_COLORS
+	public int nameColor2 = 9;
+	public boolean nameBold = false;
+	public boolean nameInChat = true;     // dein Name im Chat ersetzen
+	public boolean nameShowSelf = true;   // Namensschild bei dir selbst (F5, Freecam)
 	public boolean distantHorizons = false;
 	public boolean kitAutoSave = true;   // beim Kit-Wechsel das alte Kit automatisch speichern
 	public int graphicsLevel = -1;       // zuletzt gewählte Grafik-Stufe (-1 = eigene)
@@ -160,6 +172,8 @@ public class OemerConfig {
 	public static final String[] ZOOM_NAMES = {"2x", "4x", "8x", "16x"};
 	public static final double[] ZOOM_FACTORS = {2, 4, 8, 16};
 	public static final String[] LOW_NAMES = {"Etwas", "Mittel", "Viel"};
+	public static final String[] PORTAL_NAMES = {"Leicht", "Stark", "Fast unsichtbar"};
+	public static final float[] PORTAL_ALPHA = {0.6f, 0.35f, 0.14f};
 	public static final float[] LOW_AMOUNTS = {0.12f, 0.25f, 0.4f};
 	public static final String[] SMALL_NAMES = {"75 %", "50 %", "30 %"};
 	public static final float[] SMALL_SCALES = {0.75f, 0.5f, 0.3f};
@@ -230,6 +244,12 @@ public class OemerConfig {
 		musicService = Math.floorMod(musicService, 2);
 		zoomLevel = Math.floorMod(zoomLevel, ZOOM_NAMES.length);
 		lowFireLevel = Math.floorMod(lowFireLevel, LOW_NAMES.length);
+	portalLevel = Math.floorMod(portalLevel, PORTAL_NAMES.length);
+	nameMode = Math.floorMod(nameMode, 3);
+	nameColor1 = Math.floorMod(nameColor1, com.oemer.client.feature.NameStyle.COLORS.length);
+	nameColor2 = Math.floorMod(nameColor2, com.oemer.client.feature.NameStyle.COLORS.length);
+	if (customNameText == null) customNameText = "";
+	if (customNameText.length() > 32) customNameText = customNameText.substring(0, 32);
 		lowShieldLevel = Math.floorMod(lowShieldLevel, LOW_NAMES.length);
 		smallerTotemLevel = Math.floorMod(smallerTotemLevel, SMALL_NAMES.length);
 		if (markedChests == null) markedChests = new java.util.ArrayList<>();

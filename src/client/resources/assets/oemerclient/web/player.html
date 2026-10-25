@@ -76,6 +76,15 @@
   .tab { padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.06); color: var(--dim); font-size: 13px; }
   .tab.sel { background: #fff; color: #0b0b0f; font-weight: 700; }
   .empty { color: var(--faint); padding: 14px 4px; }
+  .plform { margin: 0 0 10px; }
+  .plform input { padding: 8px 12px; font-size: 13px; }
+  .plform .btn { padding: 8px 12px; font-size: 13px; }
+  #plmenu { position: fixed; z-index: 20; min-width: 200px; max-width: 280px; max-height: 300px; overflow: auto; padding: 6px;
+    background: #14141c; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+  #plmenu[hidden] { display: none; }
+  #plmenu small { display: block; color: var(--dim); padding: 4px 8px 6px; }
+  #plmenu button { display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 8px; }
+  #plmenu button:hover { background: rgba(255,255,255,.1); }
   .key { margin-top: 10px; font-size: 12px; color: var(--faint); }
   .key a { color: var(--dim); }
   #helper { position: absolute; left: -9999px; top: 0; width: 200px; height: 200px; }
@@ -102,6 +111,10 @@
     </div>
     <div class="card" style="margin-top:18px">
       <div class="tabs" id="libtabs"></div>
+      <form class="search plform" id="plform">
+        <input id="plname" placeholder="Neue Playlist – Name eingeben …" maxlength="40" autocomplete="off">
+        <button class="btn" type="submit">＋ Erstellen</button>
+      </form>
       <div class="list" id="library"></div>
     </div>
   </section>
@@ -137,6 +150,7 @@
     <div class="list" id="queue" style="max-height:560px"></div>
   </section>
 </main>
+<div id="plmenu" hidden></div>
 <div id="helper"><div id="helperp"></div></div>
 
 <script>
@@ -235,6 +249,29 @@ $('bar').onclick = (e) => {
   cmd('do=seek&ms=' + Math.round((e.clientX - r.left) / r.width * player.getDuration() * 1000));
 };
 
+let menuAnchor = null;
+function openPlMenu(t) {
+  const m = $('plmenu'); m.replaceChildren();
+  const small = document.createElement('small'); small.textContent = '„' + (t.title || t.id).slice(0, 40) + '“ hinzufügen zu:'; m.appendChild(small);
+  (st.playlists || []).forEach((p, i) => {
+    const b = document.createElement('button'); b.textContent = '☰ ' + p.name + ' (' + p.tracks.length + ')';
+    b.onclick = () => { cmd('do=addpl&p=' + i + '&id=' + t.id + '&title=' + enc(t.title) + '&artist=' + enc(t.artist)); m.hidden = true; };
+    m.appendChild(b);
+  });
+  const nb = document.createElement('button'); nb.textContent = '＋ Neue Playlist …';
+  nb.onclick = () => {
+    const name = ($('plname').value || '').trim() || 'Meine Playlist';
+    cmd('do=newpl&name=' + enc(name) + '&id=' + t.id + '&title=' + enc(t.title) + '&artist=' + enc(t.artist)); $('plname').value = ''; m.hidden = true;
+  };
+  m.appendChild(nb);
+  const r = menuAnchor ? menuAnchor.getBoundingClientRect() : {left: 100, bottom: 100};
+  m.hidden = false;
+  m.style.left = Math.max(8, Math.min(innerWidth - 290, r.left - 160)) + 'px';
+  m.style.top = Math.min(innerHeight - 320, r.bottom + 6) + 'px';
+}
+document.addEventListener('click', (e) => { const m = $('plmenu'); if (!m.hidden && !m.contains(e.target)) m.hidden = true; });
+$('plform').onsubmit = (e) => { e.preventDefault(); const n = $('plname').value.trim(); if (n) { cmd('do=newpl&name=' + enc(n)); $('plname').value = ''; } };
+
 function rowEl(t, opts) {
   const row = document.createElement('div');
   row.className = 'row' + (opts.now ? ' now' : '');
@@ -247,9 +284,10 @@ function rowEl(t, opts) {
   const act = document.createElement('div'); act.className = 'act';
   const add = (label, title, fn, cls) => {
     const btn = document.createElement('button'); btn.className = 'ic ' + (cls || ''); btn.textContent = label; btn.title = title;
-    btn.onclick = (ev) => { ev.stopPropagation(); fn(); }; act.appendChild(btn);
+    btn.onclick = (ev) => { ev.stopPropagation(); menuAnchor = btn; fn(); }; act.appendChild(btn);
   };
   if (opts.queue !== false) add('＋', 'In die Warteschlange', () => cmd('do=queueid&id=' + t.id + '&title=' + enc(t.title) + '&artist=' + enc(t.artist)));
+  if (opts.toList !== false) add('☰', 'Zu einer Playlist hinzufügen', (ev) => openPlMenu(t), '', true);
   const liked = (st.library || []).some(x => x.id === t.id);
   add(liked ? '♥' : '♡', liked ? 'Aus Meine Songs entfernen' : 'Zu Meine Songs', () => cmd('do=like&id=' + t.id), liked ? 'liked' : '');
   if (opts.remove) add('✕', opts.removeTitle || 'Löschen', opts.remove, 'del');

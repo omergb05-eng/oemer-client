@@ -50,6 +50,10 @@ public final class PackTweaks {
 				BufferedImage deep = read(vanilla, "textures/block/deepslate.png");
 				if (deep != null) out.put("textures/block/bedrock.png", deep);
 			}
+			if (c.clearPortal) {
+				BufferedImage portal = read(vanilla, "textures/block/nether_portal.png");
+				if (portal != null) out.put("textures/block/nether_portal.png", fade(portal, OemerConfig.PORTAL_ALPHA[Math.floorMod(c.portalLevel, OemerConfig.PORTAL_ALPHA.length)]));
+			}
 			if (c.clearGlass) {
 				BufferedImage g = read(vanilla, "textures/block/glass.png");
 				if (g != null) out.put("textures/block/glass.png", clearGlass(g, false));
@@ -99,6 +103,21 @@ public final class PackTweaks {
 		} catch (Exception e) {
 			return null;
 		}
+	}
+
+	/** Macht eine Textur durchsichtiger: alle Alpha-Werte werden mit factor malgenommen (Mindestens 1, damit sie nicht ganz verschwindet). */
+	static BufferedImage fade(BufferedImage src, float factor) {
+		BufferedImage out = argb(src);
+		for (int y = 0; y < out.getHeight(); y++) {
+			for (int x = 0; x < out.getWidth(); x++) {
+				int p = out.getRGB(x, y);
+				int a = p >>> 24;
+				if (a == 0) continue;
+				int na = Math.max(1, Math.round(a * factor));
+				out.setRGB(x, y, (na << 24) | (p & 0xFFFFFF));
+			}
+		}
+		return out;
 	}
 
 	private static BufferedImage argb(BufferedImage src) {

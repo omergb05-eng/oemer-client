@@ -727,6 +727,23 @@ public final class YouTubeMusic {
 				Track t = findKnown(id);
 				if (t != null) toggleLibrary(t);
 			}
+			case "newpl" -> {
+				Playlist p = createPlaylist(q.getOrDefault("name", ""));
+				String id = q.getOrDefault("id", "");
+				if (BARE_ID.matcher(id).matches()) {
+					Track t = findKnown(id);
+					addToPlaylist(p, t != null ? t : new Track(id, q.getOrDefault("title", ""), q.getOrDefault("artist", "")));
+				}
+			}
+			case "addpl" -> {
+				int pi = (int) parseLong(q.get("p"));
+				List<Playlist> pls = OemerConfig.get().ytPlaylists;
+				String id = q.getOrDefault("id", "");
+				if (pi >= 0 && pi < pls.size() && BARE_ID.matcher(id).matches()) {
+					Track t = findKnown(id);
+					addToPlaylist(pls.get(pi), t != null ? t : new Track(id, q.getOrDefault("title", ""), q.getOrDefault("artist", "")));
+				}
+			}
 			case "unqueue" -> removeFromQueue((int) parseLong(q.get("i")));
 			case "clearqueue" -> clearQueue();
 			case "unlib" -> {
