@@ -303,4 +303,275 @@ public final class OmerWidgets {
 			action.run();
 		}
 	}
+	// ---------------------------------------------------------------------
+
+	/** Bild-Karte (Kleiderschrank, Vorlagen): großes Bild, Name, ausgerüstet = Akzent-Rahmen. */
+	public static class Tile extends Base {
+		private final Supplier<com.oemer.client.feature.Textures.Tex> image;
+		private final BooleanSupplier selected;
+		private final Runnable action;
+		private String badge = "";
+		private boolean wide;
+
+		public Tile(int x, int y, int w, int h, String label, Supplier<com.oemer.client.feature.Textures.Tex> image,
+					BooleanSupplier selected, Runnable action) {
+			super(x, y, w, h, label);
+			this.image = image;
+			this.selected = selected;
+			this.action = action;
+		}
+
+		/** Kleines Schild oben links, z. B. "Eigenes". */
+		public Tile badge(String text) {
+			this.badge = text;
+			return this;
+		}
+
+		/** Bild füllt die Fläche (für Hintergründe), statt reinzupassen. */
+		public Tile cover() {
+			this.wide = true;
+			return this;
+		}
+
+		@Override
+		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+			int x = getX(), y = getY(), w = width, h = height;
+			boolean sel = selected.getAsBoolean();
+			int lift = Math.round(hover * 2);
+			y -= lift;
+			Draw.shadow(g, x, y, w, h, 6, Math.round(50 + 40 * hover));
+			Draw.round(g, x, y, w, h, 6, sel ? Theme.accent(0x30) : Theme.white(Math.round(0x0E + 0x0C * hover)));
+			// Bildfläche
+			int ih = h - 18;
+			Draw.round(g, x + 3, y + 3, w - 6, ih - 3, 4, 0x50000000);
+			var tex = image.get();
+			if (tex != null) {
+				if (wide) {
+					com.oemer.client.feature.Textures.drawCover(g, tex, x + 3, y + 3, w - 6, ih - 3);
+				} else {
+					int pad = 5;
+					com.oemer.client.feature.Textures.drawContain(g, tex, x + pad, y + pad, w - pad * 2, ih - pad - 2);
+				}
+			} else {
+				// wird noch gemalt → kleine Ladepunkte
+				int dots = (int) ((System.currentTimeMillis() / 250) % 4);
+				Draw.centered(g, ".".repeat(dots), x + w / 2, y + ih / 2 - 4, Theme.TEXT_DIM);
+			}
+			String label = Draw.fit(getMessage().getString(), w - 8);
+			Draw.centered(g, label, x + w / 2, y + h - 13, sel ? Theme.TEXT : Draw.mix(Theme.TEXT_SOFT, Theme.TEXT, hover));
+			if (!badge.isEmpty()) {
+				int bw = Draw.width(badge) + 8;
+				Draw.round(g, x + 5, y + 5, bw, 11, 5, 0xC0000000);
+				Draw.text(g, badge, x + 9, y + 7, Theme.TEXT_SOFT);
+			}
+			if (sel) {
+				Draw.roundBorder(g, x, y, w, h, 6, Theme.accent(0xF0));
+				Draw.round(g, x + w - 17, y + 5, 12, 12, 6, Theme.accent(0xF0));
+				int knob = (Theme.accent() & 0xFFFFFF) == 0xFFFFFF ? 0xFF0B0B0F : 0xFFFFFFFF;
+				Draw.text(g, "✔", x + w - 14, y + 7, knob);
+			} else {
+				Draw.roundBorder(g, x, y, w, h, 6, Theme.border(hover));
+			}
+		}
+
+		@Override
+		public void onPress(InputWithModifiers input) {
+			action.run();
+		}
+	}
+
+	// ---------------------------------------------------------------------
+
+	/**
+	 * Mod-Kachel: Symbol, Name, kurzer Text, rechts ein Schalter.
+	 * Klick auf den Schalter = an/aus, Klick auf die Kachel = Einstellungen öffnen.
+	 */
+	public static class ModCard extends Base {
+		private final String icon;
+		private final String desc;
+		private final BooleanSupplier on;
+		private final Consumer<Boolean> set;
+		private final Runnable open;
+		private float anim;
+		private double clickX = -1;
+
+		public ModCard(int x, int y, int w, int h, String icon, String label, String desc,
+					   BooleanSupplier on, Consumer<Boolean> set, Runnable open) {
+			super(x, y, w, h, label);
+			this.icon = icon;
+			this.desc = desc;
+			this.on = on;
+			this.set = set;
+			this.open = open;
+			this.anim = on != null && on.getAsBoolean() ? 1f : 0f;
+		}
+
+		private int switchX() {
+			return getX() + width - 34;
+		}
+
+		@Override
+		public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+			clickX = event.x();
+			return super.mouseClicked(event, doubleClick);
+		}
+
+		@Override
+		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+			int x = getX(), y = getY(), w = width, h = height;
+			boolean isOn = on != null && on.getAsBoolean();
+			anim = Draw.approach(anim, isOn ? 1f : 0f, 16f, delta);
+			Draw.round(g, x, y, w, h, 6, Theme.element(hover));
+			Draw.roundBorder(g, x, y, w, h, 6, Draw.mix(Theme.border(hover), Theme.accent(0x80), anim * 0.7f));
+			// Symbol im runden Feld
+			int is = h - 14;
+			Draw.round(g, x + 7, y + 7, is, is, 5, Draw.mix(Theme.white(0x16), Theme.accent(0xE0), anim));
+			int iconColor = anim > 0.5f && (Theme.accent() & 0xFFFFFF) == 0xFFFFFF ? 0xFF0B0B0F : 0xFFFFFFFF;
+			g.pose().pushMatrix();
+			g.pose().translate(x + 7 + is / 2f, y + 7 + is / 2f - 5f);
+			g.pose().scale(1.4f);
+			Draw.centered(g, icon, 0, 0, iconColor);
+			g.pose().popMatrix();
+			int tx = x + 13 + is;
+			int maxW = (on != null ? switchX() - 6 : x + w - 18) - tx;
+			Draw.text(g, Draw.fit(getMessage().getString(), maxW), tx, y + h / 2 - 9, Theme.TEXT);
+			Draw.text(g, Draw.fit(desc, maxW), tx, y + h / 2 + 2, Theme.TEXT_DIM);
+			if (on != null) {
+				int tw = 24, th = 12;
+				int sx = switchX(), sy = y + (h - th) / 2;
+				Draw.round(g, sx, sy, tw, th, th / 2, Draw.mix(Theme.white(0x26), Theme.accent(0xF0), anim));
+				int k = th - 4;
+				int kx = sx + 2 + Math.round(anim * (tw - k - 4));
+				int knobOn = (Theme.accent() & 0xFFFFFF) == 0xFFFFFF ? 0xFF0B0B0F : 0xFFFFFFFF;
+				Draw.round(g, kx, sy + 2, k, k, k / 2, Draw.mix(0xFFFFFFFF, knobOn, anim));
+			} else {
+				Draw.text(g, "›", x + w - 14, y + h / 2 - 4, Draw.mix(Theme.TEXT_DIM, Theme.TEXT, hover));
+			}
+		}
+
+		@Override
+		public void onPress(InputWithModifiers input) {
+			boolean onSwitch = on != null && clickX >= switchX() - 4;
+			clickX = -1;
+			if (onSwitch) set.accept(!on.getAsBoolean());
+			else open.run();
+		}
+	}
+
+	// ---------------------------------------------------------------------
+
+	/** Zeile für eine Taste: Name links, Taste rechts. Klick → nächste Taste drücken. */
+	public static class KeyRow extends Base {
+		private final Supplier<String> key;
+		private final BooleanSupplier listening;
+		private final BooleanSupplier conflict;
+		private final Runnable action;
+		private final String hint;
+
+		public KeyRow(int x, int y, int w, int h, String label, String hint, Supplier<String> key,
+					  BooleanSupplier listening, BooleanSupplier conflict, Runnable action) {
+			super(x, y, w, h, label);
+			this.hint = hint;
+			this.key = key;
+			this.listening = listening;
+			this.conflict = conflict;
+			this.action = action;
+		}
+
+		@Override
+		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+			int x = getX(), y = getY(), w = width, h = height;
+			boolean lis = listening.getAsBoolean();
+			Draw.round(g, x, y, w, h, 4, Theme.element(hover));
+			Draw.roundBorder(g, x, y, w, h, 4, lis ? Theme.accent(0xD0) : Theme.border(hover));
+			int textY = y + (h - 8) / 2 + 1;
+			String value = lis ? "> Taste drücken <" : key.get();
+			int vw = Math.max(44, Draw.width(value) + 16);
+			int vx = x + w - vw - 5;
+			String label = Draw.fit(getMessage().getString(), vx - x - 14);
+			Draw.text(g, label, x + 10, hint.isEmpty() ? textY : y + 4, Draw.mix(Theme.TEXT_SOFT, Theme.TEXT, hover));
+			if (!hint.isEmpty()) Draw.text(g, Draw.fit(hint, vx - x - 14), x + 10, y + h - 11, Theme.TEXT_FAINT);
+			int vy = y + 4, vh = h - 8;
+			boolean bad = !lis && conflict.getAsBoolean();
+			Draw.round(g, vx, vy, vw, vh, 4, lis ? Theme.accent(0xE0) : Theme.white(Math.round(0x14 + 0x10 * hover)));
+			Draw.roundBorder(g, vx, vy, vw, vh, 4, bad ? 0xFFE5484D : Theme.white(0x30));
+			int col = lis ? ((Theme.accent() & 0xFFFFFF) == 0xFFFFFF ? 0xFF0B0B0F : 0xFFFFFFFF) : bad ? 0xFFFF8A8E : Theme.TEXT;
+			Draw.centered(g, value, vx + vw / 2, textY, col);
+		}
+
+		@Override
+		public void onPress(InputWithModifiers input) {
+			action.run();
+		}
+	}
+	// ---------------------------------------------------------------------
+
+	/** Überschrift / Text-Zeile (nicht klickbar). */
+	public static class Label extends Base {
+		private final boolean big;
+		private final int color;
+
+		public Label(int x, int y, int w, int h, String text, boolean big, int color) {
+			super(x, y, w, h, text);
+			this.big = big;
+			this.color = color;
+			this.active = false;
+		}
+
+		@Override
+		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+			String t = getMessage().getString();
+			if (big) {
+				g.pose().pushMatrix();
+				g.pose().translate(getX(), getY() + height - 12);
+				g.pose().scale(1.15f);
+				Draw.text(g, Draw.fit(t, Math.round(width / 1.15f)), 0, 0, color);
+				g.pose().popMatrix();
+				g.fill(getX(), getY() + height - 1, getX() + width, getY() + height, Theme.white(0x14));
+			} else {
+				Draw.text(g, Draw.fit(t, width), getX(), getY() + (height - 8) / 2, color);
+			}
+		}
+
+		@Override
+		public void onPress(InputWithModifiers input) {
+		}
+
+		@Override
+		public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+			return false;
+		}
+	}
+
+	/** Fläche mit eigenem Zeichnen (Vorschau, Now Playing …). Optional klickbar. */
+	public static class Painter extends Base {
+		public interface Paint {
+			void paint(GuiGraphics g, int x, int y, int w, int h, int mouseX, int mouseY);
+		}
+
+		private final Paint paint;
+		private final Runnable action;
+
+		public Painter(int x, int y, int w, int h, Paint paint, Runnable action) {
+			super(x, y, w, h, "");
+			this.paint = paint;
+			this.action = action;
+			this.active = action != null;
+		}
+
+		@Override
+		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+			paint.paint(g, getX(), getY(), width, height, mouseX, mouseY);
+		}
+
+		@Override
+		public void onPress(InputWithModifiers input) {
+			if (action != null) action.run();
+		}
+
+		@Override
+		public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+			return action != null && super.mouseClicked(event, doubleClick);
+		}
+	}
 }

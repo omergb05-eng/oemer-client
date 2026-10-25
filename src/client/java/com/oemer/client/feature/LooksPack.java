@@ -23,6 +23,8 @@ public final class LooksPack {
 	}
 
 	public static final String FOLDER = "Oemer Client Looks";
+	/** Auflösung vom Totem im Ressourcenpaket. */
+	public static final int TOTEM_SIZE = 256;
 	public static final String PACK_ID = "file/" + FOLDER;
 	private static final String TOTEM_PATH = "assets/minecraft/textures/item/totem_of_undying.png";
 
@@ -42,16 +44,18 @@ public final class LooksPack {
 	private static boolean totemActive() {
 		OemerConfig c = OemerConfig.get();
 		if (!c.customTotem) return false;
-		if (c.totemMode == 1) return true; // Mein Skin
+		if (c.totemMode == 1 || c.totemMode == 2) return true; // Mein Skin / Vorlage
 		return !c.totemSelection.isEmpty() && Files.isRegularFile(totemFolder().resolve(c.totemSelection));
 	}
 
 	/** Das fertige Totem-Bild (64x64) für die aktuelle Einstellung. */
 	public static java.awt.image.BufferedImage totemImage() throws java.io.IOException {
 		OemerConfig c = OemerConfig.get();
-		if (c.totemMode == 1) return SkinTotem.image();
+		// 256x256 statt 64x64: Fotos bleiben scharf, Pixel-Art wird scharf vergrößert
+		if (c.totemMode == 1) return ImageTools.squareContain(SkinTotem.image(), TOTEM_SIZE);
+		if (c.totemMode == 2) return PresetArt.totem(c.totemPreset, TOTEM_SIZE);
 		var src = ImageTools.read(totemFolder().resolve(c.totemSelection));
-		return c.totemFit == 1 ? ImageTools.squareCrop(src, 64) : ImageTools.squareContain(src, 64);
+		return c.totemFit == 1 ? ImageTools.squareCrop(src, TOTEM_SIZE) : ImageTools.squareContain(src, TOTEM_SIZE);
 	}
 
 	/**
@@ -103,7 +107,10 @@ public final class LooksPack {
 				Files.deleteIfExists(soundsJson);
 			}
 
-			boolean active = totem || sounds > 0;
+			// ---- Textur-Mods: Clear Glass, Dark GUI, No Bedrock
+			int tweaks = PackTweaks.write(mc, dir);
+
+			boolean active = totem || sounds > 0 || tweaks > 0;
 			PackRepository repo = mc.getResourcePackRepository();
 			repo.reload();
 			List<String> selected = new ArrayList<>(repo.getSelectedIds());

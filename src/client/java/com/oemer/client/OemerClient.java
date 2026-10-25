@@ -1,7 +1,14 @@
 package com.oemer.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.oemer.client.feature.ChestMarker;
 import com.oemer.client.feature.Cosmetics;
+import com.oemer.client.feature.DistantHorizonsBridge;
+import com.oemer.client.feature.ModHud;
+import com.oemer.client.feature.ShulkerPreview;
+import com.oemer.client.feature.YouTubeMusic;
+import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.TooltipComponentCallback;
 import com.oemer.client.feature.Crosshair;
 import com.oemer.client.feature.GalaxyArt;
 import com.oemer.client.feature.SkinTotem;
@@ -46,25 +53,21 @@ public class OemerClient implements ClientModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger("Ömer Client");
 	public static final String VERSION = FabricLoader.getInstance().getModContainer(MOD_ID)
 			.map(c -> c.getMetadata().getVersion().getFriendlyString())
-			.orElse("5.0.0");
-
-	private static KeyMapping menuKey;
-	private static KeyMapping freecamKey;
-	private static KeyMapping fullbrightKey;
-	private static KeyMapping spotifyPlayKey;
-	private static KeyMapping spotifyNextKey;
-	private static KeyMapping spotifyPrevKey;
+			.orElse("6.0.0");
 
 	@Override
 	public void onInitializeClient() {
 		OemerConfig.load();
 		createFolders();
 		Sounds.createFolders();
-		registerKeys();
+		OemerKeys.register();
 
 		// Galaxy-Bild und Skin schon im Hintergrund vorbereiten
 		GalaxyArt.prepare();
-		ClientLifecycleEvents.CLIENT_STARTED.register(mc -> SkinTotem.prepare());
+		ClientLifecycleEvents.CLIENT_STARTED.register(mc -> {
+			SkinTotem.prepare();
+			YouTubeMusic.start();
+		});
 
 		// Spotify: nur abfragen, wenn man es sieht
 		Spotify.init(() -> {
@@ -82,6 +85,14 @@ public class OemerClient implements ClientModInitializer {
 
 		// Kit-HUD + Material List im Spiel
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(MOD_ID, "hud"), Hud::render);
+		// AppleSkin + Note Block Tuner
+		HudElementRegistry.attachElementAfter(VanillaHudElements.FOOD_BAR, Identifier.fromNamespaceAndPath(MOD_ID, "appleskin"), ModHud::food);
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(MOD_ID, "notetuner"), ModHud::noteTuner);
+		ItemTooltipCallback.EVENT.register((stack, context, flag, lines) -> ModHud.foodTooltip(stack, lines));
+		TooltipComponentCallback.EVENT.register(data -> data instanceof ShulkerPreview.Data d ? new ShulkerPreview.Client(d) : null);
+
+		// Material List: Kisten markieren
+		ChestMarker.register();
 
 		// Cosmetics an den Spieler-Renderer hängen
 		LivingEntityFeatureRendererRegistrationCallback.EVENT.register((entityType, renderer, helper, context) -> {
@@ -91,7 +102,10 @@ public class OemerClient implements ClientModInitializer {
 		});
 
 		ClientTickEvents.START_CLIENT_TICK.register(Freecam::preTick);
-		ClientTickEvents.END_CLIENT_TICK.register(OemerClient::handleKeys);
+		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+			OemerKeys.tick(mc);
+			DistantHorizonsBridge.tick();
+		});
 
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
 			if (screen instanceof TitleScreen) {
@@ -111,53 +125,6 @@ public class OemerClient implements ClientModInitializer {
 		});
 
 		LOGGER.info("Ömer Client {} geladen", VERSION);
-	}
-
-	// ------------------------------------------------------------ Tasten
-
-	private static void registerKeys() {
-		KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
-		menuKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.menu",
-				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT, category));
-		freecamKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.freecam",
-				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F4, category));
-		fullbrightKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.fullbright",
-				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, category));
-		// Spotify-Tasten: frei belegbar (Optionen → Steuerung)
-		spotifyPlayKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.spotify_play",
-				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
-		spotifyNextKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.spotify_next",
-				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
-		spotifyPrevKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.spotify_prev",
-				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
-	}
-
-	private static void handleKeys(Minecraft mc) {
-		OemerConfig c = OemerConfig.get();
-
-		while (menuKey.consumeClick()) {
-			if (mc.screen == null) {
-				mc.setScreen(new OmerScreen(null));
-			}
-		}
-
-		while (freecamKey.consumeClick()) {
-			if (mc.player != null) {
-				c.freecam = !c.freecam;
-			}
-		}
-
-		while (spotifyPlayKey.consumeClick()) Spotify.playPause();
-		while (spotifyNextKey.consumeClick()) Spotify.next();
-		while (spotifyPrevKey.consumeClick()) Spotify.previous();
-
-		while (fullbrightKey.consumeClick()) {
-			c.fullbright = !c.fullbright;
-			OemerConfig.save();
-			if (mc.player != null) {
-				mc.player.displayClientMessage(Component.literal(c.fullbright ? "§fFullbright §aan" : "§fFullbright §caus"), true);
-			}
-		}
 	}
 
 	// ------------------------------------------------------- Startscreen
@@ -198,7 +165,7 @@ public class OemerClient implements ClientModInitializer {
 	/** Ordner für eigene Bilder & Sounds (für die nächsten Versionen). */
 	private static void createFolders() {
 		Path base = FabricLoader.getInstance().getConfigDir().resolve("oemerclient");
-		for (String name : new String[]{"capes", "totems", "looks", "sounds", "schematics"}) {
+		for (String name : new String[]{"capes", "totems", "looks", "sounds", "schematics", "cosmetics", "crosshairs", "kits"}) {
 			try {
 				Files.createDirectories(base.resolve(name));
 			} catch (Exception e) {

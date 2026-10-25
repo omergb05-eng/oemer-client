@@ -129,6 +129,11 @@ public final class MaterialList {
 		return n;
 	}
 
+	/** Inventar + markierte Kisten. */
+	public static int haveTotal(Item item) {
+		return have(item) + ChestMarker.count(item);
+	}
+
 	public static boolean isDone(Entry e) {
 		return OemerConfig.get().materialDone.contains(e.id());
 	}

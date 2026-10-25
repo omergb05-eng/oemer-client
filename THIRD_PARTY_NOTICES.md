@@ -24,3 +24,24 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+---
+
+## Distant Horizons
+
+Die fertige `.jar` enthält die **unveränderte** Original-Mod *Distant Horizons* (Jar-in-Jar).
+
+- Projekt: https://modrinth.com/mod/distanthorizons
+- Quellcode: https://gitlab.com/distant-horizons-team/distant-horizons
+- Lizenz: GNU Lesser General Public License v3.0 (LGPL-3.0-only)
+
+Ömer Client spricht Distant Horizons nur über seine öffentliche API an (an/aus).
+
+## Hintergrund-Fotos (Vorlagen)
+
+Die Foto-Vorlagen im Design-Menü kommen von Unsplash (https://unsplash.com, Unsplash-Lizenz) und werden beim ersten Anzeigen heruntergeladen:
+Addy Spartacus, Connor Gan, Johny Goerend, simon (simon_berger), Isaac Maffeis, Cosmic Timetraveler, Greg Rakozy, Ernest Brillo, Gena Okami, Shubham Dhage.
+
+## YouTube
+
+Die YouTube-Musik läuft über den offiziellen YouTube-IFrame-Player im Browser (https://developers.google.com/youtube/iframe_api_reference).

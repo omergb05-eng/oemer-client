@@ -39,6 +39,7 @@ public class OemerConfig {
 	public String totemSelection = "";        // Dateiname aus totems/
 	public int totemMode = 0;                 // 0 = Bild, 1 = Mein Skin
 	public int totemFit = 0;                  // 0 = ganzes Bild, 1 = füllen
+	public int totemPreset = 0;               // Index in PresetArt.TOTEMS
 	public boolean customSounds = false;
 	public java.util.Map<String, String> soundSelection = new java.util.HashMap<>(); // Slot → Datei
 
@@ -51,7 +52,9 @@ public class OemerConfig {
 	public boolean cosHorns = false;
 	public int cosColor = 0;            // Index in COSMETIC_COLOR_NAMES
 	public boolean cosAnimate = true;
-	public java.util.Map<String, Integer> customCosmetics = new java.util.HashMap<>(); // Datei → Platz (0 = aus)
+	public java.util.Map<String, Integer> customCosmetics = new java.util.HashMap<>(); // Datei → Platz (0 = aus), 3D-Würfel
+	public java.util.Map<String, String> equipped = new java.util.HashMap<>(); // Platz (HEAD/BACK/COMPANION) → Teil
+	public boolean cosmeticsOn = true;
 	public int customCosSize = 1;       // Index in CUSTOM_COS_SIZE_NAMES
 
 	// ---- Crosshair ----
@@ -59,6 +62,55 @@ public class OemerConfig {
 	public String crosshairSelection = "design:1"; // "design:<nr>" oder Datei aus crosshairs/
 	public int crosshairColor = 0;      // Index in CROSSHAIR_COLOR_NAMES
 	public int crosshairSize = 1;       // Index in CROSSHAIR_SIZE_NAMES
+
+	// ---- Kits (Tasten-Profile) ----
+
+	// ---- Material List: markierte Kisten ----
+	public java.util.List<MarkedChest> markedChests = new java.util.ArrayList<>();
+
+	public static class MarkedChest {
+		public String world = "";
+		public int x, y, z;
+		public java.util.Map<String, Integer> items = new java.util.HashMap<>();
+		public long updated;
+	}
+
+	// ---- Musik ----
+	public int musicService = 0;         // 0 = YouTube, 1 = Spotify
+	public int ytVolume = 70;
+	public boolean ytShuffle = false;
+	public boolean ytRepeat = true;
+	public String ytApiKey = "";         // kostenloser YouTube-Data-API-Schlüssel (nur für die Suche)
+	public java.util.List<com.oemer.client.feature.YouTubeMusic.Track> ytLibrary = new java.util.ArrayList<>();
+	public java.util.List<com.oemer.client.feature.YouTubeMusic.Playlist> ytPlaylists = new java.util.ArrayList<>();
+	public boolean chestCount = true;    // markierte Kisten in der Material List mitzählen
+	public boolean chestHighlight = true;
+
+	// ---- Mods ----
+	public boolean noWeather = false;
+	public boolean appleSkin = false;
+	public boolean zoomOn = true;
+	public int zoomLevel = 1;            // Index in ZOOM_NAMES
+	public boolean zoomScroll = true;
+	public boolean zoomSmooth = true;
+	public boolean lowFire = false;
+	public int lowFireLevel = 1;         // Index in LOW_NAMES
+	public boolean lowShield = false;
+	public int lowShieldLevel = 1;
+	public boolean noDarkness = false;
+	public boolean noFog = false;
+	public boolean noPumpkin = false;
+	public boolean noteTuner = false;
+	public boolean shulkerTooltip = false;
+	public boolean smallerTotem = false;
+	public int smallerTotemLevel = 1;    // Index in SMALL_NAMES
+	public boolean tntTimer = false;
+	public boolean clearGlass = false;
+	public boolean darkGui = false;
+	public boolean noBedrock = false;
+	public boolean distantHorizons = false;
+	public boolean kitAutoSave = true;   // beim Kit-Wechsel das alte Kit automatisch speichern
+	public int graphicsLevel = -1;       // zuletzt gewählte Grafik-Stufe (-1 = eigene)
 
 	// ---- Spotify ----
 	public String spotifyClientId = "";
@@ -78,12 +130,12 @@ public class OemerConfig {
 
 	// ---- Graphics ----
 	public boolean lookMode = false;    // Eigene Bilder als Look/Theme
-	public String lookImage = "";       // Dateiname aus looks/
+	public String lookImage = "preset:0"; // "preset:<nr>" oder Dateiname aus looks/
 	public int lookDim = 1;             // Index in LOOK_DIM_NAMES
 	public boolean lookTitle = true;    // auch im Startscreen
 	public boolean menuBlur = false;
 
-	public static final String[] KITS = {"Normal World", "CPVP", "Sword", "Axe", "UHC", "SMP", "Mace"};
+	public static final String[] KITS = {"Survival", "CPVP", "Sword", "Axe", "UHC", "SMP", "Mace"};
 	public static final String[] FREECAM_SPEED_NAMES = {"Langsam", "Normal", "Schnell", "Turbo"};
 	public static final double[] FREECAM_SPEEDS = {0.3, 0.6, 1.0, 2.0};
 	public static final String[] CORNERS = {"Oben links", "Oben rechts", "Unten links", "Unten rechts"};
@@ -97,7 +149,7 @@ public class OemerConfig {
 	public static final String[] EDITOR_SIZE_NAMES = {"Klassisch 10x16", "HD 20x32"};
 	public static final int[] EDITOR_SCALE = {1, 2};
 	public static final String[] DESIGN_STYLES = {"Clean", "Galaxy"};
-	public static final String[] TOTEM_MODES = {"Bild", "Mein Skin"};
+	public static final String[] TOTEM_MODES = {"Eigenes Bild", "Mein Skin", "Vorlage"};
 	public static final String[] TOTEM_FITS = {"Ganzes Bild", "Füllen"};
 	public static final String[] COSMETIC_PLACES = {"Aus", "Über dem Kopf", "Rücken", "Schulter", "Begleiter"};
 	public static final String[] CUSTOM_COS_SIZE_NAMES = {"Klein", "Normal", "Groß"};
@@ -105,6 +157,12 @@ public class OemerConfig {
 	public static final String[] CROSSHAIR_COLOR_NAMES = {"Weiß", "Akzent", "Rosa", "Lila", "Cyan", "Grün", "Rot", "Gelb"};
 	public static final int[] CROSSHAIR_COLORS = {0xFFFFFFFF, 0, 0xFFFF8FC7, 0xFFC3A2FF, 0xFF6FE7FF, 0xFF7BE3A3, 0xFFFF5A5F, 0xFFFFE066};
 	public static final String[] CROSSHAIR_SIZE_NAMES = {"Klein", "Normal", "Groß"};
+	public static final String[] ZOOM_NAMES = {"2x", "4x", "8x", "16x"};
+	public static final double[] ZOOM_FACTORS = {2, 4, 8, 16};
+	public static final String[] LOW_NAMES = {"Etwas", "Mittel", "Viel"};
+	public static final float[] LOW_AMOUNTS = {0.12f, 0.25f, 0.4f};
+	public static final String[] SMALL_NAMES = {"75 %", "50 %", "30 %"};
+	public static final float[] SMALL_SCALES = {0.75f, 0.5f, 0.3f};
 	public static final String[] ACCENT_NAMES = {"Weiß", "Eisblau", "Rosa", "Lila", "Mint"};
 
 	public static OemerConfig get() {
@@ -164,6 +222,22 @@ public class OemerConfig {
 		if (soundSelection == null) soundSelection = new java.util.HashMap<>();
 		if (customCosmetics == null) customCosmetics = new java.util.HashMap<>();
 		if (crosshairSelection == null) crosshairSelection = "design:1";
+		if (equipped == null) equipped = new java.util.HashMap<>();
+		if (ytLibrary == null) ytLibrary = new java.util.ArrayList<>();
+		if (ytPlaylists == null) ytPlaylists = new java.util.ArrayList<>();
+		if (ytApiKey == null) ytApiKey = "";
+		ytVolume = Math.max(0, Math.min(100, ytVolume));
+		musicService = Math.floorMod(musicService, 2);
+		zoomLevel = Math.floorMod(zoomLevel, ZOOM_NAMES.length);
+		lowFireLevel = Math.floorMod(lowFireLevel, LOW_NAMES.length);
+		lowShieldLevel = Math.floorMod(lowShieldLevel, LOW_NAMES.length);
+		smallerTotemLevel = Math.floorMod(smallerTotemLevel, SMALL_NAMES.length);
+		if (markedChests == null) markedChests = new java.util.ArrayList<>();
+		kit = Math.floorMod(kit, KITS.length);
+		totemPreset = Math.max(0, totemPreset);
+		// alte eingebaute Cosmetics gibt es nicht mehr
+		equipped.values().removeIf(v -> v == null || !v.startsWith("custom:"));
+		cosHalo = cosCrown = cosTopHat = cosWings = cosEars = cosHorns = false;
 		if (spotifyClientId == null) spotifyClientId = "";
 		designStyle = Math.floorMod(designStyle, DESIGN_STYLES.length);
 		totemMode = Math.floorMod(totemMode, TOTEM_MODES.length);

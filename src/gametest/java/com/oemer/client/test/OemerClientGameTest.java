@@ -16,6 +16,21 @@ import com.oemer.client.gui.SpotifyScreen;
 import com.oemer.client.feature.Crosshair;
 import com.oemer.client.feature.CustomCosmetics;
 import com.oemer.client.feature.Spotify;
+import com.oemer.client.feature.ChestMarker;
+import com.oemer.client.feature.DistantHorizonsBridge;
+import com.oemer.client.feature.GraphicsPresets;
+import com.oemer.client.feature.KitProfiles;
+import com.oemer.client.feature.PackTweaks;
+import com.oemer.client.feature.PresetArt;
+import com.oemer.client.feature.ShulkerPreview;
+import com.oemer.client.feature.SpriteCosmetics;
+import com.oemer.client.feature.YouTubeMusic;
+import com.oemer.client.feature.Zoom;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -83,6 +98,17 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		return img;
 	}
 
+	private static String httpGet(String url) {
+		try {
+			var client = java.net.http.HttpClient.newHttpClient();
+			var r = client.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(url)).build(),
+					java.net.http.HttpResponse.BodyHandlers.ofString());
+			return r.body();
+		} catch (Exception e) {
+			return "Fehler: " + e;
+		}
+	}
+
 	private static boolean hasButton(Minecraft mc, String text) {
 		return mc.screen != null && Screens.getButtons(mc.screen).stream()
 				.anyMatch(w -> w.getMessage().getString().equals(text));
@@ -122,6 +148,16 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				Files.write(LooksPack.totemFolder().resolve("test-totem.png"), ImageTools.toPng(testImage(java.awt.Color.ORANGE, java.awt.Color.RED)));
 				Files.createDirectories(Looks.folder());
 				Files.write(Looks.folder().resolve("test-look.png"), ImageTools.toPng(testImage(new java.awt.Color(0x1B2A4A), new java.awt.Color(0xB04A8F))));
+				// Flügel-PNG wie ein eigenes Bild: beide Flügel nebeneinander
+				var wing = PresetArt.featherWing(PresetArt.WingStyle.GALAXY, 256);
+				var pair = new java.awt.image.BufferedImage(512, 256, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+				var pg = pair.createGraphics();
+				pg.drawImage(PresetArt.mirror(wing), 0, 0, null);
+				pg.drawImage(wing, 256, 0, null);
+				pg.dispose();
+				Files.createDirectories(CustomCosmetics.folder());
+				Files.write(CustomCosmetics.folder().resolve("test-fluegel.png"), ImageTools.toPng(pair));
+				Files.write(CustomCosmetics.folder().resolve("test-stern.png"), ImageTools.toPng(PresetArt.star(256, 0xFFC21A)));
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
@@ -134,40 +170,72 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		check("startscreen-button", ctx.computeOnClient(mc -> hasButton(mc, "Ömer Client")), "");
 		ctx.takeScreenshot("01-startscreen");
 
-		// ---------------------------------------------- Menü: alle Tabs + Unter-Reiter
+		// ---------------------------------------------- Menü: alle Bereiche
 		click(ctx, "Ömer Client");
 		check("menu-opens", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
 		ctx.waitTicks(10);
-		ctx.takeScreenshot("02-settings-allgemein");
-		click(ctx, "Kits");
-		ctx.takeScreenshot("03-settings-kits");
+		ctx.takeScreenshot("02-mods");
+		click(ctx, "Just Zoom");
+		ctx.takeScreenshot("02b-mod-zoom");
+		click(ctx, "‹ Alle Mods");
+		ctx.runOnClient(mc -> {
+			if (mc.screen instanceof OmerScreen o) o.searchForTest("no");
+		});
+		ctx.waitTicks(3);
+		ctx.takeScreenshot("02c-mods-suche");
+		ctx.runOnClient(mc -> {
+			if (mc.screen instanceof OmerScreen o) o.searchForTest("");
+		});
+		ctx.waitTicks(2);
 		click(ctx, "Material List");
-		ctx.takeScreenshot("04-settings-material");
-		click(ctx, "Skins");
-		click(ctx, "Cape");
-		ctx.takeScreenshot("05-skins-cape");
-		click(ctx, "Cosmetics");
-		ctx.takeScreenshot("06-skins-cosmetics");
-		click(ctx, "Totem");
-		ctx.takeScreenshot("07-skins-totem");
-		click(ctx, "Sounds");
-		ctx.takeScreenshot("08-skins-sounds");
+		ctx.takeScreenshot("02d-mod-material");
+		click(ctx, "‹ Alle Mods");
+		click(ctx, "Custom Crosshair");
+		ctx.takeScreenshot("02e-mod-crosshair");
+		click(ctx, "Settings");
+		ctx.takeScreenshot("03-settings");
 		ctx.runOnClient(mc -> mc.screen.mouseScrolled(mc.screen.width / 2.0, mc.screen.height / 2.0, 0, -10));
 		ctx.waitTicks(3);
-		ctx.takeScreenshot("08b-skins-sounds-gescrollt");
-		click(ctx, "Layout");
-		ctx.takeScreenshot("09-layout-design");
-		click(ctx, "HUD");
-		ctx.takeScreenshot("10-layout-hud");
-		click(ctx, "Graphics");
-		ctx.takeScreenshot("11-graphics-looks");
-		click(ctx, "Crosshair");
-		ctx.takeScreenshot("11b-graphics-crosshair");
+		ctx.takeScreenshot("03b-settings-tasten");
+		click(ctx, "Kits");
+		ctx.takeScreenshot("04-kits");
+		click(ctx, "Design");
+		ctx.waitFor(mc -> Looks.photoReady(0) && Looks.photoReady(3), 600);
+		ctx.waitTicks(40);
+		check("background-download", ctx.computeOnClient(mc -> Looks.photoReady(0)), "");
+		ctx.takeScreenshot("05-design");
+		ctx.runOnClient(mc -> mc.screen.mouseScrolled(mc.screen.width / 2.0, mc.screen.height / 2.0, 0, -8));
+		ctx.waitTicks(10);
+		ctx.takeScreenshot("05b-design-gescrollt");
 		click(ctx, "Musik");
-		ctx.takeScreenshot("11c-musik-spotify");
-		click(ctx, "Skins");
-		click(ctx, "Eigene");
-		ctx.takeScreenshot("11d-skins-eigene");
+		ctx.takeScreenshot("06-musik-youtube");
+		click(ctx, "Spotify");
+		ctx.takeScreenshot("06b-musik-spotify");
+		click(ctx, "YouTube");
+		click(ctx, "Skin");
+		click(ctx, "Cape");
+		ctx.waitTicks(10);
+		ctx.takeScreenshot("07-skin-cape");
+		click(ctx, "Totem");
+		ctx.waitTicks(10);
+		ctx.takeScreenshot("07b-skin-totem");
+		click(ctx, "Cosmetics");
+		ctx.waitTicks(10);
+		ctx.takeScreenshot("07c-skin-cosmetics");
+		click(ctx, "Sounds");
+		ctx.takeScreenshot("07d-skin-sounds");
+
+		// ---------------------------------------------- YouTube-Musik (Player-Seite + Titel ohne Schlüssel)
+		String page = ctx.computeOnClient(mc -> {
+			YouTubeMusic.start();
+			return YouTubeMusic.url();
+		});
+		String html = httpGet(page);
+		check("yt-page", html.contains("Ömer Music") && html.contains("iframe_api"), html.length() + " Zeichen");
+		String state = httpGet(page + "api/state");
+		check("yt-state", state.contains("\"volume\""), state.length() > 80 ? state.substring(0, 80) : state);
+		YouTubeMusic.Track zoo = YouTubeMusic.resolve("jNQXAC9IVRw");
+		check("yt-oembed", zoo.title.toLowerCase().contains("zoo"), zoo.title);
 
 		// ---------------------------------------------- Spotify (ohne Konto: nur prüfen, was offline geht)
 		check("spotify-pkce", ctx.computeOnClient(mc -> {
@@ -244,15 +312,15 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(2);
 		ctx.takeScreenshot("12d-cosmetic-editor");
 		boolean cosSaved = ctx.computeOnClient(mc -> CustomCosmetics.files().stream().anyMatch(f -> f.startsWith("Mein Cosmetic"))
-				&& CustomCosmetics.anyActive());
+				&& SpriteCosmetics.anyEquipped());
 		check("cosmetic-editor-saves", cosSaved, "");
 		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
 		ctx.waitTicks(3);
 
 		// ---------------------------------------------- Cape-Editor
-		click(ctx, "Skins");
+		click(ctx, "Skin");
 		click(ctx, "Cape");
-		click(ctx, "Cape-Editor öffnen");
+		click(ctx, "Cape-Editor");
 		check("editor-opens", ctx.computeOnClient(mc -> mc.screen instanceof CapeEditorScreen), "");
 		ctx.runOnClient(mc -> {
 			if (mc.screen instanceof CapeEditorScreen ed) {
@@ -341,48 +409,35 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			check("cape-from-editor", capePath.startsWith("oemerclient:cape/"), capePath);
 			shotFreecam(ctx, 0, 0.6, -2.6, 0, 15, "22-cape-editor-im-spiel");
 
-			// ------------------------------------------ Cosmetics
+			// ------------------------------------------ Eigene Bild-Cosmetics (Flügel, Kopf, Begleiter)
 			ctx.runOnClient(mc -> {
 				OemerConfig c = OemerConfig.get();
-				c.cosHalo = true;
-				c.cosWings = true;
-				c.cosEars = true;
-				c.cosColor = 0;
+				c.cosmeticsOn = true;
+				c.customCape = false;
+				c.equipped.clear();
+				c.equipped.put("BACK", "custom:test-fluegel.png");
 			});
-			shotFreecam(ctx, 0, 0.9, -2.8, 0, 12, "23-cosmetics-hinten");
-			shotFreecam(ctx, 0, 0.9, 2.6, 180, 12, "24-cosmetics-vorne");
+			ctx.waitTicks(20);
+			check("cosmetic-wings-equipped", ctx.computeOnClient(mc ->
+					SpriteCosmetics.find(SpriteCosmetics.equipped(SpriteCosmetics.Slot.BACK), SpriteCosmetics.Slot.BACK) != null), "");
+			shotFreecam(ctx, 0, 0.9, -3.0, 0, 10, "23-cosmetics-fluegel-hinten");
+			shotFreecam(ctx, 2.2, 0.9, -1.6, -55, 10, "23b-cosmetics-fluegel-seite");
+			shotFreecam(ctx, 0, 0.9, 3.0, 180, 10, "24-cosmetics-fluegel-vorne");
 			ctx.runOnClient(mc -> {
 				OemerConfig c = OemerConfig.get();
-				c.cosHalo = false;
-				c.cosEars = false;
-				c.cosWings = false;
-				c.cosCrown = true;
-				c.cosHorns = false;
+				c.equipped.put("HEAD", "custom:test-stern.png");
+				c.equipped.put("COMPANION", "custom:test-stern.png");
 			});
-			shotFreecam(ctx, 0, 1.2, 3.0, 180, 14, "25-cosmetics-krone");
+			ctx.waitTicks(10);
+			shotFreecam(ctx, 0, 1.2, 3.2, 180, 12, "25-cosmetics-kopf-begleiter");
 			ctx.runOnClient(mc -> {
-				OemerConfig c = OemerConfig.get();
-				c.cosCrown = false;
-				c.cosTopHat = true;
+				OemerConfig.get().equipped.clear();
+				OemerConfig.get().freecam = false;
+				OemerConfig.get().customCape = true;
 			});
-			shotFreecam(ctx, 0, 1.2, 3.0, 180, 14, "26-cosmetics-zylinder");
-			ctx.runOnClient(mc -> {
-				OemerConfig c = OemerConfig.get();
-				c.cosTopHat = false;
-				c.cosHorns = true;
-				c.cosColor = 6;
-			});
-			shotFreecam(ctx, 0, 1.2, 3.0, 180, 14, "27-cosmetics-hoerner");
-			ctx.runOnClient(mc -> OemerConfig.get().freecam = false);
 			ctx.waitTicks(3);
 
 			// ------------------------------------------ Crosshair im Spiel
-			ctx.runOnClient(mc -> {
-				OemerConfig c = OemerConfig.get();
-				c.cosCrown = false;
-				c.cosHorns = false;
-				c.cosTopHat = false;
-			});
 			ctx.waitTicks(3);
 			ctx.takeScreenshot("27b-crosshair-eigenes");
 			ctx.runOnClient(mc -> {
@@ -392,23 +447,6 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			});
 			ctx.waitTicks(3);
 			ctx.takeScreenshot("27c-crosshair-design");
-
-			// ------------------------------------------ Eigene Cosmetics an allen Plätzen
-			String cosFile = ctx.computeOnClient(mc -> CustomCosmetics.files().stream().filter(f -> f.startsWith("Mein Cosmetic")).findFirst().orElse(""));
-			int[] places = {1, 4};
-			String[] names = {"27d-eigenes-cosmetic-kopf", "27e-eigenes-cosmetic-begleiter"};
-			for (int i = 0; i < places.length; i++) {
-				int pl = places[i];
-				ctx.runOnClient(mc -> OemerConfig.get().customCosmetics.put(cosFile, pl));
-				shotFreecam(ctx, 0, 1.0, 3.2, 180, 10, names[i]);
-			}
-			ctx.runOnClient(mc -> OemerConfig.get().customCosmetics.put(cosFile, 2));
-			shotFreecam(ctx, 0, 1.0, -3.0, 0, 10, "27f-eigenes-cosmetic-ruecken");
-			ctx.runOnClient(mc -> {
-				OemerConfig.get().customCosmetics.put(cosFile, 0);
-				OemerConfig.get().freecam = false;
-			});
-			ctx.waitTicks(3);
 
 			// ------------------------------------------ Kit-HUD + Material List
 			sp.getServer().runCommand("give @a totem_of_undying 3");
@@ -444,6 +482,166 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			check("material-done", ctx.computeOnClient(mc -> MaterialList.isDone(MaterialList.entries().get(0))), "");
 			ctx.takeScreenshot("29-material-list-screen");
 			ctx.setScreen(() -> null);
+			ctx.waitTicks(3);
+
+			// ------------------------------------------ Kiste markieren (Sneaken + Rechtsklick mit Spitzhacke) und mitzählen
+			BlockPos chest = new BlockPos(x, y + 1, z + 2);
+			sp.getServer().runCommand("setblock " + chest.getX() + " " + chest.getY() + " " + chest.getZ() + " chest");
+			sp.getServer().runCommand("item replace block " + chest.getX() + " " + chest.getY() + " " + chest.getZ() + " container.0 with oak_planks 64");
+			sp.getServer().runCommand("item replace block " + chest.getX() + " " + chest.getY() + " " + chest.getZ() + " container.1 with stone_bricks 32");
+			sp.getServer().runCommand("item replace entity @a weapon.mainhand with diamond_pickaxe");
+			ctx.runOnClient(mc -> {
+				mc.player.setYRot(0);
+				mc.player.setXRot(0);
+			});
+			ctx.waitTicks(10);
+			int planksBefore = ctx.computeOnClient(mc -> MaterialList.haveTotal(Items.OAK_PLANKS));
+			ctx.getInput().holdKey(o -> o.keyShift);
+			ctx.waitTicks(3);
+			ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+			ctx.waitTicks(3);
+			ctx.getInput().releaseKey(o -> o.keyShift);
+			ctx.waitTicks(3);
+			boolean marked = ctx.computeOnClient(mc -> ChestMarker.find(chest) != null);
+			check("chest-mark", marked, "hit=" + ctx.computeOnClient(mc -> String.valueOf(mc.hitResult == null ? null : mc.hitResult.getLocation())));
+			if (!marked) ctx.runOnClient(mc -> ChestMarker.toggle(chest));
+			ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+			ctx.waitTicks(10);
+			ctx.takeScreenshot("29b-markierte-kiste-offen");
+			ctx.setScreen(() -> null);
+			ctx.waitTicks(5);
+			int planksAfter = ctx.computeOnClient(mc -> MaterialList.haveTotal(Items.OAK_PLANKS));
+			check("chest-count", planksAfter == planksBefore + 64, planksBefore + " -> " + planksAfter);
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().freecam = true;
+			});
+			shotFreecam(ctx, 2.5, 1.5, -1.0, -35, 25, "29c-kiste-leuchtet");
+			ctx.runOnClient(mc -> OemerConfig.get().freecam = false);
+			ctx.waitTicks(3);
+			sp.getServer().runCommand("setblock " + chest.getX() + " " + chest.getY() + " " + chest.getZ() + " air");
+
+			// ------------------------------------------ Kits = eigene Einstellungen pro Kit
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().kitAutoSave = true;
+				OemerConfig.get().kit = 0;
+				mc.options.keyDrop.setKey(InputConstants.getKey("key.keyboard.q"));
+				mc.options.keyHotbarSlots[4].setKey(InputConstants.getKey("key.keyboard.5"));
+				mc.options.fov().set(70);
+				net.minecraft.client.KeyMapping.resetMapping();
+				KitProfiles.save(0);
+				KitProfiles.switchTo(1);  // CPVP: startet mit Survival-Einstellungen
+				mc.options.keyHotbarSlots[4].setKey(InputConstants.getKey("key.keyboard.q"));
+				mc.options.keyDrop.setKey(InputConstants.UNKNOWN);
+				mc.options.fov().set(100);
+				net.minecraft.client.KeyMapping.resetMapping();
+				KitProfiles.save(1);
+				KitProfiles.switchTo(0);
+			});
+			ctx.waitTicks(3);
+			String survival = ctx.computeOnClient(mc -> mc.options.keyDrop.saveString() + "|" + mc.options.keyHotbarSlots[4].saveString() + "|" + mc.options.fov().get());
+			check("kit-survival", survival.equals("key.keyboard.q|key.keyboard.5|70"), survival);
+			ctx.runOnClient(mc -> KitProfiles.switchTo(1));
+			ctx.waitTicks(3);
+			String cpvp = ctx.computeOnClient(mc -> mc.options.keyDrop.saveString() + "|" + mc.options.keyHotbarSlots[4].saveString() + "|" + mc.options.fov().get());
+			check("kit-cpvp", cpvp.equals("key.keyboard.unknown|key.keyboard.q|100"), cpvp);
+			ctx.runOnClient(mc -> KitProfiles.switchTo(0));
+			ctx.waitTicks(3);
+
+			// ------------------------------------------ Mods
+			// Zoom
+			ctx.getInput().holdKey(GLFW.GLFW_KEY_C);
+			ctx.waitTicks(15);
+			double zoom = ctx.computeOnClient(mc -> Zoom.factor());
+			check("zoom", zoom > 3.0, String.format("%.2f", zoom));
+			ctx.takeScreenshot("40-zoom");
+			ctx.getInput().releaseKey(GLFW.GLFW_KEY_C);
+			ctx.waitTicks(10);
+			// Wetter aus
+			sp.getServer().runCommand("weather thunder");
+			ctx.waitTicks(40);
+			ctx.runOnClient(mc -> OemerConfig.get().noWeather = true);
+			ctx.waitTicks(2);
+			check("weather-off", ctx.computeOnClient(mc -> mc.level.getRainLevel(1f) == 0f), "");
+			sp.getServer().runCommand("weather clear");
+			// TNT Timer + Note Block Tuner
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().tntTimer = true;
+				OemerConfig.get().noteTuner = true;
+				OemerConfig.get().fullbright = true;
+			});
+			sp.getServer().runCommand("setblock " + x + " " + (y + 1) + " " + (z + 2) + " note_block[note=7]");
+			sp.getServer().runCommand("summon tnt " + (x + 1.5) + " " + y + " " + (z + 3.0) + " {fuse:200}");
+			ctx.waitTicks(20);
+			ctx.takeScreenshot("41-tnt-timer-note-tuner");
+			sp.getServer().runCommand("kill @e[type=tnt]");
+			sp.getServer().runCommand("setblock " + x + " " + (y + 1) + " " + (z + 2) + " air");
+			// AppleSkin + Smaller Totem + Low Shield
+			ctx.runOnClient(mc -> {
+				OemerConfig c = OemerConfig.get();
+				c.appleSkin = true;
+				c.smallerTotem = true;
+				c.lowShield = true;
+			});
+			sp.getServer().runCommand("effect give @a hunger 3 200");
+			ctx.waitTicks(70);
+			sp.getServer().runCommand("item replace entity @a weapon.mainhand with cooked_beef 5");
+			sp.getServer().runCommand("item replace entity @a weapon.offhand with shield");
+			ctx.waitTicks(10);
+			ctx.takeScreenshot("42-appleskin-schild");
+			sp.getServer().runCommand("item replace entity @a weapon.mainhand with totem_of_undying");
+			ctx.waitTicks(10);
+			ctx.takeScreenshot("43-smaller-totem");
+			// Shulker Box Tooltip (Daten)
+			boolean shulker = ctx.computeOnClient(mc -> {
+				OemerConfig.get().shulkerTooltip = true;
+				ItemStack box = new ItemStack(Items.PURPLE_SHULKER_BOX);
+				box.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(List.of(new ItemStack(Items.TOTEM_OF_UNDYING, 1), new ItemStack(Items.END_CRYSTAL, 64))));
+				return ShulkerPreview.of(box) != null;
+			});
+			check("shulker-tooltip", shulker, "");
+			// Low Fire
+			ctx.runOnClient(mc -> OemerConfig.get().lowFire = true);
+			sp.getServer().runCommand("setblock " + x + " " + y + " " + z + " fire");
+			ctx.waitTicks(15);
+			ctx.takeScreenshot("44-low-fire");
+			sp.getServer().runCommand("setblock " + x + " " + y + " " + z + " air");
+			sp.getServer().runCommand("effect give @a fire_resistance 30 1");
+			// Grafik-Stufen
+			ctx.runOnClient(mc -> GraphicsPresets.apply(0));
+			check("graphics-low", ctx.computeOnClient(mc -> mc.options.renderDistance().get() == 6), "");
+			ctx.runOnClient(mc -> GraphicsPresets.apply(2));
+			// Distant Horizons
+			check("distant-horizons-loaded", ctx.computeOnClient(mc -> DistantHorizonsBridge.installed()), "");
+			// Textur-Mods: Clear Glass, Dark GUI, NoBedrock
+			sp.getServer().runCommand("fill " + (x - 2) + " " + (y) + " " + (z + 3) + " " + (x + 2) + " " + (y + 2) + " " + (z + 3) + " glass");
+			sp.getServer().runCommand("setblock " + (x - 1) + " " + (y + 1) + " " + (z + 3) + " pink_stained_glass");
+			sp.getServer().runCommand("setblock " + (x + 1) + " " + (y + 1) + " " + (z + 3) + " bedrock");
+			ctx.waitTicks(10);
+			ctx.takeScreenshot("45-glas-vorher");
+			ctx.runOnClient(mc -> {
+				OemerConfig c = OemerConfig.get();
+				c.clearGlass = true;
+				c.darkGui = true;
+				c.noBedrock = true;
+				LooksPack.apply(mc);
+			});
+			ctx.waitFor(mc -> mc.getOverlay() == null, 1200);
+			ctx.waitTicks(20);
+			check("dark-gui-textures", ctx.computeOnClient(mc -> PackTweaks.countDark(mc)) > 20, "");
+			check("pack-tweaks-written", ctx.computeOnClient(mc -> Files.isRegularFile(mc.getResourcePackDirectory()
+					.resolve(LooksPack.FOLDER).resolve("assets/minecraft/textures/block/bedrock.png"))), "");
+			ctx.takeScreenshot("46-clear-glass-nobedrock");
+			ctx.setScreen(() -> new net.minecraft.client.gui.screens.inventory.InventoryScreen(Minecraft.getInstance().player));
+			ctx.waitTicks(5);
+			ctx.takeScreenshot("47-dark-gui-inventar");
+			ctx.setScreen(() -> null);
+			ctx.runOnClient(mc -> {
+				OemerConfig c = OemerConfig.get();
+				c.clearGlass = false;
+				c.darkGui = false;
+				c.noBedrock = false;
+				c.fullbright = true;
+			});
 
 			// ------------------------------------------ Sounds + Totem (Ressourcenpaket)
 			ctx.runOnClient(mc -> {
@@ -493,10 +691,13 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.waitTicks(10);
 			check("menu-key-ingame", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
 			ctx.takeScreenshot("31-menu-ingame-look");
-			click(ctx, "Skins");
+			click(ctx, "Skin");
 			click(ctx, "Cosmetics");
-			ctx.waitTicks(5);
+			ctx.waitTicks(10);
 			ctx.takeScreenshot("32-menu-ingame-cosmetics-vorschau");
+			click(ctx, "Kits");
+			ctx.waitTicks(3);
+			ctx.takeScreenshot("32c-menu-ingame-kits");
 			ctx.runOnClient(mc -> {
 				OemerConfig.get().lookMode = false;
 				OemerConfig.get().designStyle = 1;
@@ -525,11 +726,14 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		click(ctx, "Ömer Client");
 		ctx.waitTicks(15);
 		ctx.takeScreenshot("35-galaxy-menu");
-		click(ctx, "Skins");
+		click(ctx, "Skin");
 		click(ctx, "Cape");
 		ctx.takeScreenshot("36-galaxy-skins");
 		ctx.setScreen(() -> new TitleScreen());
-		ctx.runOnClient(mc -> OemerConfig.get().lookMode = true);
+		ctx.runOnClient(mc -> {
+			OemerConfig.get().lookMode = true;
+			OemerConfig.get().lookImage = Looks.WEB + "3";
+		});
 		ctx.waitTicks(10);
 		ctx.takeScreenshot("37-startscreen-look");
 

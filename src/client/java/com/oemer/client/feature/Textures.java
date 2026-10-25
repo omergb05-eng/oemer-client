@@ -68,6 +68,11 @@ public final class Textures {
 		}
 	}
 
+	/** Schon hochgeladene Textur mit genau diesem Stempel, sonst null. */
+	public static Tex cached(String slot, String stamp) {
+		return stamp.equals(STAMP.get(slot)) ? CACHE.get(slot) : null;
+	}
+
 	public static void release(String slot) {
 		Tex old = CACHE.remove(slot);
 		if (old != null) {

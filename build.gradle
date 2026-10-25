@@ -17,11 +17,30 @@ loom {
 	}
 }
 
+repositories {
+	// Modrinth: Distant Horizons (Original-Mod, LGPL-3.0) wird mit eingebaut
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = "Modrinth"
+				url = "https://api.modrinth.com/maven"
+			}
+		}
+		filter {
+			includeGroup "maven.modrinth"
+		}
+	}
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	mappings loom.officialMojangMappings()
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Distant Horizons steckt in der fertigen .jar (Jar-in-Jar) und läuft auch im Test mit
+	include "maven.modrinth:distanthorizons:${project.distant_horizons_version}"
+	modLocalRuntime "maven.modrinth:distanthorizons:${project.distant_horizons_version}"
 }
 
 processResources {

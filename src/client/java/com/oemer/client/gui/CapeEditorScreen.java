@@ -336,7 +336,9 @@ public class CapeEditorScreen extends Screen {
 					c.customCrosshair = true;
 				}
 				case COSMETIC -> {
-					if (c.customCosmetics.getOrDefault(name, 0) == 0) c.customCosmetics.put(name, 1);
+					// neues Cosmetic gleich auf den Kopf setzen
+					c.equipped.put(com.oemer.client.feature.SpriteCosmetics.Slot.HEAD.name(), "custom:" + name);
+					c.cosmeticsOn = true;
 					CustomCosmetics.invalidate();
 				}
 			}

@@ -8,15 +8,26 @@
 	},
 	"client": [
 		"AbstractClientPlayerMixin",
+		"AbstractContainerScreenMixin",
 		"CameraMixin",
 		"ClientPacketListenerMixin",
 		"EntityMixin",
 		"EntityRenderDispatcherMixin",
+		"FogRendererMixin",
 		"GameRendererMixin",
+		"GuiMixin",
+		"ItemContainerContentsMixin",
+		"ItemInHandRendererMixin",
+		"ItemMixin",
+		"LevelMixin",
 		"LevelRendererMixin",
 		"LightTextureMixin",
+		"LivingEntityMixin",
 		"MinecraftMixin",
-		"MultiPlayerGameModeMixin"
+		"MouseHandlerMixin",
+		"MultiPlayerGameModeMixin",
+		"ScreenEffectRendererMixin",
+		"TntRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

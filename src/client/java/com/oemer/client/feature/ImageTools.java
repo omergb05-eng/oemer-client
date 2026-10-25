@@ -29,6 +29,29 @@ public final class ImageTools {
 		return toArgb(img);
 	}
 
+	/**
+	 * Hochwertiges Verkleinern: in Halbierungs-Schritten statt in einem Sprung,
+	 * so bleiben Fotos glatt und flimmern nicht.
+	 */
+	public static BufferedImage resize(BufferedImage src, int w, int h) {
+		BufferedImage cur = src;
+		int cw = src.getWidth(), ch = src.getHeight();
+		while (cw / 2 >= w && ch / 2 >= h) {
+			cw /= 2;
+			ch /= 2;
+			BufferedImage half = new BufferedImage(cw, ch, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D g = smooth(half);
+			g.drawImage(cur, 0, 0, cw, ch, null);
+			g.dispose();
+			cur = half;
+		}
+		BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = smooth(out);
+		g.drawImage(cur, 0, 0, w, h, null);
+		g.dispose();
+		return out;
+	}
+
 	/** Verkleinert sehr große Bilder (z. B. 4K-Fotos), damit die Grafikkarte sie gut packt. */
 	public static BufferedImage limit(BufferedImage src, int maxSize) {
 		int w = src.getWidth(), h = src.getHeight();
@@ -38,11 +61,7 @@ public final class ImageTools {
 		double s = (double) maxSize / Math.max(w, h);
 		int nw = Math.max(1, (int) Math.round(w * s));
 		int nh = Math.max(1, (int) Math.round(h * s));
-		BufferedImage out = new BufferedImage(nw, nh, BufferedImage.TYPE_INT_ARGB);
-		Graphics2D g = smooth(out);
-		g.drawImage(src, 0, 0, nw, nh, null);
-		g.dispose();
-		return out;
+		return resize(src, nw, nh);
 	}
 
 	public static byte[] toPng(BufferedImage img) throws IOException {
@@ -77,8 +96,17 @@ public final class ImageTools {
 		int x = (src.getWidth() - s) / 2;
 		int y = (src.getHeight() - s) / 2;
 		BufferedImage out = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-		Graphics2D g = smooth(out);
-		g.drawImage(src, 0, 0, size, size, x, y, x + s, y + s, null);
+		if (s < size) {
+			// kleines Bild (Pixel-Art): scharf vergrößern
+			for (int yy = 0; yy < size; yy++) {
+				for (int xx = 0; xx < size; xx++) {
+					out.setRGB(xx, yy, src.getRGB(x + Math.min(s - 1, xx * s / size), y + Math.min(s - 1, yy * s / size)));
+				}
+			}
+			return out;
+		}
+		Graphics2D g = out.createGraphics();
+		g.drawImage(resize(src.getSubimage(x, y, s, s), size, size), 0, 0, null);
 		g.dispose();
 		return out;
 	}
@@ -101,8 +129,8 @@ public final class ImageTools {
 				}
 			}
 		} else {
-			Graphics2D g = smooth(out);
-			g.drawImage(src, ox, oy, dw, dh, null);
+			Graphics2D g = out.createGraphics();
+			g.drawImage(resize(src, dw, dh), ox, oy, null);
 			g.dispose();
 		}
 		return out;

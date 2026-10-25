@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Ömer Music</title>
+<style>
+  :root {
+    --bg: #07070b; --card: rgba(255,255,255,.045); --line: rgba(255,255,255,.09);
+    --text: #f4f4f7; --dim: #9a9aa6; --faint: #5d5d68;
+    --a1: #b56cff; --a2: #ff6fb5; --ok: #57e39a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { background:
+      radial-gradient(900px 500px at 15% -10%, rgba(181,108,255,.18), transparent 60%),
+      radial-gradient(800px 500px at 100% 0%, rgba(255,111,181,.12), transparent 60%), var(--bg); }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  header { display: flex; align-items: center; gap: 12px; padding: 18px 28px; }
+  .logo { width: 34px; height: 34px; border-radius: 10px; background: #fff; color: #0b0b0f;
+    display: grid; place-items: center; font-weight: 900; font-size: 19px; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header h1 span { color: var(--dim); font-weight: 500; }
+  .conn { margin-left: auto; font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .dot.on { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+  main { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(380px, 1.5fr) minmax(240px, 1fr);
+    gap: 18px; padding: 0 28px 28px; align-items: start; }
+  @media (max-width: 1050px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--dim); margin: 2px 0 12px; }
+  .search { display: flex; gap: 8px; }
+  .search input { flex: 1; min-width: 0; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line);
+    background: rgba(0,0,0,.35); color: var(--text); outline: none; font: inherit; }
+  .search input:focus { border-color: var(--a1); }
+  .btn { padding: 10px 14px; border-radius: 12px; background: #fff; color: #0b0b0f; font-weight: 700; }
+  .btn.ghost { background: rgba(255,255,255,.08); color: var(--text); font-weight: 600; }
+  .hint { color: var(--faint); font-size: 12px; margin-top: 8px; }
+  .msg { color: var(--a2); font-size: 12px; min-height: 16px; margin-top: 8px; }
+  .list { display: flex; flex-direction: column; gap: 4px; max-height: 340px; overflow: auto; margin-top: 10px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 10px; }
+  .row:hover { background: rgba(255,255,255,.06); }
+  .row.now { background: linear-gradient(90deg, rgba(181,108,255,.22), rgba(255,111,181,.08)); }
+  .row img { width: 54px; height: 31px; object-fit: cover; border-radius: 6px; background: #111; flex: none; }
+  .row .t { flex: 1; min-width: 0; }
+  .row .t b, .row .t small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .t small { color: var(--dim); }
+  .row .act { display: flex; gap: 2px; opacity: .55; }
+  .row:hover .act { opacity: 1; }
+  .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; }
+  .ic:hover { background: rgba(255,255,255,.1); }
+  .ic.liked { color: var(--a2); }
+  .player { padding: 0; overflow: hidden; }
+  .video { position: relative; aspect-ratio: 16/9; background: #000; }
+  .video > div, .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .start { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5,5,9,.82);
+    backdrop-filter: blur(8px); z-index: 2; text-align: center; }
+  .start .btn { font-size: 16px; padding: 14px 26px; }
+  .start p { color: var(--dim); margin: 12px 0 0; }
+  .np { padding: 16px 18px 18px; }
+  .np .title { font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np .artist { color: var(--dim); }
+  .bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); margin: 14px 0 6px; cursor: pointer; position: relative; }
+  .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: linear-gradient(90deg, var(--a1), var(--a2)); width: 0; }
+  .times { display: flex; justify-content: space-between; color: var(--faint); font-size: 12px; }
+  .controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; }
+  .controls .ic { width: 42px; height: 42px; font-size: 16px; }
+  .controls .play { width: 54px; height: 54px; border-radius: 50%; background: #fff; color: #0b0b0f; font-size: 20px; }
+  .controls .on { color: var(--a1); }
+  .vol { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 10px; color: var(--dim); }
+  .vol input { width: 160px; accent-color: var(--a1); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tab { padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.06); color: var(--dim); font-size: 13px; }
+  .tab.sel { background: #fff; color: #0b0b0f; font-weight: 700; }
+  .empty { color: var(--faint); padding: 14px 4px; }
+  .key { margin-top: 10px; font-size: 12px; color: var(--faint); }
+  .key a { color: var(--dim); }
+  #helper { position: absolute; left: -9999px; top: 0; width: 200px; height: 200px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Ö</div>
+  <h1>Ömer Music <span>· YouTube in Minecraft</span></h1>
+  <div class="conn"><div class="dot" id="dot"></div><span id="conn">verbinde …</span></div>
+</header>
+<main>
+  <section>
+    <div class="card">
+      <h2>Suchen oder Link einfügen</h2>
+      <form class="search" id="sform">
+        <input id="q" placeholder="Song, Künstler oder YouTube-Link …" autocomplete="off">
+        <button class="btn" type="submit">Los</button>
+      </form>
+      <div class="msg" id="msg"></div>
+      <div class="list" id="results"></div>
+      <div class="key" id="keyhint" hidden>Für die Suche brauchst du einen kostenlosen YouTube-Schlüssel (im Ömer-Menü unter Musik eintragen).
+        Links und Playlist-Links gehen immer.</div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <div class="tabs" id="libtabs"></div>
+      <div class="list" id="library"></div>
+    </div>
+  </section>
+
+  <section class="card player">
+    <div class="video">
+      <div id="yt"></div>
+      <div class="start" id="start">
+        <div>
+          <button class="btn" id="startbtn">▶ Musik starten</button>
+          <p>Einmal klicken, damit dein Browser Musik abspielen darf.<br>Danach steuerst du alles aus Minecraft.</p>
+        </div>
+      </div>
+    </div>
+    <div class="np">
+      <div class="title" id="title">Gerade läuft nichts</div>
+      <div class="artist" id="artist">Such dir links einen Song aus</div>
+      <div class="bar" id="bar"><i id="fill"></i></div>
+      <div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div>
+      <div class="controls">
+        <button class="ic" id="shuffle" title="Zufall">⇄</button>
+        <button class="ic" id="prev" title="Zurück">⏮</button>
+        <button class="ic play" id="toggle" title="Play/Pause">▶</button>
+        <button class="ic" id="next" title="Weiter">⏭</button>
+        <button class="ic" id="repeat" title="Wiederholen">↻</button>
+      </div>
+      <div class="vol">🔈 <input type="range" min="0" max="100" id="vol"> <span id="volv"></span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Als Nächstes</h2>
+    <div class="list" id="queue" style="max-height:560px"></div>
+  </section>
+</main>
+<div id="helper"><div id="helperp"></div></div>
+
+<script>
+let player = null, ready = false, clicked = false, loadedSeq = -1, lastSeek = null, st = {}, lastOwn = 0,
+    importing = '', libTab = 'lib', volDrag = false;
+const $ = id => document.getElementById(id);
+const api = (p) => fetch(p, {cache: 'no-store'}).then(r => r.json()).catch(() => null);
+const cmd = (q) => api('/api/cmd?' + q).then(s => { if (s) { st = s; render(); } });
+const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const enc = encodeURIComponent;
+
+const tag = document.createElement('script');
+tag.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(tag);
+
+function onYouTubeIframeAPIReady() {
+  player = new YT.Player('yt', {
+    width: '100%', height: '100%',
+    playerVars: {playsinline: 1, rel: 0, origin: location.origin},
+    events: {
+      onReady: () => { ready = true; apply(); },
+      onStateChange: onState,
+      onError: () => fetch('/api/cmd?do=error&seq=' + loadedSeq)
+    }
+  });
+}
+
+function onState(e) {
+  const own = Date.now() - lastOwn < 900;
+  if (e.data === YT.PlayerState.ENDED) { fetch('/api/cmd?do=ended&seq=' + loadedSeq); return; }
+  if (own) return;
+  // Du hast direkt im Video geklickt → Minecraft Bescheid sagen
+  if (e.data === YT.PlayerState.PAUSED && st.play) cmd('do=pause');
+  if (e.data === YT.PlayerState.PLAYING && !st.play) cmd('do=play');
+}
+
+function apply() {
+  if (!ready || !player || !player.getPlayerState) return;
+  if (!volDrag) player.setVolume(st.volume ?? 60);
+  if (lastSeek === null) lastSeek = st.seekSeq;
+  if (st.videoId && st.seq !== loadedSeq) {
+    loadedSeq = st.seq; lastOwn = Date.now();
+    if (st.play && clicked) player.loadVideoById(st.videoId); else player.cueVideoById(st.videoId);
+    return;
+  }
+  if (st.seekSeq !== lastSeek) { lastSeek = st.seekSeq; lastOwn = Date.now(); player.seekTo(st.seekMs / 1000, true); }
+  const s = player.getPlayerState();
+  if (st.play && clicked && st.videoId && s !== 1 && s !== 3 && s !== 0) { lastOwn = Date.now(); player.playVideo(); }
+  if (!st.play && (s === 1 || s === 3)) { lastOwn = Date.now(); player.pauseVideo(); }
+  if (!st.videoId && s === 1) { lastOwn = Date.now(); player.stopVideo(); }
+  if (st.importList && st.importList !== importing) doImport(st.importList);
+}
+
+function report() {
+  let q = 'click=' + (clicked ? 0 : 1);
+  if (ready && player && player.getPlayerState) {
+    const d = player.getVideoData ? player.getVideoData() : {};
+    q += '&id=' + enc(d.video_id || '') + '&playing=' + (player.getPlayerState() === 1 ? 1 : 0)
+      + '&pos=' + Math.round((player.getCurrentTime() || 0) * 1000) + '&dur=' + Math.round((player.getDuration() || 0) * 1000)
+      + '&title=' + enc(d.title || '') + '&author=' + enc(d.author || '');
+  }
+  fetch('/api/status?' + q).catch(() => {});
+}
+
+async function poll() {
+  const s = await api('/api/state');
+  const on = !!s;
+  $('dot').classList.toggle('on', on);
+  $('conn').textContent = on ? 'mit Minecraft verbunden' : 'Minecraft ist nicht offen';
+  if (!s) return;
+  st = s; apply(); render(); report();
+}
+setInterval(poll, 700); poll();
+
+$('startbtn').onclick = () => {
+  clicked = true; $('start').hidden = true;
+  if (ready && st.videoId) { loadedSeq = st.seq; lastOwn = Date.now(); player.loadVideoById(st.videoId); }
+};
+
+$('sform').onsubmit = (e) => {
+  e.preventDefault();
+  const q = $('q').value.trim(); if (!q) return;
+  fetch('/api/search?q=' + enc(q));
+  $('msg').textContent = 'Suche …';
+};
+$('toggle').onclick = () => cmd('do=toggle');
+$('next').onclick = () => cmd('do=next');
+$('prev').onclick = () => cmd('do=prev');
+$('shuffle').onclick = () => cmd('do=shuffle');
+$('repeat').onclick = () => cmd('do=repeat');
+$('vol').oninput = (e) => { volDrag = true; if (player && ready) player.setVolume(+e.target.value); $('volv').textContent = e.target.value + '%'; };
+$('vol').onchange = (e) => { volDrag = false; cmd('do=vol&v=' + e.target.value); };
+$('bar').onclick = (e) => {
+  if (!ready) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  cmd('do=seek&ms=' + Math.round((e.clientX - r.left) / r.width * player.getDuration() * 1000));
+};
+
+function rowEl(t, opts) {
+  const row = document.createElement('div');
+  row.className = 'row' + (opts.now ? ' now' : '');
+  const img = document.createElement('img');
+  img.src = 'https://i.ytimg.com/vi/' + t.id + '/mqdefault.jpg'; img.loading = 'lazy';
+  const tx = document.createElement('div'); tx.className = 't';
+  const b = document.createElement('b'); b.textContent = t.title || ('YouTube-Video ' + t.id);
+  const sm = document.createElement('small'); sm.textContent = t.artist || '';
+  tx.append(b, sm);
+  const act = document.createElement('div'); act.className = 'act';
+  const add = (label, title, fn, cls) => {
+    const btn = document.createElement('button'); btn.className = 'ic ' + (cls || ''); btn.textContent = label; btn.title = title;
+    btn.onclick = (ev) => { ev.stopPropagation(); fn(); }; act.appendChild(btn);
+  };
+  if (opts.queue !== false) add('＋', 'In die Warteschlange', () => cmd('do=queueid&id=' + t.id + '&title=' + enc(t.title) + '&artist=' + enc(t.artist)));
+  const liked = (st.library || []).some(x => x.id === t.id);
+  add(liked ? '♥' : '♡', liked ? 'Aus Meine Songs entfernen' : 'Zu Meine Songs', () => cmd('do=like&id=' + t.id), liked ? 'liked' : '');
+  row.append(img, tx, act);
+  row.onclick = opts.onplay;
+  return row;
+}
+
+function fill(el, items, make, empty) {
+  el.replaceChildren();
+  if (!items.length) { const d = document.createElement('div'); d.className = 'empty'; d.textContent = empty; el.appendChild(d); return; }
+  items.forEach((t, i) => el.appendChild(make(t, i)));
+}
+
+let lastRender = '';
+function render() {
+  const cur = st.videoId ? {title: st.title, artist: st.artist} : null;
+  $('title').textContent = cur ? cur.title : 'Gerade läuft nichts';
+  $('artist').textContent = cur ? (cur.artist || 'YouTube') : 'Such dir links einen Song aus';
+  $('toggle').textContent = st.play ? '❚❚' : '▶';
+  $('shuffle').classList.toggle('on', !!st.shuffle);
+  $('repeat').classList.toggle('on', !!st.repeat);
+  if (!volDrag) { $('vol').value = st.volume ?? 60; $('volv').textContent = (st.volume ?? 60) + '%'; }
+  if (st.message) $('msg').textContent = st.message;
+  $('keyhint').hidden = !!st.hasKey;
+  if (ready && player.getDuration) {
+    const d = player.getDuration() || 0, p = player.getCurrentTime() || 0;
+    $('fill').style.width = (d ? p / d * 100 : 0) + '%';
+    $('pos').textContent = fmt(p); $('dur').textContent = fmt(d);
+  }
+  $('start').hidden = clicked;
+  // Listen nur neu bauen, wenn sich etwas geändert hat
+  const key = JSON.stringify([st.results, st.library, st.playlists, st.queue, st.index, libTab]);
+  if (key === lastRender) return;
+  lastRender = key;
+  fill($('results'), st.results || [], (t) => rowEl(t, {onplay: () => cmd('do=playid&id=' + t.id + '&title=' + enc(t.title) + '&artist=' + enc(t.artist))}), 'Noch keine Suche');
+  const tabs = $('libtabs'); tabs.replaceChildren();
+  const mk = (id, label) => { const b = document.createElement('button'); b.className = 'tab' + (libTab === id ? ' sel' : ''); b.textContent = label; b.onclick = () => { libTab = id; lastRender = ''; render(); }; tabs.appendChild(b); };
+  mk('lib', '♥ Meine Songs');
+  (st.playlists || []).forEach((p, i) => mk('pl' + i, p.name));
+  if (libTab === 'lib') {
+    fill($('library'), st.library || [], (t, i) => rowEl(t, {onplay: () => cmd('do=playlib&i=' + i)}), 'Klick bei einem Song auf ♡, dann landet er hier.');
+  } else {
+    const pi = +libTab.slice(2); const pl = (st.playlists || [])[pi];
+    fill($('library'), pl ? pl.tracks : [], (t, i) => rowEl(t, {onplay: () => cmd('do=playpl&p=' + pi + '&i=' + i)}), 'Leer');
+  }
+  fill($('queue'), st.queue || [], (t, i) => rowEl(t, {now: i === st.index, queue: false, onplay: () => cmd('do=jump&i=' + i)}), 'Leer – such dir was aus!');
+}
+
+// Playlist ohne Schlüssel auslesen (unsichtbarer zweiter YouTube-Player)
+function doImport(list) {
+  importing = list;
+  const box = $('helper'); box.replaceChildren(); const d = document.createElement('div'); d.id = 'helperp'; box.appendChild(d);
+  let done = false;
+  const h = new YT.Player('helperp', {
+    width: 200, height: 200, playerVars: {listType: 'playlist', list: list, origin: location.origin},
+    events: {
+      onReady: (e) => e.target.cuePlaylist({listType: 'playlist', list: list}),
+      onStateChange: (e) => {
+        if (done || e.data !== YT.PlayerState.CUED) return;
+        const ids = e.target.getPlaylist() || [];
+        if (!ids.length) return;
+        done = true;
+        fetch('/api/cmd?do=imported&name=' + enc('YouTube-Playlist') + '&ids=' + ids.slice(0, 200).join(','));
+        setTimeout(() => { try { h.destroy(); } catch (x) {} }, 500);
+      }
+    }
+  });
+  setTimeout(() => { if (!done) { $('msg').textContent = 'Playlist konnte nicht geladen werden (privat?)'; fetch('/api/cmd?do=imported&ids='); } }, 20000);
+}
+</script>
+</body>
+</html>

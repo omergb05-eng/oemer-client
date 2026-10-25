@@ -27,7 +27,7 @@ public class MaterialListScreen extends Screen {
 	private List<MaterialList.Entry> rows() {
 		List<MaterialList.Entry> out = new ArrayList<>();
 		for (MaterialList.Entry e : MaterialList.entries()) {
-			if (onlyMissing && (MaterialList.isDone(e) || MaterialList.have(e.item()) >= e.needed())) continue;
+			if (onlyMissing && (MaterialList.isDone(e) || MaterialList.haveTotal(e.item()) >= e.needed())) continue;
 			out.add(e);
 		}
 		return out;
@@ -60,6 +60,12 @@ public class MaterialListScreen extends Screen {
 			onlyMissing = v;
 			scroll = 0;
 		}, false));
+		w = Draw.width("Kisten zählen") + 52;
+		x -= w + 5;
+		this.addRenderableWidget(new OmerWidgets.Toggle(x, 46, w, 18, "Kisten zählen", () -> OemerConfig.get().chestCount, v -> {
+			OemerConfig.get().chestCount = v;
+			OemerConfig.save();
+		}, false).tip("Inhalt deiner markierten Kisten mitzählen (Sneaken + Rechtsklick mit Spitzhacke auf eine Kiste)"));
 		headerRight = x - 8;
 	}
 
@@ -114,9 +120,11 @@ public class MaterialListScreen extends Screen {
 		int total = 0, missing = 0;
 		for (MaterialList.Entry e : MaterialList.entries()) {
 			total += e.needed();
-			if (!MaterialList.isDone(e)) missing += Math.max(0, e.needed() - MaterialList.have(e.item()));
+			if (!MaterialList.isDone(e)) missing += Math.max(0, e.needed() - MaterialList.haveTotal(e.item()));
 		}
-		Draw.text(g, Draw.fit(MaterialList.entries().size() + " Blöcke · " + total + " insgesamt · " + missing + " fehlen",
+		int chests = com.oemer.client.feature.ChestMarker.here().size();
+		Draw.text(g, Draw.fit(MaterialList.entries().size() + " Blöcke · " + total + " insgesamt · " + missing + " fehlen"
+				+ (chests > 0 ? " · " + chests + " Kiste" + (chests > 1 ? "n" : "") + " markiert" : ""),
 				headerRight - listX), listX, 51, Theme.TEXT_SOFT);
 
 		if (!MaterialList.error().isEmpty()) {
@@ -139,7 +147,7 @@ public class MaterialListScreen extends Screen {
 			if (y + ROW < listY || y > listY + listH) continue;
 			MaterialList.Entry e = rows.get(i);
 			boolean done = MaterialList.isDone(e);
-			int have = MaterialList.have(e.item());
+			int have = MaterialList.haveTotal(e.item());
 			boolean enough = have >= e.needed();
 			boolean hover = mouseX >= listX && mouseX <= listX + listW && mouseY >= y && mouseY < y + ROW
 					&& mouseY >= listY && mouseY <= listY + listH;

@@ -1,31 +1,48 @@
 package com.oemer.client.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.oemer.client.OemerClient;
 import com.oemer.client.OemerConfig;
+import com.oemer.client.OemerKeys;
 import com.oemer.client.feature.CapeManager;
-import com.oemer.client.feature.Cosmetics;
+import com.oemer.client.feature.ChestMarker;
 import com.oemer.client.feature.Crosshair;
 import com.oemer.client.feature.CustomCosmetics;
-import com.oemer.client.feature.Spotify;
-import com.oemer.client.feature.Hud;
+import com.oemer.client.feature.DistantHorizonsBridge;
+import com.oemer.client.feature.FilePicker;
+import com.oemer.client.feature.GraphicsPresets;
+import com.oemer.client.feature.ImageTools;
+import com.oemer.client.feature.KitProfiles;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.MaterialList;
+import com.oemer.client.feature.Music;
+import com.oemer.client.feature.PresetArt;
+import com.oemer.client.feature.SkinTotem;
 import com.oemer.client.feature.Sounds;
+import com.oemer.client.feature.Spotify;
+import com.oemer.client.feature.SpriteCosmetics;
 import com.oemer.client.feature.Textures;
+import com.oemer.client.feature.YouTubeMusic;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.screens.options.OptionsScreen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
+import org.lwjgl.glfw.GLFW;
 
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -33,68 +50,46 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
- * Das Ömer-Client-Menü: schwarzer Screen, oben rechts die Tabs
- * Settings · Skins · Layout · Graphics, jeder Tab mit eigenen Unter-Reitern.
+ * Das Ömer-Client-Menü: links die Bereiche (Mods, Settings, Design, Musik, Skin, Kits), oben die Suche,
+ * rechts die Inhalte. Jede Mod ist eine Kachel mit Schalter – Klick öffnet ihre Einstellungen.
  */
 public class OmerScreen extends Screen {
 
-	enum Tab {
-		SETTINGS("Settings"), SKINS("Skins"), LAYOUT("Layout"), GRAPHICS("Graphics"), MUSIK("Musik");
+	enum Section {
+		MODS("Mods", "▦", "Alle Mods – an/aus und Einstellungen"),
+		SETTINGS("Settings", "⚙", "Allgemeine Einstellungen und Tasten"),
+		DESIGN("Design", "✎", "Hintergrund, Vorlagen, Grafik"),
+		MUSIK("Musik", "♪", "YouTube-Musik und Spotify"),
+		SKIN("Skin", "☺", "Cape, Totem, Cosmetics, Sounds"),
+		KITS("Kits", "⌨", "Eigene Einstellungen und Tasten für jedes Kit");
 
-		final String title;
+		final String title, icon, subtitle;
 
-		Tab(String title) {
+		Section(String title, String icon, String subtitle) {
 			this.title = title;
-		}
-	}
-
-	enum Sub {
-		ALLGEMEIN(Tab.SETTINGS, "Allgemein", "Fullbright und Free Cam"),
-		KITS(Tab.SETTINGS, "Kits", "Kit Select und Kit-HUD"),
-		MATERIAL(Tab.SETTINGS, "Material List", "Blöcke für deine Schematic"),
-		CAPE(Tab.SKINS, "Cape", "Dein eigenes Cape"),
-		COSMETICS(Tab.SKINS, "Cosmetics", "Hüte, Flügel und mehr"),
-		EIGENE(Tab.SKINS, "Eigene", "Eigene 3D-Cosmetics aus Pixelbildern"),
-		TOTEM(Tab.SKINS, "Totem", "Dein eigenes Totem"),
-		SOUNDS(Tab.SKINS, "Sounds", "Eigene Sounds, jeder mit eigenem Ordner"),
-		DESIGN(Tab.LAYOUT, "Design", "So sieht dein Client aus"),
-		HUD(Tab.LAYOUT, "HUD", "Anzeigen im Spiel"),
-		LOOKS(Tab.GRAPHICS, "Looks", "Eigene Bilder als Hintergrund"),
-		CROSSHAIR(Tab.GRAPHICS, "Crosshair", "Dein eigenes Fadenkreuz"),
-		SPOTIFY(Tab.MUSIK, "Spotify", "Musik hören und steuern, ohne das Spiel zu verlassen");
-
-		final Tab tab;
-		final String title;
-		final String subtitle;
-
-		Sub(Tab tab, String title, String subtitle) {
-			this.tab = tab;
-			this.title = title;
+			this.icon = icon;
 			this.subtitle = subtitle;
 		}
-
-		static List<Sub> of(Tab tab) {
-			List<Sub> list = new ArrayList<>();
-			for (Sub s : values()) if (s.tab == tab) list.add(s);
-			return list;
-		}
 	}
 
-	/** Bleibt gemerkt, solange das Spiel läuft. */
-	private static Tab current = Tab.SETTINGS;
-	private static final Map<Tab, Sub> CURRENT_SUB = new EnumMap<>(Tab.class);
+	/** Eine Mod-Kachel. on/set = null → nur Einstellungen, kein Schalter. */
+	record ModInfo(String id, String icon, String name, String desc, BooleanSupplier on, Consumer<Boolean> set, Runnable detail) {
+	}
 
-	/** Totem/Sounds geändert → beim Schließen Ressourcen neu laden. */
+	// ---- bleibt gemerkt, solange das Spiel läuft
+	private static Section section = Section.MODS;
+	private static String openMod = null;
+	private static String query = "";
+	private static int skinTab = 0;
+	private static int cosmeticSlot = 1;
 	private static boolean looksChanged;
-	/** Beim Tab-Wechsel nicht nochmal einblenden. */
 	private static boolean skipFade;
-	/** Gleitende Markierung unter den Tabs. */
-	private static float tabHighlightX = -1, tabHighlightW;
 
-	private static final int PAD = 14;
-	private static final int TOP = 50;
-	private static final int ROW_H = 24;
-	private static final int GAP = 6;
+	private static final String[] SKIN_TABS = {"Cape", "Totem", "Cosmetics", "Sounds"};
+
+	private static final int PAD = 12;
+	private static final int ROW_H = 26;
+	private static final int GAP = 8;
 
 	private final Screen parent;
 	private final List<Supplier<String>> infoLines = new ArrayList<>();
@@ -102,23 +97,30 @@ public class OmerScreen extends Screen {
 	private final boolean fadeIn;
 	private long lastFrame = System.nanoTime();
 
+	// Layout
+	private int sideX, sideY, sideW, sideH;
 	private int panelX, panelY, panelW, panelH;
-	private int contentX, contentY, contentW;
-	private int colW, colCount;
-	private int nextIndex;
-	private int tabsX, tabsW, tabsY = 13, tabsH = 20;
-	private boolean compactLogo;
-	private final int[] tabX = new int[Tab.values().length];
-	private final int[] tabW = new int[Tab.values().length];
-	/** Rechte Hälfte der Glas-Fläche für Vorschauen (null = keine). */
-	private Consumer<GuiGraphics> previewArea;
-	/** Inhalte, die scrollen (eigene Liste, damit wir sie abschneiden können). */
-	private final List<net.minecraft.client.gui.components.AbstractWidget> content = new ArrayList<>();
-	private final List<Integer> contentBaseY = new ArrayList<>();
+	private int cx0, cw, cy;            // Inhalt: links, Breite, Cursor (ohne Scrollen)
+	private int contentTop;
+	private int flowN, flowIdx, flowW, flowH;
 	private int viewTop, viewBottom;
 	private double scroll;
-	private int pillsLeft;
+	private String pageKey = "";
+	private String dynKey = "";
+
+	// Vorschau rechts (optional)
+	private Consumer<GuiGraphics> previewArea;
 	private int previewX, previewY, previewW, previewH;
+	private int mouseXNow, mouseYNow;
+
+	private final List<AbstractWidget> content = new ArrayList<>();
+	private final List<Integer> contentBaseY = new ArrayList<>();
+
+	private EditBox search;
+	private EditBox ytBox;
+	private EditBox keyBox;
+	private String focusName = "";
+	private KeyMapping listening;
 
 	public OmerScreen(Screen parent) {
 		super(Component.literal("Ömer Client"));
@@ -127,134 +129,1315 @@ public class OmerScreen extends Screen {
 		skipFade = false;
 	}
 
-	private Sub sub() {
-		Sub s = CURRENT_SUB.get(current);
-		if (s == null || s.tab != current) {
-			s = Sub.of(current).get(0);
-			CURRENT_SUB.put(current, s);
-		}
-		return s;
+	/** Öffnet direkt den Musik-Bereich (Taste "Musik-Player öffnen"). */
+	public static void openMusic() {
+		section = Section.MUSIK;
+		openMod = null;
+		net.minecraft.client.Minecraft.getInstance().setScreen(new OmerScreen(null));
 	}
+
+	/** Totem/Sounds/Texturen haben sich geändert → beim Schließen Ressourcen neu laden. */
+	public static void markLooksChanged() {
+		looksChanged = true;
+	}
+
+	/** Für Buttons, die nicht mitscrollen. */
+	void addExtra(AbstractWidget w) {
+		this.addRenderableWidget(w);
+	}
+
+	// =================================================================== Aufbau
 
 	@Override
 	protected void init() {
 		infoLines.clear();
 		previewArea = null;
-		nextIndex = 0;
 		content.clear();
 		contentBaseY.clear();
+		ytBox = null;
+		keyBox = null;
 
-		panelX = PAD;
-		panelY = TOP;
-		panelW = this.width - PAD * 2;
-		panelH = this.height - TOP - 34;
-		contentX = panelX + 14;
-		contentY = panelY + 44;
-		contentW = panelW - 28;
-		colCount = contentW >= 330 ? 2 : 1;
-		colW = (contentW - (colCount - 1) * 8) / colCount;
+		boolean narrow = this.width < 420;
+		sideW = narrow ? 34 : 104;
+		sideX = PAD;
+		sideY = 44;
+		sideH = this.height - sideY - 32;
+		panelX = sideX + sideW + 10;
+		panelY = sideY;
+		panelW = this.width - panelX - PAD;
+		panelH = sideH;
 
-		// ---- Tabs oben rechts (in einer Glas-Pille)
-		Tab[] tabs = Tab.values();
-		int logoRight = PAD + 30 + Math.round((Draw.width("§lÖMER") + 4 + Draw.width("CLIENT")) * 1.25f);
-		compactLogo = false;
-		for (int pad : new int[]{22, 14, 10}) {
-			int total = 0;
-			for (int i = 0; i < tabs.length; i++) {
-				tabW[i] = Draw.width(tabs[i].title) + pad;
-				total += tabW[i];
+		// ---- Seitenleiste
+		Section[] secs = Section.values();
+		int itemH = Math.min(30, (sideH - 12) / secs.length);
+		for (int i = 0; i < secs.length; i++) {
+			Section s = secs[i];
+			int y = sideY + 6 + i * itemH;
+			this.addRenderableWidget(new NavItem(sideX + 5, y, sideW - 10, itemH - 4, s, narrow));
+		}
+
+		// ---- Suche oben im Inhalt
+		int searchW = Math.min(260, panelW - 140);
+		search = new EditBox(this.font, panelX + 30, panelY + 14, Math.max(60, searchW), 12, Component.literal("Suche"));
+		search.setBordered(false);
+		search.setMaxLength(40);
+		search.setTextColor(0xFFFFFFFF);
+		search.setHint(Component.literal("Suchen …"));
+		search.setValue(query);
+		search.setResponder(v -> {
+			if (v.equals(query)) return;
+			query = v;
+			focusName = "search";
+			scroll = 0;
+			refresh();
+		});
+		this.addRenderableWidget(search);
+
+		cx0 = panelX + 14;
+		cw = panelW - 28;
+		contentTop = panelY + 44;
+		cy = contentTop;
+		flowN = 0;
+
+		String key = section + "|" + openMod + "|" + skinTab + "|" + OemerConfig.get().musicService;
+		if (!key.equals(pageKey)) {
+			pageKey = key;
+			scroll = 0;
+			listening = null;
+		}
+
+		if (section == Section.MODS && openMod != null) {
+			// "‹ Alle Mods" oben rechts auf Detailseiten
+			this.addRenderableWidget(new OmerWidgets.Flat(panelX + panelW - 92, panelY + 10, 80, 20, "‹ Alle Mods", () -> {
+				openMod = null;
+				refresh();
+			}).style(OmerWidgets.Style.GLASS));
+		}
+
+		switch (section) {
+			case MODS -> {
+				if (openMod == null) buildMods();
+				else buildModDetail(openMod);
 			}
-			tabsW = total + 4;
-			tabsX = this.width - PAD - tabsW;
-			if (tabsX >= logoRight + 8) break;
-		}
-		if (tabsX < logoRight + 8) compactLogo = true; // dann nur "ÖMER" ohne "CLIENT"
-		int x = tabsX + 2;
-		for (int i = 0; i < tabs.length; i++) {
-			Tab tab = tabs[i];
-			tabX[i] = x;
-			this.addRenderableWidget(new OmerWidgets.Flat(x, tabsY + 2, tabW[i], tabsH - 4, tab.title,
-					() -> switchTab(tab), () -> current == tab).style(OmerWidgets.Style.TAB));
-			x += tabW[i];
-		}
-
-		// ---- Unter-Reiter (Pillen) oben rechts in der Glas-Fläche
-		List<Sub> subs = Sub.of(current);
-		pillsLeft = panelX + panelW - 12;
-		if (subs.size() > 1) {
-			int px = panelX + panelW - 12;
-			for (int i = subs.size() - 1; i >= 0; i--) {
-				Sub s = subs.get(i);
-				int w = Draw.width(s.title) + 16;
-				px -= w;
-				this.addRenderableWidget(new OmerWidgets.Flat(px, panelY + 12, w, 16, s.title,
-						() -> switchSub(s), () -> sub() == s).style(OmerWidgets.Style.PILL));
-				px -= 4;
-			}
-			pillsLeft = px;
-		}
-
-		switch (sub()) {
-			case ALLGEMEIN -> buildGeneral();
-			case KITS -> buildKits();
-			case MATERIAL -> buildMaterial();
-			case CAPE -> buildCape();
-			case COSMETICS -> buildCosmetics();
-			case TOTEM -> buildTotem();
-			case SOUNDS -> buildSounds();
+			case SETTINGS -> buildSettings();
 			case DESIGN -> buildDesign();
-			case HUD -> buildHud();
-			case LOOKS -> buildLooks();
-			case EIGENE -> buildCustomCosmetics();
-			case CROSSHAIR -> buildCrosshair();
-			case SPOTIFY -> buildSpotify();
+			case MUSIK -> buildMusic();
+			case SKIN -> buildSkin();
+			case KITS -> buildKits();
 		}
+		endFlow();
 
-		// ---- Sichtbarer Bereich für die Inhalte (darunter stehen die Infos)
-		viewTop = contentY - 2;
-		viewBottom = panelY + panelH - 12 - infoLines.size() * 11 - 4;
-		if (previewArea != null) {
-			previewH = Math.max(40, viewBottom - previewY);
-		}
+		viewTop = contentTop - 4;
+		viewBottom = panelY + panelH - 10 - infoLines.size() * 11 - (infoLines.isEmpty() ? 0 : 4);
+		if (previewArea != null) previewH = Math.max(40, viewBottom - previewY);
 		scroll = Math.max(0, Math.min(maxScroll(), scroll));
 
-		// ---- Fußzeile
 		this.addRenderableWidget(new OmerWidgets.Flat(this.width - PAD - 76, this.height - 26, 76, 18,
 				"Fertig", this::onClose).style(OmerWidgets.Style.PRIMARY));
+
+		// Fokus wiederherstellen (nach Suche/Neuaufbau)
+		EditBox focus = switch (focusName) {
+			case "search" -> search;
+			case "yt" -> ytBox;
+			case "key" -> keyBox;
+			default -> null;
+		};
+		if (focus != null) {
+			this.setFocused(focus);
+			focus.setFocused(true);
+		}
+		dynKey = dynamicKey();
 	}
 
-	private <T extends net.minecraft.client.gui.components.AbstractWidget> T addContent(T w) {
+	private void refresh() {
+		skipFade = true;
+		String f = focusName;
+		this.rebuildWidgets();
+		focusName = f;
+	}
+
+	/** Sachen, die sich von selbst ändern (Suchergebnisse, neue Dateien …) → Seite neu aufbauen. */
+	private String dynamicKey() {
+		return switch (section) {
+			case MUSIK -> YouTubeMusic.results().size() + ":" + (YouTubeMusic.results().isEmpty() ? "" : YouTubeMusic.results().get(0).id)
+					+ ":" + OemerConfig.get().ytLibrary.size() + ":" + OemerConfig.get().ytPlaylists.size() + ":" + YouTubeMusic.queue().size()
+					+ ":" + Spotify.status();
+			case SKIN -> CapeManager.choices().size() + ":" + LooksPack.totemChoices().size() + ":" + CustomCosmetics.files().size();
+			case DESIGN -> Looks.files().size() + "";
+			case MODS -> openMod != null && openMod.equals("material") ? ChestMarker.here().size() + ":" + MaterialList.files().size() : "";
+			default -> "";
+		};
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		String k = dynamicKey();
+		if (!k.equals(dynKey)) {
+			if (ytBox != null && ytBox.isFocused()) focusName = "yt";
+			refresh();
+		}
+	}
+
+	// ------------------------------------------------------------- Helfer
+
+	private boolean match(String... texts) {
+		String q = query.trim().toLowerCase(Locale.ROOT);
+		if (q.isEmpty()) return true;
+		for (String t : texts) if (t != null && t.toLowerCase(Locale.ROOT).contains(q)) return true;
+		return false;
+	}
+
+	private <T extends AbstractWidget> T addContent(T w) {
 		content.add(w);
 		contentBaseY.add(w.getY());
 		this.addWidget(w);
 		return w;
 	}
 
+	/** Spalten-Raster beginnen: n Spalten, Höhe h. */
+	private void flow(int n, int h) {
+		endFlow();
+		flowN = Math.max(1, n);
+		flowIdx = 0;
+		flowH = h;
+		flowW = (cw - (flowN - 1) * GAP) / flowN;
+	}
+
+	private int[] flowSlot() {
+		if (flowN == 0) flow(1, ROW_H);
+		int x = cx0 + flowIdx * (flowW + GAP);
+		int[] r = {x, cy, flowW, flowH};
+		flowIdx++;
+		if (flowIdx >= flowN) {
+			flowIdx = 0;
+			cy += flowH + GAP;
+		}
+		return r;
+	}
+
+	private void endFlow() {
+		if (flowN > 0 && flowIdx > 0) cy += flowH + GAP;
+		flowN = 0;
+		flowIdx = 0;
+	}
+
+	/** Einstellungs-Zeilen: 2 Spalten, wenn genug Platz. */
+	private void rows() {
+		flow(cw >= 440 ? 2 : 1, ROW_H);
+	}
+
+	private void heading(String text) {
+		endFlow();
+		cy += 4;
+		addContent(new OmerWidgets.Label(cx0, cy, cw, 18, text, true, Theme.TEXT));
+		cy += 18 + GAP;
+	}
+
+	private void note(String text) {
+		endFlow();
+		addContent(new OmerWidgets.Label(cx0, cy, cw, 12, text, false, Theme.TEXT_DIM));
+		cy += 12 + 4;
+	}
+
+	private void toggle(String label, BooleanSupplier get, Consumer<Boolean> set, String tip) {
+		if (!match(label, tip)) return;
+		if (flowN == 0) rows();
+		int[] p = flowSlot();
+		var t = new OmerWidgets.Toggle(p[0], p[1], p[2], p[3], label, get, v -> {
+			set.accept(v);
+			OemerConfig.save();
+		}, false);
+		if (!tip.isEmpty()) t.tip(tip);
+		addContent(t);
+	}
+
+	private void cycle(String label, String[] options, IntSupplier get, IntConsumer set) {
+		cycle(label, () -> options, get, set);
+	}
+
+	private void cycle(String label, Supplier<String[]> options, IntSupplier get, IntConsumer set) {
+		if (!match(label)) return;
+		if (flowN == 0) rows();
+		int[] p = flowSlot();
+		addContent(new OmerWidgets.Cycle(p[0], p[1], p[2], p[3], label, options, get, v -> {
+			set.accept(v);
+			OemerConfig.save();
+		}));
+	}
+
+	private void button(String label, Runnable action, OmerWidgets.Style style) {
+		button(label, action, style, "");
+	}
+
+	private void button(String label, Runnable action, OmerWidgets.Style style, String tip) {
+		if (!match(label, tip)) return;
+		if (flowN == 0) rows();
+		int[] p = flowSlot();
+		var b = new OmerWidgets.Flat(p[0], p[1], p[2], p[3], label, action).style(style);
+		if (!tip.isEmpty()) b.tip(tip);
+		addContent(b);
+	}
+
+	/** Reihe aus mehreren gleich breiten Buttons. */
+	private void buttonRow(String[] labels, Runnable[] actions, IntSupplier selected) {
+		endFlow();
+		int n = labels.length;
+		int w = (cw - (n - 1) * 6) / n;
+		for (int i = 0; i < n; i++) {
+			final int idx = i;
+			addContent(new OmerWidgets.Flat(cx0 + i * (w + 6), cy, w, ROW_H, labels[i], actions[i],
+					() -> selected != null && selected.getAsInt() == idx));
+		}
+		cy += ROW_H + GAP;
+	}
+
+	private void keyRow(KeyMapping key, String label, String hint) {
+		if (!match(label, hint, key.getTranslatedKeyMessage().getString())) return;
+		if (flowN == 0) flow(cw >= 440 ? 2 : 1, ROW_H + 4);
+		int[] p = flowSlot();
+		addContent(new OmerWidgets.KeyRow(p[0], p[1], p[2], p[3], label, hint,
+				() -> key.isUnbound() ? "—" : key.getTranslatedKeyMessage().getString(),
+				() -> listening == key, () -> conflict(key), () -> {
+			listening = listening == key ? null : key;
+		}).tip("Klicken, dann neue Taste drücken · ESC = Taste löschen"));
+	}
+
+	private boolean conflict(KeyMapping key) {
+		if (key.isUnbound()) return false;
+		for (KeyMapping other : this.minecraft.options.keyMappings) {
+			if (other != key && !other.isUnbound() && other.same(key)) return true;
+		}
+		return false;
+	}
+
+	private void info(Supplier<String> line) {
+		infoLines.add(line);
+	}
+
+	private void usePreview(Consumer<GuiGraphics> draw) {
+		if (cw < 400) return;
+		previewArea = draw;
+		int pw = Math.min(260, cw * 2 / 5);
+		previewW = pw;
+		previewX = cx0 + cw - pw;
+		previewY = cy;
+		cw = cw - pw - 14;
+	}
+
+	private static void open(Path dir) {
+		try {
+			Files.createDirectories(dir);
+		} catch (Exception ignored) {
+		}
+		Util.getPlatform().openPath(dir);
+	}
+
+	private void go(Section s) {
+		if (section == s && openMod == null) return;
+		section = s;
+		openMod = null;
+		query = "";
+		focusName = "";
+		refresh();
+	}
+
+	private void openModPage(String id) {
+		openMod = id;
+		query = "";
+		focusName = "";
+		refresh();
+	}
+
+	// =================================================================== Mods
+
+	private List<ModInfo> mods() {
+		OemerConfig c = OemerConfig.get();
+		List<ModInfo> l = new ArrayList<>();
+		l.add(new ModInfo("fullbright", "☀", "Fullbright", "Alles hell, auch nachts", () -> c.fullbright, v -> c.fullbright = v, null));
+		l.add(new ModInfo("freecam", "✈", "Free Cam", "Frei fliegen, nicht durch Blöcke", () -> c.freecam,
+				v -> c.freecam = v && this.minecraft.level != null, null));
+		l.add(new ModInfo("zoom", "⌕", "Just Zoom", "Taste halten = Zoom", () -> c.zoomOn, v -> c.zoomOn = v, null));
+		l.add(new ModInfo("crosshair", "✛", "Custom Crosshair", "Eigenes Fadenkreuz", () -> c.customCrosshair, v -> c.customCrosshair = v, null));
+		l.add(new ModInfo("material", "▤", "Material List", "Blöcke für deine Schematic + Kisten", () -> c.materialList, v -> c.materialList = v, null));
+		l.add(new ModInfo("kithud", "⚔", "Kit-HUD", "Zeigt deine Kit-Items im Spiel", () -> c.kitHud, v -> c.kitHud = v, null));
+		l.add(new ModInfo("appleskin", "🍏", "AppleSkin", "Sättigung + Essens-Vorschau", () -> c.appleSkin, v -> c.appleSkin = v, null));
+		l.add(new ModInfo("clearglass", "◻", "Clear Glass", "Klares Glas ohne Streifen", () -> c.clearGlass, v -> {
+			c.clearGlass = v;
+			looksChanged = true;
+		}, null));
+		l.add(new ModInfo("darkgui", "◼", "Dark GUI", "Dunkle Kisten und Inventare", () -> c.darkGui, v -> {
+			c.darkGui = v;
+			looksChanged = true;
+		}, null));
+		l.add(new ModInfo("distanthorizons", "⛰", "Distant Horizons", "Riesige Sichtweite (LODs)", () -> c.distantHorizons, v -> {
+			c.distantHorizons = v;
+			DistantHorizonsBridge.changed();
+		}, null));
+		l.add(new ModInfo("lowfire", "🔥", "Low Fire", "Feuer am Bildschirm tiefer", () -> c.lowFire, v -> c.lowFire = v, null));
+		l.add(new ModInfo("lowshield", "⛨", "Low Shield", "Schild in der Hand tiefer", () -> c.lowShield, v -> c.lowShield = v, null));
+		l.add(new ModInfo("nodarkness", "☾", "No Darkness", "Kein Dunkelheits-Effekt", () -> c.noDarkness, v -> c.noDarkness = v, null));
+		l.add(new ModInfo("nofog", "☁", "No Fog", "Kein Nebel an Land", () -> c.noFog, v -> c.noFog = v, null));
+		l.add(new ModInfo("nopumpkin", "◕", "No Pumpkin Blur", "Kein Kürbis-Rand", () -> c.noPumpkin, v -> c.noPumpkin = v, null));
+		l.add(new ModInfo("weather", "☂", "Wetter aus", "Kein Regen, kein Gewitter", () -> c.noWeather, v -> c.noWeather = v, null));
+		l.add(new ModInfo("notetuner", "♫", "Note Block Tuner", "Zeigt Ton + Instrument", () -> c.noteTuner, v -> c.noteTuner = v, null));
+		l.add(new ModInfo("nobedrock", "▧", "NoBedrock", "Bedrock sieht aus wie Deepslate", () -> c.noBedrock, v -> {
+			c.noBedrock = v;
+			looksChanged = true;
+		}, null));
+		l.add(new ModInfo("shulker", "▣", "Shulker Box Tooltip", "Inhalt als Raster im Tooltip", () -> c.shulkerTooltip, v -> c.shulkerTooltip = v, null));
+		l.add(new ModInfo("smalltotem", "✦", "Smaller Totem", "Kleineres Totem + Animation", () -> c.smallerTotem, v -> c.smallerTotem = v, null));
+		l.add(new ModInfo("tnttimer", "⏱", "TNT Timer", "Sekunden bis zur Explosion", () -> c.tntTimer, v -> c.tntTimer = v, null));
+		l.add(new ModInfo("musichud", "♪", "Musik-HUD", "Zeigt den Song im Spiel", () -> c.spotifyHud, v -> c.spotifyHud = v, null));
+		l.add(new ModInfo("cosmetics", "☺", "Cosmetics", "Deine eigenen Bild-Cosmetics", () -> c.cosmeticsOn, v -> c.cosmeticsOn = v, null));
+		l.add(new ModInfo("totem", "♥", "Custom Totem", "Eigenes Totem-Bild", () -> c.customTotem, v -> {
+			c.customTotem = v;
+			looksChanged = true;
+		}, null));
+		l.add(new ModInfo("cape", "⚑", "Custom Cape", "Eigenes Cape", () -> c.customCape, v -> c.customCape = v, null));
+		l.add(new ModInfo("sounds", "♬", "Custom Sounds", "Eigene Sounds", () -> c.customSounds, v -> {
+			c.customSounds = v;
+			looksChanged = true;
+		}, null));
+		return l;
+	}
+
+	private void buildMods() {
+		List<ModInfo> list = new ArrayList<>();
+		for (ModInfo m : mods()) if (match(m.name(), m.desc(), m.id())) list.add(m);
+		int n = cw >= 600 ? 3 : cw >= 360 ? 2 : 1;
+		flow(n, 44);
+		for (ModInfo m : list) {
+			int[] p = flowSlot();
+			addContent(new OmerWidgets.ModCard(p[0], p[1], p[2], p[3], m.icon(), m.name(), m.desc(), m.on(), v -> {
+				m.set().accept(v);
+				OemerConfig.save();
+			}, () -> openModPage(m.id())).tip("Klick = Einstellungen · Schalter = an/aus"));
+		}
+		endFlow();
+		if (list.isEmpty()) note("Keine Mod gefunden für „" + query + "“");
+		info(() -> list.size() + " Mods · Klick auf eine Kachel öffnet ihre Einstellungen");
+	}
+
+	private void buildModDetail(String id) {
+		OemerConfig c = OemerConfig.get();
+		ModInfo m = null;
+		for (ModInfo x : mods()) if (x.id().equals(id)) m = x;
+		if (m == null) {
+			openMod = null;
+			buildMods();
+			return;
+		}
+		final ModInfo mod = m;
+		// Kopf: großes Symbol, Name, Text, Schalter
+		addContent(new OmerWidgets.Painter(cx0, cy, cw, 40, (g, x, y, w, h, mx, my) -> {
+			Draw.round(g, x, y, 40, 40, 8, mod.on() != null && mod.on().getAsBoolean() ? Theme.accent(0xE0) : Theme.white(0x18));
+			g.pose().pushMatrix();
+			g.pose().translate(x + 20, y + 13);
+			g.pose().scale(1.8f);
+			Draw.centered(g, mod.icon(), 0, 0, 0xFFFFFFFF);
+			g.pose().popMatrix();
+			g.pose().pushMatrix();
+			g.pose().translate(x + 52, y + 6);
+			g.pose().scale(1.4f);
+			Draw.text(g, mod.name(), 0, 0, Theme.TEXT);
+			g.pose().popMatrix();
+			Draw.text(g, Draw.fit(mod.desc(), w - 60), x + 52, y + 24, Theme.TEXT_DIM);
+		}, null));
+		cy += 40 + GAP + 4;
+		if (mod.on() != null) {
+			flow(cw >= 440 ? 2 : 1, ROW_H);
+			int[] p = flowSlot();
+			addContent(new OmerWidgets.Toggle(p[0], p[1], p[2], p[3], "Aktiv", mod.on(), v -> {
+				mod.set().accept(v);
+				OemerConfig.save();
+			}, false));
+		}
+		switch (id) {
+			case "fullbright" -> {
+				endFlow();
+				keyRow(OemerKeys.fullbright, "Taste: Fullbright", "");
+			}
+			case "freecam" -> {
+				cycle("Tempo", OemerConfig.FREECAM_SPEED_NAMES, () -> c.freecamSpeed, v -> c.freecamSpeed = v);
+				endFlow();
+				keyRow(OemerKeys.freecam, "Taste: Free Cam", "");
+				info(() -> this.minecraft.level != null ? "WASD fliegen, Leertaste hoch, Shift runter, Sprinten = schneller."
+						: "Free Cam geht nur in einer Welt oder auf Servern.");
+			}
+			case "zoom" -> {
+				cycle("Stärke", OemerConfig.ZOOM_NAMES, () -> c.zoomLevel, v -> c.zoomLevel = v);
+				toggle("Mausrad = mehr/weniger Zoom", () -> c.zoomScroll, v -> c.zoomScroll = v, "");
+				toggle("Weich zoomen", () -> c.zoomSmooth, v -> c.zoomSmooth = v, "");
+				endFlow();
+				keyRow(OemerKeys.zoom, "Taste: Zoom (halten)", "");
+			}
+			case "crosshair" -> buildCrosshair();
+			case "material" -> buildMaterial();
+			case "kithud" -> {
+				cycle("Ort", OemerConfig.CORNERS, () -> c.kitHudCorner, v -> c.kitHudCorner = v);
+				cycle("HUD-Größe", OemerConfig.HUD_SCALE_NAMES, () -> c.hudScale, v -> c.hudScale = v);
+				button("Kits & Tasten öffnen", () -> go(Section.KITS), OmerWidgets.Style.PRIMARY);
+				info(() -> "Aktives Kit: " + KitProfiles.name(KitProfiles.active()) + " · " + com.oemer.client.feature.Hud.kitDescription(c.kit));
+			}
+			case "appleskin" -> info(() -> "Goldener Rahmen = Sättigung · Blinkende Keulen = so viel bringt dein Essen.");
+			case "clearglass", "darkgui", "nobedrock" -> info(() -> "Wird beim Schließen vom Menü geladen (dauert kurz).");
+			case "distanthorizons" -> {
+				button("Distant-Horizons-Einstellungen", () -> {
+					Screen s = DistantHorizonsBridge.configScreen(this);
+					if (s != null) this.minecraft.setScreen(s);
+				}, OmerWidgets.Style.GLASS);
+				info(() -> DistantHorizonsBridge.installed()
+						? "Version " + DistantHorizonsBridge.version() + " · " + DistantHorizonsBridge.status()
+						: "Distant Horizons ist nicht geladen.");
+				info(() -> "Braucht viel Leistung – für PvP lieber aus.");
+			}
+			case "lowfire" -> cycle("Wie tief", OemerConfig.LOW_NAMES, () -> c.lowFireLevel, v -> c.lowFireLevel = v);
+			case "lowshield" -> cycle("Wie tief", OemerConfig.LOW_NAMES, () -> c.lowShieldLevel, v -> c.lowShieldLevel = v);
+			case "smalltotem" -> cycle("Größe", OemerConfig.SMALL_NAMES, () -> c.smallerTotemLevel, v -> c.smallerTotemLevel = v);
+			case "weather" -> {
+				endFlow();
+				keyRow(OemerKeys.weatherToggle, "Taste: Wetter an/aus", "");
+			}
+			case "notetuner" -> info(() -> "Schau auf einen Notenblock: Ton, Instrument und Klaviatur erscheinen unter dem Fadenkreuz.");
+			case "tnttimer" -> info(() -> "Über jedem gezündeten TNT stehen die Sekunden (grün → gelb → rot).");
+			case "musichud" -> {
+				cycle("Ort", OemerConfig.CORNERS, () -> c.spotifyHudCorner, v -> c.spotifyHudCorner = v);
+				button("Musik öffnen", () -> go(Section.MUSIK), OmerWidgets.Style.PRIMARY);
+			}
+			case "cosmetics" -> {
+				button("Cosmetics ausrüsten", () -> {
+					skinTab = 2;
+					go(Section.SKIN);
+				}, OmerWidgets.Style.PRIMARY);
+				endFlow();
+				keyRow(OemerKeys.cosmeticsToggle, "Taste: Cosmetics an/aus", "");
+			}
+			case "totem" -> button("Totem auswählen", () -> {
+				skinTab = 1;
+				go(Section.SKIN);
+			}, OmerWidgets.Style.PRIMARY);
+			case "cape" -> button("Cape auswählen", () -> {
+				skinTab = 0;
+				go(Section.SKIN);
+			}, OmerWidgets.Style.PRIMARY);
+			case "sounds" -> button("Sounds auswählen", () -> {
+				skinTab = 3;
+				go(Section.SKIN);
+			}, OmerWidgets.Style.PRIMARY);
+			default -> {
+			}
+		}
+		endFlow();
+	}
+
+	private void buildCrosshair() {
+		OemerConfig c = OemerConfig.get();
+		cycle("Farbe", OemerConfig.CROSSHAIR_COLOR_NAMES, () -> c.crosshairColor, v -> c.crosshairColor = v);
+		cycle("Größe", OemerConfig.CROSSHAIR_SIZE_NAMES, () -> c.crosshairSize, v -> c.crosshairSize = v);
+		button("Selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.CROSSHAIR)), OmerWidgets.Style.GLASS);
+		button("Datei wählen", () -> FilePicker.pickImage("Crosshair wählen", Crosshair.folder(), name -> {
+			c.crosshairSelection = name;
+			c.customCrosshair = true;
+			OemerConfig.save();
+			refresh();
+		}), OmerWidgets.Style.GLASS);
+		heading("Vorlagen");
+		List<String> list = Crosshair.choices();
+		flow(Math.max(3, cw / 70), 64);
+		for (String ch : list) {
+			int[] p = flowSlot();
+			addContent(new OmerWidgets.Painter(p[0], p[1], p[2], p[3], (g, x, y, w, h, mx, my) -> {
+				boolean sel = c.crosshairSelection.equals(ch);
+				boolean hover = mx >= x && mx < x + w && my >= y && my < y + h;
+				Draw.round(g, x, y, w, h, 6, sel ? Theme.accent(0x30) : Theme.white(hover ? 0x1C : 0x0E));
+				Draw.roundBorder(g, x, y, w, h, 6, sel ? Theme.accent(0xF0) : Theme.border(hover ? 1f : 0f));
+				Draw.round(g, x + 4, y + 4, w - 8, h - 22, 4, 0xFF4F7FC2);
+				String old = c.crosshairSelection;
+				c.crosshairSelection = ch;
+				Crosshair.draw(g, x + w / 2f, y + 4 + (h - 22) / 2f, Crosshair.scale() * 1.2f);
+				c.crosshairSelection = old;
+				Draw.centered(g, Draw.fit(Crosshair.displayName(ch), w - 4), x + w / 2, y + h - 13, Theme.TEXT_SOFT);
+			}, () -> {
+				c.crosshairSelection = ch;
+				c.customCrosshair = true;
+				OemerConfig.save();
+			}));
+		}
+		endFlow();
+		keyRow(OemerKeys.crosshairToggle, "Taste: Crosshair an/aus", "");
+		info(() -> "PNGs (z. B. 15x15) gehen auch – „Datei wählen“ oder in den Ordner crosshairs/ legen.");
+	}
+
+	private void buildMaterial() {
+		OemerConfig c = OemerConfig.get();
+		cycle("Schematic", () -> {
+			List<String> f = MaterialList.files();
+			return f.isEmpty() ? new String[]{"(keine Datei)"} : f.stream().map(n -> n.replaceAll("\\.(litematic|schem)$", "")).toArray(String[]::new);
+		}, () -> Math.max(0, MaterialList.files().indexOf(c.schematic)), v -> {
+			List<String> f = MaterialList.files();
+			if (!f.isEmpty()) {
+				c.schematic = f.get(v);
+				c.materialDone.clear();
+				MaterialList.reload();
+			}
+		});
+		cycle("Ort im HUD", OemerConfig.CORNERS, () -> c.materialListCorner, v -> c.materialListCorner = v);
+		button("Liste öffnen & abhaken", () -> this.minecraft.setScreen(new MaterialListScreen(this)), OmerWidgets.Style.PRIMARY);
+		button("Schematic-Ordner öffnen", () -> open(MaterialList.folder()), OmerWidgets.Style.GLASS);
+		if (c.schematic.isEmpty() && !MaterialList.files().isEmpty()) c.schematic = MaterialList.files().get(0);
+
+		heading("Kisten");
+		note("Sneaken + Rechtsklick mit einer Spitzhacke auf eine Kiste = markieren. Einmal öffnen, dann zählt ihr Inhalt mit.");
+		toggle("Kisten mitzählen", () -> c.chestCount, v -> c.chestCount = v, "Inhalt der markierten Kisten zählt in der Material List");
+		toggle("Kisten leuchten", () -> c.chestHighlight, v -> c.chestHighlight = v, "Markierte Kisten leuchten in der Welt");
+		endFlow();
+		List<OemerConfig.MarkedChest> chests = ChestMarker.here();
+		for (OemerConfig.MarkedChest m : chests) {
+			int items = m.items.values().stream().mapToInt(Integer::intValue).sum();
+			String text = "Kiste " + m.x + " " + m.y + " " + m.z + " · " + (m.updated == 0 ? "noch nicht geöffnet" : items + " Items");
+			addContent(new OmerWidgets.Painter(cx0, cy, cw - 90, ROW_H, (g, x, y, w, h, mx, my) -> {
+				Draw.round(g, x, y, w, h, 4, Theme.white(0x0E));
+				Draw.text(g, "▣", x + 8, y + 9, Theme.accent());
+				Draw.text(g, Draw.fit(text, w - 30), x + 22, y + 9, Theme.TEXT_SOFT);
+			}, null));
+			addContent(new OmerWidgets.Flat(cx0 + cw - 84, cy, 84, ROW_H, "Entfernen", () -> {
+				ChestMarker.remove(m);
+				refresh();
+			}));
+			cy += ROW_H + 4;
+		}
+		if (chests.isEmpty()) note(this.minecraft.level == null ? "Kisten markierst du im Spiel." : "Noch keine Kiste markiert.");
+		endFlow();
+		keyRow(OemerKeys.materialToggle, "Taste: Material List an/aus", "");
+		keyRow(OemerKeys.materialOpen, "Taste: Liste öffnen", "");
+		info(() -> {
+			if (c.schematic.isEmpty()) return ".litematic oder .schem in den Ordner schematics/ legen.";
+			if (!MaterialList.error().isEmpty()) return "Fehler: " + MaterialList.error();
+			int sum = 0;
+			for (var e : MaterialList.entries()) sum += e.needed();
+			return MaterialList.entries().size() + " verschiedene Blöcke, " + sum + " insgesamt.";
+		});
+	}
+
+	// ================================================================ Settings
+
+	private void buildSettings() {
+		OemerConfig c = OemerConfig.get();
+		heading("Allgemein");
+		cycle("Aktives Kit", OemerConfig.KITS, () -> c.kit, v -> KitProfiles.switchTo(v));
+		toggle("Wetter aus", () -> c.noWeather, v -> c.noWeather = v, "Kein Regen und kein Gewitter (nur bei dir)");
+		toggle("Fullbright", () -> c.fullbright, v -> c.fullbright = v, "Alles hell");
+		cycle("Free Cam Tempo", OemerConfig.FREECAM_SPEED_NAMES, () -> c.freecamSpeed, v -> c.freecamSpeed = v);
+		heading("HUD");
+		cycle("HUD-Größe", OemerConfig.HUD_SCALE_NAMES, () -> c.hudScale, v -> c.hudScale = v);
+		cycle("Kit-HUD Ort", OemerConfig.CORNERS, () -> c.kitHudCorner, v -> c.kitHudCorner = v);
+		cycle("Material List Ort", OemerConfig.CORNERS, () -> c.materialListCorner, v -> c.materialListCorner = v);
+		cycle("Musik-HUD Ort", OemerConfig.CORNERS, () -> c.spotifyHudCorner, v -> c.spotifyHudCorner = v);
+		heading("Menü");
+		toggle("Menü-Blur im Spiel", () -> c.menuBlur, v -> c.menuBlur = v, "Welt hinter dem Menü verschwommen");
+		toggle("Version anzeigen", () -> c.showVersion, v -> c.showVersion = v, "");
+		toggle("Menü-Partikel", () -> c.menuParticles, v -> c.menuParticles = v, "Funkelnde Punkte im Hintergrund");
+		button("Minecraft-Optionen", () -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options)), OmerWidgets.Style.GLASS);
+		heading("Tasten vom Ömer Client");
+		note("Klick auf eine Taste, dann die neue Taste drücken. ESC löscht sie. Rot = doppelt belegt.");
+		for (OemerKeys.Entry e : OemerKeys.ALL) {
+			if (e.group().equals("Kits")) continue;
+			keyRow(e.key(), e.label(), e.group());
+		}
+		endFlow();
+		info(() -> "Kit-Tasten findest du unter Kits.");
+	}
+
+	// ================================================================== Design
+
+	private void buildDesign() {
+		OemerConfig c = OemerConfig.get();
+		// "Reset Settings" oben rechts
+		int rw = Draw.width("Reset Settings") + 20;
+		this.addRenderableWidget(new OmerWidgets.Flat(panelX + panelW - rw - 12, panelY + 10, rw, 20, "Reset Settings", () -> {
+			c.designStyle = 0;
+			c.accent = 0;
+			c.menuOpacity = 1;
+			c.menuParticles = true;
+			c.lookMode = false;
+			c.lookImage = Looks.WEB + "0";
+			c.lookDim = 1;
+			c.lookTitle = true;
+			OemerConfig.save();
+			CapeManager.invalidate();
+			refresh();
+		}).tip("Design zurück auf Standard"));
+
+		// ---- großes Vorschaubild + Datei wählen
+		int prevW = cw >= 480 ? cw * 45 / 100 : cw;
+		int prevH = prevW * 9 / 16;
+		int top = cy;
+		addContent(new OmerWidgets.Painter(cx0, top, prevW, prevH, (g, x, y, w, h, mx, my) -> {
+			Draw.shadow(g, x, y, w, h, 6, 90);
+			Draw.round(g, x, y, w, h, 6, 0x60000000);
+			Textures.Tex t = Looks.selected();
+			if (t != null) {
+				Textures.drawCover(g, t, x, y, w, h);
+				int dim = OemerConfig.LOOK_DIM[Math.floorMod(c.lookDim, OemerConfig.LOOK_DIM.length)];
+				g.fill(x, y, x + w, y + h, dim << 24);
+				Draw.centered(g, "§lÖMER CLIENT", x + w / 2, y + h / 2 - 4, Theme.TEXT);
+			} else {
+				Draw.centered(g, "lädt …", x + w / 2, y + h / 2 - 4, Theme.TEXT_DIM);
+			}
+			Draw.roundBorder(g, x, y, w, h, 6, Theme.white(0x40));
+			String name = Looks.displayName(c.lookImage) + (c.lookMode ? "" : "  (aus)");
+			int nw = Draw.width(name) + 12;
+			Draw.round(g, x + w - nw - 6, y + h - 18, nw, 13, 6, 0xB0000000);
+			Draw.text(g, name, x + w - nw, y + h - 15, Theme.TEXT_SOFT);
+		}, null));
+		int belowPrev = top + prevH + 6;
+		addContent(new OmerWidgets.Flat(cx0, belowPrev, prevW, ROW_H, "Datei wählen (PNG/JPG)", () ->
+				FilePicker.pickImage("Hintergrund wählen", Looks.folder(), name -> {
+					c.lookImage = name;
+					c.lookMode = true;
+					OemerConfig.save();
+					refresh();
+				})).style(OmerWidgets.Style.PRIMARY).tip("Dein eigenes Bild, z. B. von Madison Beer"));
+		addContent(new OmerWidgets.Toggle(cx0, belowPrev + ROW_H + 6, prevW, ROW_H, "Hintergrund an", () -> c.lookMode, v -> {
+			c.lookMode = v;
+			OemerConfig.save();
+		}, false));
+		int leftBottom = belowPrev + (ROW_H + 6) * 2;
+
+		// ---- Vorlagen (Fotos + deine Bilder)
+		List<String> choices = new ArrayList<>();
+		for (int i = 0; i < Looks.PHOTOS.length; i++) choices.add(Looks.WEB + i);
+		choices.addAll(Looks.files());
+		int gx = cw >= 480 ? cx0 + prevW + 14 : cx0;
+		int gw = cw >= 480 ? cw - prevW - 14 : cw;
+		int gy = cw >= 480 ? top : leftBottom + 4;
+		addContent(new OmerWidgets.Label(gx, gy, gw, 14, "Vorlagen", false, Theme.TEXT));
+		gy += 18;
+		int cols = Math.max(2, gw / 92);
+		int tw = (gw - (cols - 1) * 6) / cols;
+		int th = tw * 9 / 16 + 18;
+		int i = 0;
+		for (String ch : choices) {
+			if (!match(Looks.displayName(ch), "vorlage", "hintergrund")) continue;
+			int x = gx + (i % cols) * (tw + 6);
+			int y = gy + (i / cols) * (th + 6);
+			addContent(new OmerWidgets.Tile(x, y, tw, th, Looks.displayName(ch), () -> Looks.texture(ch, "lt_" + Integer.toHexString(ch.hashCode()), 480),
+					() -> c.lookImage.equals(ch), () -> {
+				c.lookImage = ch;
+				c.lookMode = true;
+				OemerConfig.save();
+			}).cover().badge(ch.startsWith(Looks.WEB) ? "" : "Eigenes"));
+			i++;
+		}
+		int gridBottom = gy + ((i + cols - 1) / cols) * (th + 6);
+		cy = Math.max(leftBottom, gridBottom) + GAP;
+
+		// ---- Ältere Designs
+		heading("Ältere Designs");
+		int on = Math.max(3, cw / 110);
+		flow(on, (cw - (on - 1) * GAP) / on * 9 / 16 + 18);
+		for (int k = 0; k < PresetArt.BACKGROUNDS.length; k++) {
+			String ch = Looks.PRESET + k;
+			int[] p = flowSlot();
+			addContent(new OmerWidgets.Tile(p[0], p[1], p[2], p[3], PresetArt.BACKGROUNDS[k], () -> Looks.texture(ch, "lp_" + ch.hashCode(), 480),
+					() -> c.lookImage.equals(ch), () -> {
+				c.lookImage = ch;
+				c.lookMode = true;
+				OemerConfig.save();
+			}).cover());
+		}
+		endFlow();
+
+		// ---- Grafik
+		heading("Grafik");
+		String[] names = GraphicsPresets.NAMES;
+		Runnable[] acts = new Runnable[names.length];
+		for (int k = 0; k < names.length; k++) {
+			final int level = k;
+			acts[k] = () -> GraphicsPresets.apply(level);
+		}
+		buttonRow(names, acts, () -> c.graphicsLevel);
+		note("Low = max. FPS · Mid · High · Super High = alles schön (setzt Sichtweite, Partikel, Wolken, Schatten …)");
+
+		// ---- Menü-Design
+		heading("Menü");
+		cycle("Design-Stil", OemerConfig.DESIGN_STYLES, () -> c.designStyle, v -> {
+			c.designStyle = v;
+			CapeManager.invalidate();
+			refresh();
+		});
+		cycle("Akzentfarbe", OemerConfig.ACCENT_NAMES, () -> c.accent, v -> {
+			c.accent = v;
+			CapeManager.invalidate();
+		});
+		cycle("Transparenz", OemerConfig.OPACITY_NAMES, () -> c.menuOpacity, v -> c.menuOpacity = v);
+		cycle("Bild abdunkeln", OemerConfig.LOOK_DIM_NAMES, () -> c.lookDim, v -> c.lookDim = v);
+		toggle("Auch im Startscreen", () -> c.lookTitle, v -> c.lookTitle = v, "Hintergrund statt Panorama im Hauptmenü");
+		toggle("Menü-Partikel", () -> c.menuParticles, v -> c.menuParticles = v, "");
+		button("Bilder-Ordner öffnen", () -> open(Looks.folder()), OmerWidgets.Style.GLASS);
+		endFlow();
+		info(() -> "Fotos: Unsplash (frei nutzbar) · werden beim ersten Anzeigen geladen.");
+	}
+
+	// =================================================================== Musik
+
+	private void buildMusic() {
+		OemerConfig c = OemerConfig.get();
+		// Umschalter oben: YouTube | Spotify
+		int x = panelX + panelW - 12;
+		for (int s = Music.SERVICES.length - 1; s >= 0; s--) {
+			final int idx = s;
+			int w = Draw.width(Music.SERVICES[s]) + 22;
+			x -= w;
+			this.addRenderableWidget(new OmerWidgets.Flat(x, panelY + 11, w, 18, Music.SERVICES[s], () -> {
+				c.musicService = idx;
+				OemerConfig.save();
+				refresh();
+			}, () -> c.musicService == idx).style(OmerWidgets.Style.PILL));
+			x -= 4;
+		}
+		if (c.musicService == 0) buildYouTube();
+		else buildSpotify();
+	}
+
+	private void nowPlayingCard(int h) {
+		addContent(new OmerWidgets.Painter(cx0, cy, cw, h, (g, x, y, w, hh, mx, my) -> {
+			Draw.round(g, x, y, w, hh, 8, 0x50000000);
+			Draw.roundBorder(g, x, y, w, hh, 8, Theme.white(0x22));
+			Music.Now now = Music.now();
+			int iw = (hh - 16) * 16 / 9;
+			if (!Music.youtube()) iw = hh - 16;
+			Draw.round(g, x + 8, y + 8, iw, hh - 16, 5, Theme.white(0x12));
+			if (now != null) {
+				BufferedImage cover = Spotify.cover(now.imageUrl());
+				if (cover != null) {
+					Textures.Tex tex = Textures.image("np_cover", now.imageUrl(), cover);
+					if (tex != null) Textures.drawCover(g, tex, x + 8, y + 8, iw, hh - 16);
+				}
+			} else {
+				Draw.centered(g, "♪", x + 8 + iw / 2, y + hh / 2 - 4, Theme.TEXT_DIM);
+			}
+			int tx = x + iw + 18, tw = w - iw - 28;
+			if (now == null) {
+				Draw.text(g, "Gerade läuft nichts", tx, y + 12, Theme.TEXT);
+				Draw.text(g, Draw.fit(Music.youtube() ? "Such dir unten einen Song aus" : SpotifyScreen.statusText(), tw), tx, y + 25, Theme.TEXT_DIM);
+				return;
+			}
+			g.pose().pushMatrix();
+			g.pose().translate(tx, y + 10);
+			g.pose().scale(1.2f);
+			Draw.text(g, Draw.fit(now.title(), Math.round(tw / 1.2f)), 0, 0, Theme.TEXT);
+			g.pose().popMatrix();
+			Draw.text(g, Draw.fit(now.artist() + " · " + now.service(), tw), tx, y + 24, Theme.TEXT_SOFT);
+			int by = y + hh - 22;
+			float f = now.durationMs() <= 0 ? 0 : (float) now.progressMs() / now.durationMs();
+			Draw.round(g, tx, by, tw, 3, 1, Theme.white(0x22));
+			Draw.round(g, tx, by, Math.max(3, Math.round(tw * f)), 3, 1, Theme.accent());
+			Draw.text(g, Music.time(now.progressMs()) + " / " + Music.time(now.durationMs()) + (now.playing() ? "   ▶ läuft" : "   ❚❚ Pause"),
+					tx, by + 7, Theme.TEXT_DIM);
+		}, null));
+		cy += h + 6;
+		String[] labels = {"◀◀", "▶ ❚❚", "▶▶", "⇄", "−", "+"};
+		Runnable[] acts = {Music::previous, Music::playPause, Music::next, Music::toggleShuffle, () -> Music.volume(-10), () -> Music.volume(10)};
+		buttonRow(labels, acts, null);
+	}
+
+	private void buildYouTube() {
+		OemerConfig c = OemerConfig.get();
+		nowPlayingCard(78);
+		// Suchfeld
+		ytBox = new EditBox(this.font, cx0 + 10, cy + 8, cw - 120, 12, Component.literal("YouTube"));
+		ytBox.setBordered(false);
+		ytBox.setMaxLength(200);
+		ytBox.setTextColor(0xFFFFFFFF);
+		ytBox.setHint(Component.literal(YouTubeMusic.hasKey() ? "Song suchen oder YouTube-Link einfügen …" : "YouTube-Link oder Playlist-Link einfügen …"));
+		addContent(ytBox);
+		addContent(new OmerWidgets.Flat(cx0 + cw - 100, cy, 100, ROW_H, YouTubeMusic.searching() ? "…" : "Los", () -> {
+			YouTubeMusic.submit(ytBox.getValue());
+			focusName = "yt";
+		}).style(OmerWidgets.Style.PRIMARY));
+		cy += ROW_H + GAP;
+		if (!YouTubeMusic.message().isEmpty()) note(YouTubeMusic.message());
+
+		List<YouTubeMusic.Track> results = YouTubeMusic.results();
+		if (!results.isEmpty()) {
+			heading("Ergebnisse");
+			for (YouTubeMusic.Track t : results) trackRow(t, () -> YouTubeMusic.play(t), true);
+		}
+		heading("♥ Meine Songs (" + c.ytLibrary.size() + ")");
+		if (c.ytLibrary.isEmpty()) note("Klick bei einem Song auf ♡ – dann landet er hier.");
+		for (int i = 0; i < c.ytLibrary.size(); i++) {
+			final int idx = i;
+			trackRow(c.ytLibrary.get(i), () -> YouTubeMusic.playList(c.ytLibrary, idx), true);
+		}
+		heading("Playlists");
+		if (c.ytPlaylists.isEmpty()) note("Füg oben einen YouTube-Playlist-Link ein – sie wird hier gespeichert.");
+		flow(cw >= 440 ? 2 : 1, ROW_H + 6);
+		for (YouTubeMusic.Playlist p : new ArrayList<>(c.ytPlaylists)) {
+			if (!match(p.name)) continue;
+			int[] s = flowSlot();
+			addContent(new OmerWidgets.Flat(s[0], s[1], s[2] - 30, s[3], "▶ " + p.name + " (" + p.tracks.size() + ")",
+					() -> YouTubeMusic.playList(p.tracks, 0)).tip("Playlist abspielen"));
+			addContent(new OmerWidgets.Flat(s[0] + s[2] - 26, s[1], 26, s[3], "✕", () -> {
+				YouTubeMusic.deletePlaylist(p);
+				refresh();
+			}).tip("Playlist löschen"));
+		}
+		endFlow();
+		heading("Einstellungen");
+		button("Player im Browser öffnen", YouTubeMusic::openPlayer, OmerWidgets.Style.GLASS,
+				"Die Musik läuft im offiziellen YouTube-Player in deinem Browser – Tab einfach offen lassen");
+		toggle("Zufall", () -> c.ytShuffle, v -> c.ytShuffle = v, "");
+		toggle("Wiederholen", () -> c.ytRepeat, v -> c.ytRepeat = v, "Am Ende von vorne");
+		toggle("Musik-HUD", () -> c.spotifyHud, v -> c.spotifyHud = v, "Zeigt den Song im Spiel");
+		endFlow();
+		// API-Schlüssel (optional, für die Suche)
+		if (match("schlüssel", "api", "suche")) {
+			keyBox = new EditBox(this.font, cx0 + 10, cy + 8, cw - 130, 12, Component.literal("Schlüssel"));
+			keyBox.setBordered(false);
+			keyBox.setMaxLength(80);
+			keyBox.setTextColor(0xFFFFFFFF);
+			keyBox.setHint(Component.literal("YouTube-API-Schlüssel (kostenlos, nur für die Suche)"));
+			keyBox.setValue(c.ytApiKey);
+			keyBox.setResponder(v -> {
+				c.ytApiKey = v.trim();
+				OemerConfig.save();
+			});
+			addContent(keyBox);
+			addContent(new OmerWidgets.Flat(cx0 + cw - 110, cy, 110, ROW_H, "Schlüssel holen", () ->
+					Util.getPlatform().openUri(YouTubeMusic.GUIDE)).tip("Google Cloud → YouTube Data API v3 aktivieren → Anmeldedaten → API-Schlüssel"));
+			cy += ROW_H + GAP;
+		}
+		endFlow();
+		keyRow(OemerKeys.musicPlay, "Taste: Play/Pause", "");
+		keyRow(OemerKeys.musicNext, "Taste: Nächster Song", "");
+		keyRow(OemerKeys.musicPrev, "Taste: Vorheriger Song", "");
+		keyRow(OemerKeys.musicOpen, "Taste: Musik öffnen", "");
+		endFlow();
+		info(() -> YouTubeMusic.pageConnected()
+				? (YouTubeMusic.needsClick() ? "Im Browser einmal auf „Musik starten“ klicken." : "Player verbunden ✔ – Tab offen lassen.")
+				: "Beim ersten Song öffnet sich der Ömer-Player im Browser (kostenlos, ohne Premium).");
+	}
+
+	private void trackRow(YouTubeMusic.Track t, Runnable play, boolean withButtons) {
+		if (!match(t.title, t.artist)) return;
+		endFlow();
+		int w = cw - (withButtons ? 64 : 0);
+		addContent(new OmerWidgets.Painter(cx0, cy, w, 30, (g, x, y, ww, h, mx, my) -> {
+			boolean hover = mx >= x && mx < x + ww && my >= y && my < y + h;
+			YouTubeMusic.Track cur = YouTubeMusic.current();
+			boolean now = cur != null && cur.id.equals(t.id);
+			Draw.round(g, x, y, ww, h, 5, now ? Theme.accent(0x30) : Theme.white(hover ? 0x18 : 0x0A));
+			int iw = 44;
+			Draw.round(g, x + 3, y + 3, iw, h - 6, 3, Theme.white(0x12));
+			BufferedImage img = Spotify.cover(t.thumb());
+			if (img != null) {
+				Textures.Tex tex = Textures.image("yt_" + t.id, t.thumb(), img);
+				if (tex != null) Textures.drawCover(g, tex, x + 3, y + 3, iw, h - 6);
+			}
+			Draw.text(g, Draw.fit(t.shownTitle(), ww - iw - 40), x + iw + 10, y + 6, Theme.TEXT);
+			Draw.text(g, Draw.fit(t.artist, ww - iw - 40), x + iw + 10, y + 17, Theme.TEXT_DIM);
+			if (hover || now) Draw.text(g, now ? "♪" : "▶", x + ww - 14, y + 11, Theme.accent());
+		}, play));
+		if (withButtons) {
+			addContent(new OmerWidgets.Flat(cx0 + w + 4, cy, 28, 30, "＋", () -> YouTubeMusic.enqueue(t)).tip("In die Warteschlange"));
+			addContent(new OmerWidgets.Flat(cx0 + w + 34, cy, 28, 30, YouTubeMusic.inLibrary(t.id) ? "♥" : "♡", () -> {
+				YouTubeMusic.toggleLibrary(t);
+				refresh();
+			}).tip("Zu Meine Songs"));
+		}
+		cy += 30 + 4;
+	}
+
+	private void buildSpotify() {
+		OemerConfig c = OemerConfig.get();
+		boolean connected = Spotify.status() == Spotify.Status.CONNECTED;
+		nowPlayingCard(78);
+		if (!connected) {
+			keyBox = new EditBox(this.font, cx0 + 10, cy + 8, cw - 20, 12, Component.literal("Client-ID"));
+			keyBox.setBordered(false);
+			keyBox.setMaxLength(64);
+			keyBox.setTextColor(0xFFFFFFFF);
+			keyBox.setHint(Component.literal("Spotify Client-ID hier einfügen"));
+			keyBox.setValue(c.spotifyClientId);
+			keyBox.setResponder(v -> {
+				c.spotifyClientId = v.trim();
+				OemerConfig.save();
+			});
+			addContent(keyBox);
+			cy += ROW_H + GAP;
+			button("Mit Spotify verbinden", Spotify::connect, OmerWidgets.Style.PRIMARY);
+			button("Anleitung: App erstellen", () -> Util.getPlatform().openUri(Spotify.DASHBOARD), OmerWidgets.Style.GLASS);
+			endFlow();
+			info(() -> "Redirect-URI: " + Spotify.REDIRECT + " · Spotify-Steuerung braucht Premium.");
+		} else {
+			button("Playlists öffnen", () -> this.minecraft.setScreen(new SpotifyScreen(this)), OmerWidgets.Style.PRIMARY);
+			toggle("Musik-HUD", () -> c.spotifyHud, v -> c.spotifyHud = v, "Zeigt den Song im Spiel");
+			button("Abmelden", () -> {
+				Spotify.disconnect();
+				refresh();
+			}, OmerWidgets.Style.GLASS);
+			endFlow();
+		}
+		keyRow(OemerKeys.musicPlay, "Taste: Play/Pause", "");
+		keyRow(OemerKeys.musicNext, "Taste: Nächster Song", "");
+		endFlow();
+		info(() -> "Oben zwischen YouTube und Spotify wechseln – die Tasten steuern das, was ausgewählt ist.");
+	}
+
+	// ==================================================================== Skin
+
+	private void buildSkin() {
+		// Unter-Reiter oben rechts
+		int x = panelX + panelW - 12;
+		for (int s = SKIN_TABS.length - 1; s >= 0; s--) {
+			final int idx = s;
+			int w = Draw.width(SKIN_TABS[s]) + 18;
+			x -= w;
+			this.addRenderableWidget(new OmerWidgets.Flat(x, panelY + 11, w, 18, SKIN_TABS[s], () -> {
+				skinTab = idx;
+				refresh();
+			}, () -> skinTab == idx).style(OmerWidgets.Style.PILL));
+			x -= 4;
+		}
+		switch (skinTab) {
+			case 0 -> buildCape();
+			case 1 -> buildTotem();
+			case 2 -> buildCosmetics();
+			default -> buildSounds();
+		}
+	}
+
+	private int tileCols(int min) {
+		return Math.max(min, cw / 86);
+	}
+
+	private void buildCape() {
+		OemerConfig c = OemerConfig.get();
+		toggle("Eigenes Cape", () -> c.customCape, v -> c.customCape = v, "Das Cape siehst nur du");
+		button("Datei wählen", () -> FilePicker.pickImage("Cape-Bild wählen", CapeManager.folder(), name -> {
+			c.capeSelection = name;
+			c.customCape = true;
+			CapeManager.invalidate();
+			OemerConfig.save();
+			refresh();
+		}), OmerWidgets.Style.PRIMARY);
+		button("Cape-Editor", () -> this.minecraft.setScreen(new CapeEditorScreen(this)), OmerWidgets.Style.GLASS);
+		button("Ordner öffnen", () -> open(CapeManager.folder()), OmerWidgets.Style.GLASS);
+		heading("Vorlagen & deine Capes");
+		int n = tileCols(4);
+		int tw = (cw - (n - 1) * GAP) / n;
+		flow(n, tw * 16 / 10 / 2 + 40);
+		for (String ch : CapeManager.choices()) {
+			if (!match(CapeManager.displayName(ch))) continue;
+			int[] p = flowSlot();
+			String key = "cape:" + ch + "@" + c.accent + stamp(ch.startsWith("design:") ? null : CapeManager.folder().resolve(ch));
+			addContent(new OmerWidgets.Tile(p[0], p[1], p[2], p[3], CapeManager.displayName(ch), () -> Thumbs.get(key, () -> capeFront(ch)),
+					() -> c.capeSelection.equals(ch), () -> {
+				c.capeSelection = ch;
+				c.customCape = true;
+				CapeManager.invalidate();
+				OemerConfig.save();
+			}).badge(ch.startsWith("design:") ? "" : "Eigenes"));
+		}
+		endFlow();
+		info(() -> "Bilder werden automatisch aufs Cape zugeschnitten.");
+	}
+
+	private static String stamp(Path p) {
+		if (p == null) return "";
+		try {
+			return "@" + Files.getLastModifiedTime(p).toMillis();
+		} catch (Exception e) {
+			return "";
+		}
+	}
+
+	private static BufferedImage capeFront(String choice) {
+		try {
+			BufferedImage img;
+			if (choice.startsWith("design:")) img = ImageTools.design(Integer.parseInt(choice.substring(7)), Theme.accent());
+			else img = ImageTools.toCape(ImageTools.read(CapeManager.folder().resolve(choice)));
+			int s = Math.max(1, img.getWidth() / 64);
+			return img.getSubimage(s, s, 10 * s, 16 * s);
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private void buildTotem() {
+		OemerConfig c = OemerConfig.get();
+		toggle("Custom Totem", () -> c.customTotem, v -> {
+			c.customTotem = v;
+			looksChanged = true;
+		}, "Dein Totem (lädt beim Schließen neu)");
+		cycle("Zuschnitt (eigene Bilder)", OemerConfig.TOTEM_FITS, () -> c.totemFit, v -> {
+			c.totemFit = v;
+			looksChanged = true;
+		});
+		button("Datei wählen", () -> FilePicker.pickImage("Totem-Bild wählen", LooksPack.totemFolder(), name -> {
+			c.totemSelection = name;
+			c.totemMode = 0;
+			c.customTotem = true;
+			looksChanged = true;
+			OemerConfig.save();
+			refresh();
+		}), OmerWidgets.Style.PRIMARY);
+		button("Selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.TOTEM)), OmerWidgets.Style.GLASS);
+		heading("Totems");
+		int n = tileCols(4);
+		flow(n, (cw - (n - 1) * GAP) / n + 18);
+		// Mein Skin
+		if (match("mein skin")) {
+			int[] p = flowSlot();
+			addContent(new OmerWidgets.Tile(p[0], p[1], p[2], p[3], "Mein Skin", () -> {
+				BufferedImage img = SkinTotem.image();
+				return img == null ? null : Textures.image("totem_skin", "skin@" + img.hashCode(), img);
+			}, () -> c.totemMode == 1, () -> {
+				c.totemMode = 1;
+				c.customTotem = true;
+				looksChanged = true;
+				OemerConfig.save();
+			}));
+		}
+		for (int k = 0; k < PresetArt.TOTEMS.length; k++) {
+			final int idx = k;
+			if (!match(PresetArt.TOTEMS[k])) continue;
+			int[] p = flowSlot();
+			addContent(new OmerWidgets.Tile(p[0], p[1], p[2], p[3], PresetArt.TOTEMS[k], () -> Thumbs.get("totem_p" + idx, () -> PresetArt.totem(idx, 160)),
+					() -> c.totemMode == 2 && c.totemPreset == idx, () -> {
+				c.totemMode = 2;
+				c.totemPreset = idx;
+				c.customTotem = true;
+				looksChanged = true;
+				OemerConfig.save();
+			}));
+		}
+		for (String f : LooksPack.totemChoices()) {
+			if (!match(f)) continue;
+			int[] p = flowSlot();
+			Path path = LooksPack.totemFolder().resolve(f);
+			String key = "totem_f:" + f + stamp(path);
+			addContent(new OmerWidgets.Tile(p[0], p[1], p[2], p[3], LooksPack.displayName(f), () -> Thumbs.get(key, () -> {
+				try {
+					return ImageTools.squareContain(ImageTools.read(path), 160);
+				} catch (Exception e) {
+					return null;
+				}
+			}), () -> c.totemMode == 0 && c.totemSelection.equals(f), () -> {
+				c.totemMode = 0;
+				c.totemSelection = f;
+				c.customTotem = true;
+				looksChanged = true;
+				OemerConfig.save();
+			}).badge("Eigenes"));
+		}
+		endFlow();
+		info(() -> "Totems sind jetzt 256x256 – Fotos bleiben scharf. Lädt beim Schließen vom Menü.");
+	}
+
+	private void buildCosmetics() {
+		OemerConfig c = OemerConfig.get();
+		boolean inWorld = this.minecraft.player != null;
+		if (inWorld) usePreview(this::drawPlayerPreview);
+		toggle("Cosmetics an", () -> c.cosmeticsOn, v -> c.cosmeticsOn = v, "Alle Cosmetics an/aus");
+		toggle("Animation", () -> c.cosAnimate, v -> c.cosAnimate = v, "Flügel schlagen, Begleiter schweben");
+		cycle("Größe (über dem Kopf)", OemerConfig.CUSTOM_COS_SIZE_NAMES, () -> c.customCosSize, v -> c.customCosSize = v);
+		button("Datei wählen", () -> FilePicker.pickImage("Cosmetic-Bild wählen (PNG mit Transparenz)", CustomCosmetics.folder(), name -> {
+			SpriteCosmetics.equip(SpriteCosmetics.Slot.values()[Math.floorMod(cosmeticSlot, 3)], "custom:" + name);
+			CustomCosmetics.invalidate();
+			refresh();
+		}), OmerWidgets.Style.PRIMARY);
+		button("Selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.COSMETIC)), OmerWidgets.Style.GLASS);
+		button("Ordner öffnen", () -> open(CustomCosmetics.folder()), OmerWidgets.Style.GLASS);
+		endFlow();
+		// Platz wählen
+		SpriteCosmetics.Slot[] slots = SpriteCosmetics.Slot.values();
+		String[] names = new String[slots.length];
+		Runnable[] acts = new Runnable[slots.length];
+		for (int i = 0; i < slots.length; i++) {
+			final int idx = i;
+			names[i] = slots[i].title + (SpriteCosmetics.equipped(slots[i]).isEmpty() ? "" : " ✔");
+			acts[i] = () -> {
+				cosmeticSlot = idx;
+				refresh();
+			};
+		}
+		buttonRow(names, acts, () -> Math.floorMod(cosmeticSlot, 3));
+		SpriteCosmetics.Slot slot = slots[Math.floorMod(cosmeticSlot, 3)];
+		List<SpriteCosmetics.Item> items = SpriteCosmetics.customItems(slot);
+		if (items.isEmpty()) {
+			note("Noch keine eigenen Cosmetics. Leg PNGs (mit Transparenz) in den Ordner cosmetics/ oder nimm „Datei wählen“.");
+			note("Flügel: ein breites Bild mit beiden Flügeln – es wird in links und rechts geteilt.");
+		}
+		int n = tileCols(3);
+		flow(n, (cw - (n - 1) * GAP) / n + 18);
+		for (SpriteCosmetics.Item it : items) {
+			if (!match(it.name())) continue;
+			int[] p = flowSlot();
+			String file = it.id().substring(7);
+			String key = "cos:" + file + stamp(CustomCosmetics.folder().resolve(file));
+			addContent(new OmerWidgets.Tile(p[0], p[1], p[2], p[3], it.name(), () -> Thumbs.get(key, () -> {
+				try {
+					return ImageTools.squareContain(ImageTools.read(CustomCosmetics.folder().resolve(file)), 160);
+				} catch (Exception e) {
+					return null;
+				}
+			}), () -> SpriteCosmetics.equipped(slot).equals(it.id()), () -> {
+				SpriteCosmetics.equip(slot, it.id());
+				refresh();
+			}));
+		}
+		endFlow();
+		info(() -> inWorld ? "Klick = ausrüsten/ablegen · pro Platz eins · F5 = dich von außen sehen"
+				: "Klick = ausrüsten/ablegen · im Spiel siehst du hier eine Vorschau von dir");
+	}
+
+	private void buildSounds() {
+		OemerConfig c = OemerConfig.get();
+		toggle("Custom Sounds", () -> c.customSounds, v -> {
+			c.customSounds = v;
+			looksChanged = true;
+		}, "Ersetzt Minecraft-Sounds durch deine eigenen .ogg-Dateien");
+		for (Sounds.Slot slot : Sounds.SLOTS) {
+			cycle(slot.name(), () -> Sounds.choices(slot).stream().map(Sounds::displayName).toArray(String[]::new),
+					() -> Math.max(0, Sounds.choices(slot).indexOf(c.soundSelection.getOrDefault(slot.id(), ""))),
+					v -> {
+						List<String> list = Sounds.choices(slot);
+						String f = list.get(Math.min(v, list.size() - 1));
+						if (f.isEmpty()) c.soundSelection.remove(slot.id());
+						else c.soundSelection.put(slot.id(), f);
+						looksChanged = true;
+					});
+		}
+		button("Sound-Ordner öffnen", () -> open(Sounds.folder()), OmerWidgets.Style.GLASS);
+		endFlow();
+		info(() -> "Jeder Sound hat einen Unterordner in sounds/ (z. B. sounds/treffer/). Nur .ogg!");
+		info(() -> {
+			List<String> bad = Sounds.invalid();
+			if (!bad.isEmpty()) return "§c" + bad.get(0) + " ist keine echte .ogg-Datei.";
+			return Sounds.activeCount() + " Sounds ersetzt · wird beim Schließen geladen.";
+		});
+	}
+
+	// ==================================================================== Kits
+
+	private void buildKits() {
+		OemerConfig c = OemerConfig.get();
+		int active = KitProfiles.active();
+		// Kit-Reiter
+		String[] names = new String[OemerConfig.KITS.length];
+		Runnable[] acts = new Runnable[names.length];
+		for (int i = 0; i < names.length; i++) {
+			final int idx = i;
+			names[i] = OemerConfig.KITS[i];
+			acts[i] = () -> {
+				KitProfiles.switchTo(idx);
+				refresh();
+			};
+		}
+		if (cw >= 520) {
+			buttonRow(names, acts, KitProfiles::active);
+		} else {
+			flow(cw >= 300 ? 4 : 2, ROW_H);
+			for (int i = 0; i < names.length; i++) {
+				final int idx = i;
+				int[] p = flowSlot();
+				addContent(new OmerWidgets.Flat(p[0], p[1], p[2], p[3], names[i], acts[i], () -> KitProfiles.active() == idx));
+			}
+			endFlow();
+		}
+		// Aktionen
+		addContent(new OmerWidgets.Painter(cx0, cy, cw, 30, (g, x, y, w, h, mx, my) -> {
+			Draw.round(g, x, y, w, h, 6, Theme.accent(0x22));
+			Draw.roundBorder(g, x, y, w, h, 6, Theme.accent(0x80));
+			Draw.text(g, "Aktiv: §l" + KitProfiles.name(KitProfiles.active()), x + 10, y + 6, Theme.TEXT);
+			Draw.text(g, KitProfiles.hasSaved(KitProfiles.active()) ? "gespeichert ✔" : "noch nicht gespeichert", x + 10, y + 17, Theme.TEXT_DIM);
+		}, null));
+		cy += 30 + GAP;
+		flow(cw >= 440 ? 3 : 1, ROW_H);
+		int[] p = flowSlot();
+		addContent(new OmerWidgets.Flat(p[0], p[1], p[2], p[3], "💾 Speichern", () -> {
+			KitProfiles.save(KitProfiles.active());
+			refresh();
+		}).style(OmerWidgets.Style.PRIMARY).tip("Alle deine Minecraft-Einstellungen (Tasten, FOV, Maus …) in diesem Kit speichern"));
+		p = flowSlot();
+		addContent(new OmerWidgets.Flat(p[0], p[1], p[2], p[3], "Von Survival übernehmen", () -> {
+			KitProfiles.copyFrom(0, KitProfiles.active());
+			refresh();
+		}).tip("Setzt dieses Kit auf die Einstellungen von Survival"));
+		p = flowSlot();
+		addContent(new OmerWidgets.Flat(p[0], p[1], p[2], p[3], "Minecraft-Optionen", () ->
+				this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options))).tip("FOV, Maus, Grafik … – danach hier speichern"));
+		endFlow();
+		toggle("Beim Wechseln automatisch speichern", () -> c.kitAutoSave, v -> c.kitAutoSave = v,
+				"Speichert das alte Kit, bevor das neue geladen wird");
+		cycle("Kit-HUD", new String[]{"Aus", "An"}, () -> c.kitHud ? 1 : 0, v -> c.kitHud = v == 1);
+		endFlow();
+
+		heading("Tasten für " + KitProfiles.name(active));
+		note("Klick auf eine Taste, dann die neue drücken (auch Maustasten). ESC löscht sie. Danach „Speichern“.");
+		var o = this.minecraft.options;
+		keyRow(o.keyAttack, "Angreifen / Abbauen", "");
+		keyRow(o.keyUse, "Benutzen / Platzieren", "");
+		for (int i = 0; i < o.keyHotbarSlots.length; i++) keyRow(o.keyHotbarSlots[i], "Hotbar " + (i + 1), "");
+		keyRow(o.keyDrop, "Item fallen lassen", "");
+		keyRow(o.keySwapOffhand, "Zweithand tauschen", "");
+		keyRow(o.keyInventory, "Inventar", "");
+		keyRow(o.keyPickItem, "Block auswählen", "");
+		keyRow(o.keyJump, "Springen", "");
+		keyRow(o.keyShift, "Schleichen", "");
+		keyRow(o.keySprint, "Sprinten", "");
+		keyRow(o.keyUp, "Vorwärts", "");
+		keyRow(o.keyDown, "Rückwärts", "");
+		keyRow(o.keyLeft, "Links", "");
+		keyRow(o.keyRight, "Rechts", "");
+		keyRow(o.keyTogglePerspective, "Perspektive (F5)", "");
+		keyRow(o.keyChat, "Chat", "");
+		keyRow(o.keyCommand, "Befehl", "");
+		keyRow(o.keyPlayerList, "Spielerliste", "");
+		endFlow();
+		heading("Kit wechseln");
+		keyRow(OemerKeys.kitNext, "Nächstes Kit", "");
+		for (int i = 0; i < OemerKeys.KIT.length; i++) keyRow(OemerKeys.KIT[i], "Direkt zu: " + OemerConfig.KITS[i], "");
+		endFlow();
+		info(() -> "Jedes Kit merkt sich deine kompletten Minecraft-Einstellungen. Wechseln lädt sie sofort.");
+	}
+
+	// ============================================================== Eingaben
+
 	private int maxScroll() {
 		int bottom = viewTop;
 		for (int i = 0; i < content.size(); i++) {
 			bottom = Math.max(bottom, contentBaseY.get(i) + content.get(i).getHeight());
 		}
-		return Math.max(0, bottom + 4 - viewBottom);
+		return Math.max(0, bottom + 6 - viewBottom);
 	}
 
 	private boolean inView(double mx, double my) {
-		return mx >= contentX - 4 && mx <= contentX + contentW + 4 && my >= viewTop && my <= viewBottom;
+		return mx >= panelX && mx <= panelX + panelW && my >= viewTop && my <= viewBottom;
 	}
 
 	@Override
 	public boolean mouseScrolled(double mx, double my, double h, double v) {
 		if (maxScroll() > 0 && inView(mx, my)) {
-			scroll = Math.max(0, Math.min(maxScroll(), scroll - v * 18));
+			scroll = Math.max(0, Math.min(maxScroll(), scroll - v * 22));
 			return true;
 		}
 		return super.mouseScrolled(mx, my, h, v);
 	}
 
 	@Override
-	public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		if (listening != null) {
+			listening.setKey(InputConstants.Type.MOUSE.getOrCreate(event.button()));
+			KeyMapping.resetMapping();
+			this.minecraft.options.save();
+			listening = null;
+			return true;
+		}
 		if (!inView(event.x(), event.y())) {
-			// Klick außerhalb vom sichtbaren Bereich darf keine halb versteckten Inhalte treffen
 			boolean[] was = new boolean[content.size()];
 			for (int i = 0; i < content.size(); i++) {
 				was[i] = content.get(i).visible;
@@ -267,400 +1450,39 @@ public class OmerScreen extends Screen {
 		return super.mouseClicked(event, doubleClick);
 	}
 
-	// ============================================================== Inhalte
-
-	private void buildGeneral() {
-		OemerConfig c = OemerConfig.get();
-		toggle("Fullbright", () -> c.fullbright, v -> c.fullbright = v, false, "Alles hell, auch nachts und in Höhlen (Taste G)");
-		toggle("Free Cam", () -> c.freecam, v -> {
-			if (this.minecraft.level != null) c.freecam = v;
-		}, false, "Frei fliegen, aber nicht durch Blöcke (Taste F4)");
-		cycle("Free Cam Tempo", OemerConfig.FREECAM_SPEED_NAMES, () -> c.freecamSpeed, v -> c.freecamSpeed = v);
-
-		info(() -> "Tasten: R-Shift Menü · F4 Free Cam · G Fullbright");
-		info(() -> this.minecraft.level != null
-				? "Free Cam: WASD fliegen, Leertaste hoch, Shift runter, Sprinten = schneller."
-				: "Free Cam geht nur in einer Welt oder auf Servern.");
-	}
-
-	private void buildKits() {
-		OemerConfig c = OemerConfig.get();
-		cycle("Kit Select", OemerConfig.KITS, () -> c.kit, v -> c.kit = v);
-		toggle("Kit-HUD anzeigen", () -> c.kitHud, v -> c.kitHud = v, false, "Zeigt im Spiel, wie viel du von den Kit-Items hast");
-		cycle("Kit-HUD Ort", OemerConfig.CORNERS, () -> c.kitHudCorner, v -> c.kitHudCorner = v);
-		cycle("HUD-Größe", OemerConfig.HUD_SCALE_NAMES, () -> c.hudScale, v -> c.hudScale = v);
-
-		info(() -> OemerConfig.KITS[Math.floorMod(c.kit, OemerConfig.KITS.length)] + ": " + Hud.kitDescription(c.kit));
-		info(() -> "Rot = du hast nichts mehr davon.");
-	}
-
-	private void buildMaterial() {
-		OemerConfig c = OemerConfig.get();
-		toggle("Material List anzeigen", () -> c.materialList, v -> c.materialList = v, false, "Zeigt die Blöcke deiner Schematic im Spiel");
-		cycleDynamic("Schematic", () -> {
-			List<String> f = MaterialList.files();
-			return f.isEmpty() ? new String[]{"(keine Datei)"} : f.stream().map(n -> n.replaceAll("\\.(litematic|schem)$", "")).toArray(String[]::new);
-		}, () -> Math.max(0, MaterialList.files().indexOf(c.schematic)), v -> {
-			List<String> f = MaterialList.files();
-			if (!f.isEmpty()) {
-				c.schematic = f.get(v);
-				c.materialDone.clear();
-				MaterialList.reload();
-			}
-		});
-		cycle("Material List Ort", OemerConfig.CORNERS, () -> c.materialListCorner, v -> c.materialListCorner = v);
-		button("Liste öffnen & bearbeiten", () -> this.minecraft.setScreen(new MaterialListScreen(this)), OmerWidgets.Style.PRIMARY);
-		button("Schematic-Ordner öffnen", () -> open(MaterialList.folder()), OmerWidgets.Style.GLASS);
-
-		if (c.schematic.isEmpty() && !MaterialList.files().isEmpty()) {
-			c.schematic = MaterialList.files().get(0);
+	@Override
+	public boolean keyPressed(KeyEvent event) {
+		if (listening != null) {
+			if (event.key() == GLFW.GLFW_KEY_ESCAPE) listening.setKey(InputConstants.UNKNOWN);
+			else listening.setKey(InputConstants.getKey(event));
+			KeyMapping.resetMapping();
+			this.minecraft.options.save();
+			listening = null;
+			return true;
 		}
-		info(() -> ".litematic oder .schem in den Ordner schematics/ legen.");
-		info(() -> {
-			if (c.schematic.isEmpty()) return "Noch keine Schematic gefunden.";
-			if (!MaterialList.error().isEmpty()) return "Fehler: " + MaterialList.error();
-			var e = MaterialList.entries();
-			int sum = 0;
-			for (var x : e) sum += x.needed();
-			return e.size() + " verschiedene Blöcke, " + sum + " insgesamt.";
-		});
-	}
-
-	private void buildCape() {
-		OemerConfig c = OemerConfig.get();
-		usePreview(this::drawCapePreview);
-		List<String> capes = CapeManager.choices();
-		toggle("Eigenes Cape", () -> c.customCape, v -> c.customCape = v, false, "Das Cape siehst nur du");
-		cycleDynamic("Cape-Auswahl", () -> CapeManager.choices().stream().map(CapeManager::displayName).toArray(String[]::new),
-				() -> Math.max(0, CapeManager.choices().indexOf(c.capeSelection)), v -> {
-					List<String> list = CapeManager.choices();
-					c.capeSelection = list.get(Math.min(v, list.size() - 1));
-					CapeManager.invalidate();
-				});
-		button("Cape-Editor öffnen", () -> this.minecraft.setScreen(new CapeEditorScreen(this)), OmerWidgets.Style.PRIMARY);
-		button("Bilder-Ordner öffnen", () -> open(CapeManager.folder()), OmerWidgets.Style.GLASS);
-		if (capes.isEmpty()) c.capeSelection = "design:0";
-
-		info(() -> "Bilder (PNG/JPG) in capes/ legen oder selbst malen.");
-	}
-
-	private void buildCosmetics() {
-		OemerConfig c = OemerConfig.get();
-		boolean inWorld = this.minecraft.player != null;
-		if (inWorld) usePreview(this::drawPlayerPreview);
-		toggle(Cosmetics.NAMES[0], () -> c.cosHalo, v -> c.cosHalo = v, false, "Leuchtender Ring über dem Kopf");
-		toggle(Cosmetics.NAMES[1], () -> c.cosCrown, v -> c.cosCrown = v, false, "Krone mit roten Steinen");
-		toggle(Cosmetics.NAMES[2], () -> c.cosTopHat, v -> c.cosTopHat = v, false, "Eleganter Zylinder-Hut");
-		toggle(Cosmetics.NAMES[3], () -> c.cosWings, v -> c.cosWings = v, false, "Flügel auf dem Rücken");
-		toggle(Cosmetics.NAMES[4], () -> c.cosEars, v -> c.cosEars = v, false, "Süße Hasenohren");
-		toggle(Cosmetics.NAMES[5], () -> c.cosHorns, v -> c.cosHorns = v, false, "Gebogene Hörner");
-		cycle("Farbe", OemerConfig.COSMETIC_COLOR_NAMES, () -> c.cosColor, v -> c.cosColor = v);
-		toggle("Animation", () -> c.cosAnimate, v -> c.cosAnimate = v, false, "Heiligenschein dreht sich, Flügel schlagen");
-
-		info(() -> inWorld ? "Tipp: Mit F5 oder Free Cam (F4) siehst du dich von außen."
-				: "Im Spiel siehst du hier eine Vorschau von dir.");
-	}
-
-	private void buildTotem() {
-		OemerConfig c = OemerConfig.get();
-		usePreview(this::drawTotemPreview);
-		List<String> totems = LooksPack.totemChoices();
-		if (!totems.contains(c.totemSelection)) {
-			c.totemSelection = totems.isEmpty() ? "" : totems.get(0);
+		if ((event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) && ytBox != null && ytBox.isFocused()) {
+			YouTubeMusic.submit(ytBox.getValue());
+			focusName = "yt";
+			return true;
 		}
-		toggle("Custom Totem", () -> c.customTotem, v -> {
-			c.customTotem = v;
-			looksChanged = true;
-		}, false, "Dein Totem (lädt beim Schließen neu)");
-		cycle("Quelle", OemerConfig.TOTEM_MODES, () -> c.totemMode, v -> {
-			c.totemMode = v;
-			looksChanged = true;
-		});
-		cycleDynamic("Totem-Bild", () -> {
-			List<String> t = LooksPack.totemChoices();
-			return t.isEmpty() ? new String[]{"(kein Bild)"} : t.stream().map(LooksPack::displayName).toArray(String[]::new);
-		}, () -> Math.max(0, LooksPack.totemChoices().indexOf(c.totemSelection)), v -> {
-			List<String> t = LooksPack.totemChoices();
-			if (!t.isEmpty()) {
-				c.totemSelection = t.get(Math.min(v, t.size() - 1));
-				c.totemMode = 0;
-				looksChanged = true;
-			}
-		});
-		cycle("Zuschnitt", OemerConfig.TOTEM_FITS, () -> c.totemFit, v -> {
-			c.totemFit = v;
-			looksChanged = true;
-		});
-		button("Totem selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.TOTEM)), OmerWidgets.Style.PRIMARY);
-		button("Totem-Ordner öffnen", () -> open(LooksPack.totemFolder()), OmerWidgets.Style.GLASS);
-
-		info(() -> "PNGs mit Transparenz bleiben durchsichtig. \"Mein Skin\" baut eine Figur aus deinem Skin.");
-	}
-
-	private void buildCustomCosmetics() {
-		OemerConfig c = OemerConfig.get();
-		if (this.minecraft.player != null) usePreview(this::drawPlayerPreview);
-		button("Cosmetic selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.COSMETIC)), OmerWidgets.Style.PRIMARY);
-		cycle("Größe", OemerConfig.CUSTOM_COS_SIZE_NAMES, () -> c.customCosSize, v -> c.customCosSize = v);
-		for (String file : CustomCosmetics.files()) {
-			cycle(CapeManager.shortName(file), OemerConfig.COSMETIC_PLACES, () -> CustomCosmetics.place(file), v -> {
-				if (v == 0) c.customCosmetics.remove(file);
-				else c.customCosmetics.put(file, v);
-			});
+		if (event.key() == GLFW.GLFW_KEY_ESCAPE && openMod != null) {
+			openMod = null;
+			refresh();
+			return true;
 		}
-		button("Cosmetics-Ordner öffnen", () -> open(CustomCosmetics.folder()), OmerWidgets.Style.GLASS);
-
-		info(() -> CustomCosmetics.files().isEmpty()
-				? "Mal ein Pixelbild oder leg PNGs (am besten 16x16) in cosmetics/."
-				: "Jedes Bild wird 3D – wähle, wo es sitzen soll.");
+		return super.keyPressed(event);
 	}
 
-	private void buildCrosshair() {
-		OemerConfig c = OemerConfig.get();
-		usePreview(this::drawCrosshairPreview);
-		toggle("Eigenes Crosshair", () -> c.customCrosshair, v -> c.customCrosshair = v, false, "Ersetzt das Fadenkreuz in der Mitte");
-		cycleDynamic("Crosshair", () -> Crosshair.choices().stream().map(Crosshair::displayName).toArray(String[]::new),
-				() -> Math.max(0, Crosshair.choices().indexOf(c.crosshairSelection)), v -> {
-					List<String> list = Crosshair.choices();
-					c.crosshairSelection = list.get(Math.min(v, list.size() - 1));
-				});
-		cycle("Farbe", OemerConfig.CROSSHAIR_COLOR_NAMES, () -> c.crosshairColor, v -> c.crosshairColor = v);
-		cycle("Größe", OemerConfig.CROSSHAIR_SIZE_NAMES, () -> c.crosshairSize, v -> c.crosshairSize = v);
-		button("Crosshair selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.CROSSHAIR)), OmerWidgets.Style.PRIMARY);
-		button("Crosshair-Ordner öffnen", () -> open(Crosshair.folder()), OmerWidgets.Style.GLASS);
-
-		info(() -> "PNGs (z. B. 15x15) in crosshairs/ legen. Farbe gilt für die Designs.");
-	}
-
-	private void buildSpotify() {
-		OemerConfig c = OemerConfig.get();
-		usePreview(this::drawSpotifyPreview);
-		boolean connected = Spotify.status() == Spotify.Status.CONNECTED;
-		if (!connected) {
-			int[] p = nextSlot();
-			var box = new net.minecraft.client.gui.components.EditBox(this.font, p[0] + 8, p[1] + 7, colW - 16, 12,
-					Component.literal("Client-ID"));
-			box.setBordered(false);
-			box.setMaxLength(64);
-			box.setTextColor(0xFFFFFFFF);
-			box.setHint(Component.literal("Spotify Client-ID hier einfügen"));
-			box.setValue(c.spotifyClientId);
-			box.setResponder(v -> {
-				c.spotifyClientId = v.trim();
-				OemerConfig.save();
-			});
-			addContent(box);
-			editBox = box;
-			button("Mit Spotify verbinden", Spotify::connect, OmerWidgets.Style.PRIMARY);
-			button("Anleitung: App erstellen", () -> Util.getPlatform().openUri(Spotify.DASHBOARD), OmerWidgets.Style.GLASS);
-		} else {
-			if (previewArea != null) {
-				int bw = Math.max(18, (previewW - 16 - 5 * 4 - 10) / 6);
-				SpotifyScreen.addControls(this, previewX + 8, previewY + 84, bw, 18);
-			}
-			button("Playlists öffnen", () -> this.minecraft.setScreen(new SpotifyScreen(this)), OmerWidgets.Style.PRIMARY);
-			toggle("Now-Playing-HUD", () -> c.spotifyHud, v -> c.spotifyHud = v, false, "Zeigt im Spiel, welcher Song läuft");
-			cycle("HUD Ort", OemerConfig.CORNERS, () -> c.spotifyHudCorner, v -> c.spotifyHudCorner = v);
-			button("Abmelden", () -> {
-				Spotify.disconnect();
-				skipFade = true;
-				this.minecraft.setScreen(new OmerScreen(parent));
-			}, OmerWidgets.Style.GLASS);
-		}
-
-		if (!connected) {
-			info(() -> "1. Auf developer.spotify.com eine App erstellen (Web API).");
-			info(() -> "2. Redirect-URI eintragen: " + Spotify.REDIRECT);
-			info(() -> "3. Client-ID hier einfügen → Verbinden. Steuern braucht Premium.");
-		} else {
-			info(() -> "Tasten für Play/Pause, Weiter, Zurück: Optionen → Steuerung → Ömer Client.");
-		}
-	}
-
-	private net.minecraft.client.gui.components.EditBox editBox;
-
-	/** Für Buttons, die nicht mitscrollen (z. B. Spotify-Steuerung in der Vorschau). */
-	void addExtra(net.minecraft.client.gui.components.AbstractWidget w) {
-		this.addRenderableWidget(w);
-	}
-
-	/** Totem/Sounds haben sich geändert → beim Schließen Ressourcen neu laden. */
-	public static void markLooksChanged() {
-		looksChanged = true;
-	}
-
-	private void buildSounds() {
-		OemerConfig c = OemerConfig.get();
-		toggle("Custom Sounds", () -> c.customSounds, v -> {
-			c.customSounds = v;
-			looksChanged = true;
-		}, false, "Ersetzt Minecraft-Sounds durch deine eigenen .ogg-Dateien");
-		for (Sounds.Slot slot : Sounds.SLOTS) {
-			cycleDynamic(slot.name(), () -> Sounds.choices(slot).stream().map(Sounds::displayName).toArray(String[]::new),
-					() -> Math.max(0, Sounds.choices(slot).indexOf(c.soundSelection.getOrDefault(slot.id(), ""))),
-					v -> {
-						List<String> list = Sounds.choices(slot);
-						String f = list.get(Math.min(v, list.size() - 1));
-						if (f.isEmpty()) c.soundSelection.remove(slot.id());
-						else c.soundSelection.put(slot.id(), f);
-						looksChanged = true;
-					});
-		}
-		button("Sound-Ordner öffnen", () -> open(Sounds.folder()), OmerWidgets.Style.GLASS);
-
-		info(() -> "Jeder Sound hat einen Unterordner in sounds/ (z. B. sounds/treffer/). Nur .ogg!");
-		info(() -> {
-			List<String> bad = Sounds.invalid();
-			if (!bad.isEmpty()) return "§c" + bad.get(0) + " ist keine echte .ogg-Datei.";
-			return Sounds.activeCount() + " Sounds ersetzt · wird beim Schließen geladen.";
-		});
-	}
-
-	private void buildDesign() {
-		OemerConfig c = OemerConfig.get();
-		cycle("Design-Stil", OemerConfig.DESIGN_STYLES, () -> c.designStyle, v -> {
-			c.designStyle = v;
-			CapeManager.invalidate();
-			// sofort neu aufbauen, damit alle Farben passen
-			skipFade = true;
-			this.minecraft.setScreen(new OmerScreen(parent));
-		});
-		cycle("Akzentfarbe", OemerConfig.ACCENT_NAMES, () -> c.accent, v -> {
-			c.accent = v;
-			CapeManager.invalidate();
-		});
-		cycle("Transparenz", OemerConfig.OPACITY_NAMES, () -> c.menuOpacity, v -> c.menuOpacity = v);
-		toggle("Menü-Partikel", () -> c.menuParticles, v -> c.menuParticles = v, false, "Funkelnde Punkte im Hintergrund");
-		toggle("Menü-Blur im Spiel", () -> c.menuBlur, v -> c.menuBlur = v, false, "Welt hinter dem Menü verschwommen");
-		toggle("Version anzeigen", () -> c.showVersion, v -> c.showVersion = v, false, "");
-		toggle("Design im Startscreen", () -> c.lookTitle, v -> c.lookTitle = v, false, "Galaxy oder dein Look-Bild statt Panorama");
-
-		info(() -> c.designStyle == 1 ? "Galaxy: dunkelblau, lila und pink mit leuchtendem Planeten." : "Clean: schwarz und weiß.");
-	}
-
-	private void buildHud() {
-		OemerConfig c = OemerConfig.get();
-		cycle("HUD-Größe", OemerConfig.HUD_SCALE_NAMES, () -> c.hudScale, v -> c.hudScale = v);
-		cycle("Kit-HUD Ort", OemerConfig.CORNERS, () -> c.kitHudCorner, v -> c.kitHudCorner = v);
-		cycle("Material List Ort", OemerConfig.CORNERS, () -> c.materialListCorner, v -> c.materialListCorner = v);
-		toggle("Kit-HUD anzeigen", () -> c.kitHud, v -> c.kitHud = v, false, "");
-		toggle("Material List anzeigen", () -> c.materialList, v -> c.materialList = v, false, "");
-
-		info(() -> "Beide in derselben Ecke? Dann stapeln sie sich.");
-	}
-
-	private void buildLooks() {
-		OemerConfig c = OemerConfig.get();
-		usePreview(this::drawLookPreview);
-		toggle("Look-Modus", () -> c.lookMode, v -> c.lookMode = v, false, "Dein Bild als Hintergrund vom Menü");
-		cycleDynamic("Bild", () -> {
-			List<String> l = Looks.choices();
-			return l.isEmpty() ? new String[]{"(kein Bild)"} : l.stream().map(LooksPack::displayName).toArray(String[]::new);
-		}, () -> Math.max(0, Looks.choices().indexOf(c.lookImage)), v -> {
-			List<String> l = Looks.choices();
-			if (!l.isEmpty()) c.lookImage = l.get(Math.min(v, l.size() - 1));
-		});
-		cycle("Abdunkeln", OemerConfig.LOOK_DIM_NAMES, () -> c.lookDim, v -> c.lookDim = v);
-		toggle("Auch im Startscreen", () -> c.lookTitle, v -> c.lookTitle = v, false, "Bild statt dem drehenden Panorama");
-		button("Looks-Ordner öffnen", () -> open(Looks.folder()), OmerWidgets.Style.GLASS);
-
-		info(() -> "Lieblingsbilder (PNG/JPG) in den Ordner looks/ legen.");
-	}
-
-	// ============================================================== Helfer
-
-	private void info(Supplier<String> line) {
-		infoLines.add(line);
-	}
-
-	/** Linke Hälfte für Einstellungen, rechte Hälfte für eine Vorschau. */
-	private void usePreview(Consumer<GuiGraphics> draw) {
-		if (contentW < 330) return; // zu schmal → keine Vorschau
-		previewArea = draw;
-		colCount = 1;
-		colW = (contentW - 12) / 2;
-		previewX = contentX + colW + 12;
-		previewY = contentY;
-		previewW = contentW - colW - 12;
-		previewH = panelY + panelH - 14 - previewY - 26;
-	}
-
-	private int[] nextSlot() {
-		int col = nextIndex % colCount;
-		int row = nextIndex / colCount;
-		nextIndex++;
-		return new int[]{contentX + col * (colW + 8), contentY + row * (ROW_H + GAP)};
-	}
-
-	private void toggle(String label, BooleanSupplier get, Consumer<Boolean> set, boolean soon, String tip) {
-		int[] p = nextSlot();
-		var t = new OmerWidgets.Toggle(p[0], p[1], colW, ROW_H, label, get, v -> {
-			set.accept(v);
-			OemerConfig.save();
-		}, soon);
-		if (!tip.isEmpty()) t.tip(tip);
-		addContent(t);
-	}
-
-	private void cycle(String label, String[] options, IntSupplier get, IntConsumer set) {
-		int[] p = nextSlot();
-		addContent(new OmerWidgets.Cycle(p[0], p[1], colW, ROW_H, label, options, get, v -> {
-			set.accept(v);
-			OemerConfig.save();
-		}));
-	}
-
-	private void cycleDynamic(String label, Supplier<String[]> options, IntSupplier get, IntConsumer set) {
-		int[] p = nextSlot();
-		addContent(new OmerWidgets.Cycle(p[0], p[1], colW, ROW_H, label, options, get, v -> {
-			set.accept(v);
-			OemerConfig.save();
-		}));
-	}
-
-	private void button(String label, Runnable action, OmerWidgets.Style style) {
-		int[] p = nextSlot();
-		addContent(new OmerWidgets.Flat(p[0], p[1], colW, ROW_H, label, action).style(style));
-	}
-
-	private static void open(Path dir) {
-		try {
-			Files.createDirectories(dir);
-		} catch (Exception ignored) {
-		}
-		Util.getPlatform().openPath(dir);
-	}
-
-	private void switchTab(Tab tab) {
-		if (current == tab) return;
-		current = tab;
-		skipFade = true;
-		this.minecraft.setScreen(new OmerScreen(parent));
-	}
-
-	private void switchSub(Sub s) {
-		if (sub() == s) return;
-		CURRENT_SUB.put(current, s);
-		skipFade = true;
-		this.minecraft.setScreen(new OmerScreen(parent));
-	}
-
-	// ============================================================ Zeichnen
+	// ============================================================== Zeichnen
 
 	@Override
 	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
 		boolean inWorld = this.minecraft.level != null;
-		if (inWorld && OemerConfig.get().menuBlur) {
-			this.renderBlurredBackground(g);
-		}
+		if (inWorld && OemerConfig.get().menuBlur) this.renderBlurredBackground(g);
 		Backdrop.render(g, this.width, this.height, inWorld);
 
-		long now = System.nanoTime();
-		float d = Math.min(0.1f, (now - lastFrame) / 1_000_000_000f);
-		lastFrame = now;
-
-		// ---- Kopfzeile: Logo
-		int lx = PAD, ly = 12;
+		// ---- Logo oben links
+		int lx = PAD, ly = 11;
 		Draw.round(g, lx, ly, 22, 22, 6, 0xFFFFFFFF);
 		g.pose().pushMatrix();
 		g.pose().translate(lx + 6.5f, ly + 5.5f);
@@ -671,48 +1493,53 @@ public class OmerScreen extends Screen {
 		g.pose().translate(lx + 30, ly + 3);
 		g.pose().scale(1.25f);
 		Draw.text(g, "§lÖMER", 0, 0, Theme.TEXT);
-		if (!compactLogo) Draw.text(g, "CLIENT", Draw.width("§lÖMER") + 4, 0, Theme.TEXT_DIM);
+		Draw.text(g, "CLIENT", Draw.width("§lÖMER") + 4, 0, Theme.TEXT_DIM);
 		g.pose().popMatrix();
-		if (!compactLogo) Draw.text(g, "dein eigener Client", lx + 30, ly + 15, Theme.TEXT_FAINT);
-		else Draw.text(g, "client", lx + 30, ly + 15, Theme.TEXT_FAINT);
+		Draw.text(g, "Aktives Kit: " + KitProfiles.name(KitProfiles.active()), lx + 30, ly + 15, Theme.TEXT_FAINT);
 
-		// ---- Tabs: Glas-Pille + gleitende weiße Markierung
-		Draw.glass(g, tabsX, tabsY, tabsW, tabsH, tabsH / 2, Theme.white(0x12), Theme.white(0x2A));
-		int idx = current.ordinal();
-		float targetX = tabX[idx], targetW = tabW[idx];
-		if (tabHighlightX < 0) {
-			tabHighlightX = targetX;
-			tabHighlightW = targetW;
-		}
-		tabHighlightX = Draw.approach(tabHighlightX, targetX, 18f, d);
-		tabHighlightW = Draw.approach(tabHighlightW, targetW, 18f, d);
-		Draw.round(g, Math.round(tabHighlightX), tabsY + 2, Math.round(tabHighlightW), tabsH - 4, (tabsH - 4) / 2, 0xF5FFFFFF);
-
-		// ---- Glas-Fläche
+		// ---- Seitenleiste + Inhalt (Glas)
+		Draw.glass(g, sideX, sideY, sideW, sideH, 8, Theme.panel(), Theme.white(0x2A));
 		Draw.glass(g, panelX, panelY, panelW, panelH, 8, Theme.panel(), Theme.white(0x2A));
 
-		// Überschrift
-		Sub s = sub();
-		g.pose().pushMatrix();
-		g.pose().translate(panelX + 14, panelY + 12);
-		g.pose().scale(1.35f);
-		Draw.text(g, s.title, 0, 0, Theme.TEXT);
-		g.pose().popMatrix();
-		Draw.text(g, Draw.fit(s.subtitle, Math.max(40, pillsLeft - panelX - 26)), panelX + 14, panelY + 27, Theme.TEXT_DIM);
-		g.fill(panelX + 14, panelY + 38, panelX + panelW - 14, panelY + 39, Theme.white(0x14));
+		// ---- Suchleiste
+		int sx = panelX + 10, sy = panelY + 9, sw = search.getWidth() + 32;
+		boolean focus = search.isFocused();
+		Draw.round(g, sx, sy, sw, 22, 11, Theme.white(focus ? 0x22 : 0x12));
+		Draw.roundBorder(g, sx, sy, sw, 22, 11, focus ? Theme.accent(0xC0) : Theme.white(0x2C));
+		// Lupe
+		Draw.roundBorder(g, sx + 8, sy + 6, 8, 8, 4, Theme.TEXT_SOFT);
+		g.fill(sx + 15, sy + 13, sx + 17, sy + 15, Theme.TEXT_SOFT);
+		g.fill(sx + 16, sy + 14, sx + 18, sy + 16, Theme.TEXT_SOFT);
+		// Bereich / Mod-Titel
+		String title = section == Section.MODS && openMod != null ? "" : section.subtitle;
+		int titleX = sx + sw + 12;
+		int maxTitle = panelX + panelW - 14 - titleX - rightHeaderWidth();
+		if (maxTitle > 40) Draw.text(g, Draw.fit(title, maxTitle), titleX, sy + 7, Theme.TEXT_DIM);
+		g.fill(panelX + 14, panelY + 38, panelX + panelW - 14, panelY + 39, Theme.white(0x12));
 
-		// Vorschau-Karte
 		if (previewArea != null) {
 			Draw.round(g, previewX, previewY, previewW, previewH, 6, 0x40000000);
 			Draw.roundBorder(g, previewX, previewY, previewW, previewH, 6, Theme.white(0x22));
 		}
 	}
 
+	/** Platz, den Buttons oben rechts im Inhalt brauchen (Reiter, Reset …). */
+	private int rightHeaderWidth() {
+		return switch (section) {
+			case MUSIK -> 130;
+			case SKIN -> 220;
+			case DESIGN -> 110;
+			case MODS -> openMod != null ? 90 : 0;
+			default -> 0;
+		};
+	}
+
 	@Override
 	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		lastFrame = System.nanoTime();
 		super.render(g, mouseX, mouseY, delta);
 
-		// ---- Inhalte (scrollbar, abgeschnitten)
+		// ---- Inhalte (scrollen, abgeschnitten)
 		int max = maxScroll();
 		scroll = Math.max(0, Math.min(max, scroll));
 		for (int i = 0; i < content.size(); i++) {
@@ -722,51 +1549,44 @@ public class OmerScreen extends Screen {
 			w.visible = y + w.getHeight() > viewTop && y < viewBottom;
 		}
 		boolean mouseIn = inView(mouseX, mouseY);
-		g.enableScissor(contentX - 6, viewTop, contentX + contentW + 6, viewBottom);
+		g.enableScissor(panelX + 4, viewTop, panelX + panelW - 4, viewBottom);
 		for (var w : content) {
 			if (!w.visible) continue;
-			if (w instanceof net.minecraft.client.gui.components.EditBox eb) {
+			if (w instanceof EditBox eb) {
 				boolean focus = eb.isFocused();
-				Draw.round(g, eb.getX() - 8, eb.getY() - 7, eb.getWidth() + 16, ROW_H, 4, Theme.white(focus ? 0x26 : 0x16));
-				Draw.roundBorder(g, eb.getX() - 8, eb.getY() - 7, eb.getWidth() + 16, ROW_H, 4,
-						focus ? Theme.accent(0xC0) : Theme.white(0x30));
+				Draw.round(g, eb.getX() - 10, eb.getY() - 8, eb.getWidth() + 20, ROW_H, 5, Theme.white(focus ? 0x26 : 0x14));
+				Draw.roundBorder(g, eb.getX() - 10, eb.getY() - 8, eb.getWidth() + 20, ROW_H, 5, focus ? Theme.accent(0xC0) : Theme.white(0x30));
 			}
 			w.render(g, mouseIn ? mouseX : -1000, mouseIn ? mouseY : -1000, delta);
 		}
 		g.disableScissor();
 		if (max > 0) {
-			// Hinweis: es gibt mehr → weiche Kante + Scrollbalken
-			int barX = contentX + contentW + 3;
+			int barX = panelX + panelW - 8;
 			int trackH = viewBottom - viewTop;
 			int barH = Math.max(16, trackH * trackH / (trackH + max));
 			int barY = viewTop + (int) ((trackH - barH) * (scroll / max));
 			Draw.round(g, barX, viewTop, 3, trackH, 1, Theme.white(0x10));
 			Draw.round(g, barX, barY, 3, barH, 1, Theme.white(0x70));
-			if (scroll < max) {
-				Draw.vGradient(g, contentX - 6, viewBottom - 12, contentW + 12, 12, 0x00000000, 0x90060608);
-			}
-			if (scroll > 0) {
-				Draw.vGradient(g, contentX - 6, viewTop, contentW + 12, 10, 0x90060608, 0x00000000);
-			}
+			if (scroll < max) Draw.vGradient(g, panelX + 4, viewBottom - 12, panelW - 12, 12, 0x00000000, 0x80060608);
 		}
 
 		if (previewArea != null) {
-			this.mouseXNow = mouseX;
-			this.mouseYNow = mouseY;
+			mouseXNow = mouseX;
+			mouseYNow = mouseY;
 			previewArea.accept(g);
 		}
 
-		// Infos unten in der Glas-Fläche
-		int y = panelY + panelH - 10 - infoLines.size() * 11;
+		// Infos unten im Inhalt
+		int y = panelY + panelH - 8 - infoLines.size() * 11;
 		for (Supplier<String> line : infoLines) {
-			String text = Draw.fit(line.get(), panelW - 28);
 			Draw.text(g, "•", panelX + 14, y, Theme.accent());
-			Draw.text(g, text, panelX + 22, y, Theme.TEXT_DIM);
+			Draw.text(g, Draw.fit(line.get(), panelW - 30), panelX + 22, y, Theme.TEXT_DIM);
 			y += 11;
 		}
 
 		// Fußzeile
-		Draw.text(g, "ESC zurück  ·  R-Shift öffnet das Menü im Spiel", PAD, this.height - 21, Theme.TEXT_FAINT);
+		String hint = listening != null ? "Drück jetzt die neue Taste … (ESC = löschen)" : "ESC zurück  ·  R-Shift öffnet das Menü im Spiel";
+		Draw.text(g, hint, PAD, this.height - 21, listening != null ? Theme.accent() : Theme.TEXT_FAINT);
 		if (OemerConfig.get().showVersion) {
 			String v = "v" + OemerClient.VERSION;
 			int vw = Draw.width(v) + 12;
@@ -775,7 +1595,6 @@ public class OmerScreen extends Screen {
 			Draw.text(g, v, vx + 6, this.height - 21, Theme.TEXT_DIM);
 		}
 
-		// Einblenden beim Öffnen
 		if (fadeIn) {
 			float t = (System.currentTimeMillis() - openedAt) / 220f;
 			if (t < 1f) {
@@ -783,35 +1602,6 @@ public class OmerScreen extends Screen {
 				g.fill(0, 0, this.width, this.height, (a << 24) | 0x060608);
 			}
 		}
-
-	}
-
-	private int mouseXNow, mouseYNow;
-
-	// ------------------------------------------------------------ Vorschauen
-
-	private void previewLabel(GuiGraphics g, String text) {
-		Draw.centered(g, text, previewX + previewW / 2, previewY + previewH - 14, Theme.TEXT_DIM);
-	}
-
-	private void drawCapePreview(GuiGraphics g) {
-		BufferedImage img = CapeManager.previewImage();
-		if (img == null) {
-			Draw.centered(g, "Kein Bild", previewX + previewW / 2, previewY + previewH / 2 - 4, Theme.TEXT_DIM);
-			return;
-		}
-		Textures.Tex t = Textures.image("cape_preview", CapeManager.previewKey() + "@" + img.hashCode(), img);
-		if (t == null) return;
-		int u = Math.max(1, img.getWidth() / 64);
-		int availH = previewH - 34;
-		int ch = Math.min(availH, (previewW - 20) * 16 / 10);
-		int cw = ch * 10 / 16;
-		int cx = previewX + (previewW - cw) / 2;
-		int cy = previewY + 10;
-		Draw.shadow(g, cx, cy, cw, ch, 3, 120);
-		Textures.drawRegion(g, t, cx, cy, cw, ch, u, u, 10 * u, 16 * u);
-		Draw.roundBorder(g, cx - 1, cy - 1, cw + 2, ch + 2, 2, Theme.white(0x40));
-		previewLabel(g, CapeManager.displayName(OemerConfig.get().capeSelection) + (OemerConfig.get().customCape ? "" : "  (aus)"));
 	}
 
 	private void drawPlayerPreview(GuiGraphics g) {
@@ -819,99 +1609,68 @@ public class OmerScreen extends Screen {
 		int size = Math.min(previewW, previewH) * 2 / 5;
 		InventoryScreen.renderEntityInInventoryFollowsMouse(g, previewX + 4, previewY + 4, previewX + previewW - 4,
 				previewY + previewH - 20, size, 0.0625f, mouseXNow, mouseYNow, this.minecraft.player);
-		previewLabel(g, "Vorschau · Maus bewegen");
+		Draw.centered(g, "Vorschau · Maus bewegen", previewX + previewW / 2, previewY + previewH - 14, Theme.TEXT_DIM);
 	}
 
-	private void drawTotemPreview(GuiGraphics g) {
-		OemerConfig c = OemerConfig.get();
-		Textures.Tex t = null;
-		try {
-			if (c.totemMode == 1 || !c.totemSelection.isEmpty()) {
-				String stamp = c.totemMode + "|" + c.totemFit + "|" + c.totemSelection + "|"
-						+ (c.totemMode == 0 ? Files.getLastModifiedTime(LooksPack.totemFolder().resolve(c.totemSelection)).toMillis() : 0);
-				if (!stamp.equals(totemStamp)) {
-					totemStamp = stamp;
-					totemImg = LooksPack.totemImage();
-				}
-				if (totemImg != null) t = Textures.image("totem_preview", stamp, totemImg);
+	// ------------------------------------------------------- Seitenleiste
+
+	/** Eintrag in der Seitenleiste: Symbol + Name, ausgewählt = weiß. */
+	private class NavItem extends OmerWidgets.Base {
+		private final Section target;
+		private final boolean iconOnly;
+
+		NavItem(int x, int y, int w, int h, Section target, boolean iconOnly) {
+			super(x, y, w, h, target.title);
+			this.target = target;
+			this.iconOnly = iconOnly;
+			if (!iconOnly) tip(target.subtitle);
+		}
+
+		@Override
+		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+			int x = getX(), y = getY(), w = width, h = height;
+			boolean sel = section == target;
+			if (sel) {
+				Draw.shadow(g, x, y, w, h, 6, 50);
+				Draw.round(g, x, y, w, h, 6, 0xF5FFFFFF);
+			} else if (hover > 0.01f) {
+				Draw.round(g, x, y, w, h, 6, Theme.white(Math.round(0x18 * hover)));
 			}
-		} catch (Exception e) {
-			t = null;
-		}
-		if (t == null) {
-			Draw.centered(g, "Kein Bild im Ordner totems/", previewX + previewW / 2, previewY + previewH / 2 - 4, Theme.TEXT_DIM);
-			return;
-		}
-		int s = Math.min(previewW - 30, previewH - 40);
-		int x = previewX + (previewW - s) / 2, y = previewY + 10;
-		// Schachbrett, damit man Transparenz sieht
-		int cell = Math.max(4, s / 8);
-		for (int yy = 0; yy < s; yy += cell) {
-			for (int xx = 0; xx < s; xx += cell) {
-				boolean dark = ((xx / cell + yy / cell) & 1) == 0;
-				g.fill(x + xx, y + yy, x + Math.min(s, xx + cell), y + Math.min(s, yy + cell), dark ? 0x30FFFFFF : 0x18FFFFFF);
+			int col = sel ? 0xFF0B0B0F : Draw.mix(Theme.TEXT_SOFT, Theme.TEXT, hover);
+			int ty = y + (h - 8) / 2 + 1;
+			if (iconOnly) {
+				Draw.centered(g, target.icon, x + w / 2, ty, col);
+				return;
 			}
-		}
-		Textures.draw(g, t, x, y, s, s);
-		String name = c.totemMode == 1 ? "Mein Skin" : LooksPack.displayName(c.totemSelection);
-		previewLabel(g, name + (c.customTotem ? "" : "  (aus)"));
-	}
-
-	private String totemStamp = "";
-	private BufferedImage totemImg;
-
-	private void drawCrosshairPreview(GuiGraphics g) {
-		// kleine Spielszene: Himmel, Boden
-		int x = previewX + 10, y = previewY + 10, w = previewW - 20, h = previewH - 34;
-		Draw.vGradient(g, x, y, w, h * 2 / 3, 0xFF6FA8FF, 0xFFB9D7FF);
-		Draw.vGradient(g, x, y + h * 2 / 3, w, h - h * 2 / 3, 0xFF5E9E3A, 0xFF3E6E26);
-		Draw.roundBorder(g, x, y, w, h, 3, Theme.white(0x40));
-		if (OemerConfig.get().customCrosshair && Crosshair.active()) {
-			Crosshair.draw(g, x + w / 2f, y + h / 2f, Crosshair.scale() * 1.5f);
-		} else {
-			// Minecraft-Standard grob nachgemalt
-			int cx = x + w / 2, cy = y + h / 2;
-			g.fill(cx - 7, cy, cx + 8, cy + 1, 0xFFFFFFFF);
-			g.fill(cx, cy - 7, cx + 1, cy + 8, 0xFFFFFFFF);
-		}
-		previewLabel(g, Crosshair.displayName(OemerConfig.get().crosshairSelection) + (OemerConfig.get().customCrosshair ? "" : "  (aus)"));
-	}
-
-	private void drawSpotifyPreview(GuiGraphics g) {
-		if (Spotify.status() != Spotify.Status.CONNECTED) {
-			int cx = previewX + previewW / 2, cy = previewY + Math.min(previewH, 110) / 2 - 6;
-			// Spotify-artiger grüner Kreis mit Wellen
-			Draw.round(g, cx - 18, cy - 18, 36, 36, 18, 0xFF1ED760);
-			for (int i = 0; i < 3; i++) {
-				int w = 20 - i * 5;
-				Draw.round(g, cx - w / 2, cy - 7 + i * 6, w, 2, 1, 0xFF0B0B0F);
+			Draw.round(g, x + 6, y + (h - 16) / 2, 16, 16, 4, sel ? Theme.accent(0xFF) : Theme.white(0x14));
+			int iconCol = sel && (Theme.accent() & 0xFFFFFF) == 0xFFFFFF ? 0xFF0B0B0F : 0xFFFFFFFF;
+			if (sel && (Theme.accent() & 0xFFFFFF) == 0xFFFFFF) {
+				Draw.round(g, x + 6, y + (h - 16) / 2, 16, 16, 4, 0xFF0B0B0F);
+				iconCol = 0xFFFFFFFF;
 			}
-			Draw.centered(g, SpotifyScreen.statusText(), cx, cy + 26, Theme.TEXT_SOFT);
-			if (!Spotify.message().isEmpty()) Draw.centered(g, Draw.fit(Spotify.message(), previewW - 12), cx, cy + 38, Theme.accent());
-			return;
+			Draw.centered(g, target.icon, x + 14, ty, iconCol);
+			Draw.text(g, Draw.fit(target.title, w - 34), x + 28, ty, col);
 		}
-		SpotifyScreen.drawNowPlaying(g, previewX, previewY, previewW, 78, true);
+
+		@Override
+		public void onPress(net.minecraft.client.input.InputWithModifiers input) {
+			go(target);
+		}
 	}
 
-	private void drawLookPreview(GuiGraphics g) {
-		Textures.Tex t = Looks.selected();
-		if (t == null) {
-			Draw.centered(g, "Kein Bild im Ordner looks/", previewX + previewW / 2, previewY + previewH / 2 - 4, Theme.TEXT_DIM);
-			return;
-		}
-		int w = previewW - 20;
-		int h = Math.min(previewH - 34, w * 9 / 16);
-		w = h * 16 / 9;
-		int x = previewX + (previewW - w) / 2, y = previewY + 10;
-		Draw.shadow(g, x, y, w, h, 4, 110);
-		Textures.drawCover(g, t, x, y, w, h);
-		int dim = OemerConfig.LOOK_DIM[Math.floorMod(OemerConfig.get().lookDim, OemerConfig.LOOK_DIM.length)];
-		g.fill(x, y, x + w, y + h, dim << 24);
-		Draw.centered(g, "§lÖMER", x + w / 2, y + h / 2 - 4, Theme.TEXT);
-		previewLabel(g, LooksPack.displayName(OemerConfig.get().lookImage) + (OemerConfig.get().lookMode ? "" : "  (aus)"));
+	/** Für den automatischen Test: Suchbegriff setzen. */
+	public void searchForTest(String q) {
+		search.setValue(q);
 	}
 
-	// ------------------------------------------------------------ Schließen
+	/** Für den automatischen Test: Bereich öffnen. */
+	public static void sectionForTest(String name, String mod) {
+		section = Section.valueOf(name);
+		openMod = mod;
+		query = "";
+	}
+
+	// -------------------------------------------------------------- Schließen
 
 	@Override
 	public void onClose() {
