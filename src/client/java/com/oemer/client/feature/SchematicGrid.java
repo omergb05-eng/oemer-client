@@ -98,7 +98,8 @@ public final class SchematicGrid {
 			Map<String, Object> pos = (Map<String, Object>) r.get("Position");
 			List<Object> pal = (List<Object>) r.get("BlockStatePalette");
 			long[] states = (long[]) r.get("BlockStates");
-			if (size == null || pos == null || pal == null || states == null) continue;
+			if (pos == null) pos = new HashMap<>();
+			if (size == null || pal == null || states == null) continue;
 			int sizeX = num(size.get("x")), sizeY = num(size.get("y")), sizeZ = num(size.get("z"));
 			int px = num(pos.get("x")), py = num(pos.get("y")), pz = num(pos.get("z"));
 			int minX = px + (sizeX < 0 ? sizeX + 1 : 0), minY = py + (sizeY < 0 ? sizeY + 1 : 0), minZ = pz + (sizeZ < 0 ? sizeZ + 1 : 0);
