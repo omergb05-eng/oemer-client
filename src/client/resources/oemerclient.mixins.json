@@ -8,7 +8,9 @@
 	},
 	"client": [
 		"AbstractClientPlayerMixin",
+		"AvatarRendererMixin",
 		"CameraMixin",
+		"ChatComponentMixin",
 		"ClientPacketListenerMixin",
 		"EntityMixin",
 		"EntityRenderDispatcherMixin",
@@ -26,6 +28,9 @@
 		"MinecraftMixin",
 		"MouseHandlerMixin",
 		"MultiPlayerGameModeMixin",
+		"ParticleEngineMixin",
+		"PlayerMixin",
+		"PlayerTabOverlayMixin",
 		"ScreenEffectRendererMixin",
 		"TntRendererMixin"
 	],

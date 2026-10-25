@@ -16,4 +16,11 @@ public class GuiMixin {
 	private void oemer$noPumpkin(GuiGraphics g, Identifier texture, float alpha, CallbackInfo ci) {
 		if (OemerConfig.get().noPumpkin && texture.getPath().contains("pumpkinblur")) ci.cancel();
 	}
+
+	// Transparente Netherportale: kein lila Wackel-Bildschirm im Portal
+	@Inject(method = "renderPortalOverlay", at = @At("HEAD"), cancellable = true, require = 0)
+	private void oemer$noPortalOverlay(GuiGraphics g, float partial, CallbackInfo ci) {
+		OemerConfig c = OemerConfig.get();
+		if (c.clearPortal && c.portalOverlayOff) ci.cancel();
+	}
 }

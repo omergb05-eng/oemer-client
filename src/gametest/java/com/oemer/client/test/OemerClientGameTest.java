@@ -8,6 +8,7 @@ import com.oemer.client.feature.ImageTools;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.MaterialList;
+import com.oemer.client.feature.NameStyle;
 import com.oemer.client.feature.OwnFiles;
 import com.oemer.client.feature.Sounds;
 import com.oemer.client.gui.CapeEditorScreen;
@@ -770,6 +771,9 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			sp.getServer().runCommand("fill " + (x - 2) + " " + (y) + " " + (z + 3) + " " + (x + 2) + " " + (y + 2) + " " + (z + 3) + " glass");
 			sp.getServer().runCommand("setblock " + (x - 1) + " " + (y + 1) + " " + (z + 3) + " pink_stained_glass");
 			sp.getServer().runCommand("setblock " + (x + 1) + " " + (y + 1) + " " + (z + 3) + " bedrock");
+			// Netherportal (Obsidian-Rahmen + Portal) für Transparente Netherportale
+			sp.getServer().runCommand("fill " + (x - 2) + " " + (y - 1) + " " + (z + 2) + " " + (x + 1) + " " + (y + 3) + " " + (z + 2) + " obsidian");
+			sp.getServer().runCommand("fill " + (x - 1) + " " + y + " " + (z + 2) + " " + x + " " + (y + 2) + " " + (z + 2) + " nether_portal[axis=x]");
 			ctx.waitTicks(10);
 			ctx.takeScreenshot("45-glas-vorher");
 			ctx.runOnClient(mc -> {
@@ -777,14 +781,28 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				c.clearGlass = true;
 				c.darkGui = true;
 				c.noBedrock = true;
+				c.clearPortal = true;
+				c.portalLevel = 1;
 				LooksPack.apply(mc);
 			});
 			ctx.waitFor(mc -> mc.getOverlay() == null, 1200);
 			ctx.waitTicks(20);
+			check("portal-texture-faded", ctx.computeOnClient(mc -> {
+				try {
+					var img = javax.imageio.ImageIO.read(mc.getResourcePackDirectory().resolve(LooksPack.FOLDER)
+							.resolve("assets/minecraft/textures/block/nether_portal.png").toFile());
+					int max = 0;
+					for (int yy = 0; yy < img.getHeight(); yy++) for (int xx = 0; xx < img.getWidth(); xx++) max = Math.max(max, img.getRGB(xx, yy) >>> 24);
+					return max > 0 && max <= 100;
+				} catch (Exception e) {
+					return false;
+				}
+			}), "");
 			check("dark-gui-textures", ctx.computeOnClient(mc -> PackTweaks.countDark(mc)) > 20, "");
 			check("pack-tweaks-written", ctx.computeOnClient(mc -> Files.isRegularFile(mc.getResourcePackDirectory()
 					.resolve(LooksPack.FOLDER).resolve("assets/minecraft/textures/block/bedrock.png"))), "");
 			ctx.takeScreenshot("46-clear-glass-nobedrock");
+			ctx.runOnClient(mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
 			ctx.setScreen(() -> new net.minecraft.client.gui.screens.inventory.InventoryScreen(Minecraft.getInstance().player));
 			ctx.waitTicks(5);
 			ctx.takeScreenshot("47-dark-gui-inventar");
@@ -794,7 +812,85 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				c.clearGlass = false;
 				c.darkGui = false;
 				c.noBedrock = false;
+				c.clearPortal = false;
 				c.fullbright = true;
+			});
+			sp.getServer().runCommand("fill " + (x - 2) + " " + (y - 1) + " " + (z + 2) + " " + (x + 1) + " " + (y + 3) + " " + (z + 2) + " air");
+
+			// ------------------------------------------ No Explosion Particles (nur die Wolken fehlen)
+			boolean[] expl = new boolean[2];
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().noExplosionParticles = false;
+				expl[0] = mc.particleEngine.createParticle(net.minecraft.core.particles.ParticleTypes.EXPLOSION, x, y + 2, z + 6, 0, 0, 0) != null;
+				OemerConfig.get().noExplosionParticles = true;
+				expl[1] = mc.particleEngine.createParticle(net.minecraft.core.particles.ParticleTypes.EXPLOSION, x, y + 2, z + 6, 0, 0, 0) == null
+						&& mc.particleEngine.createParticle(net.minecraft.core.particles.ParticleTypes.EXPLOSION_EMITTER, x, y + 2, z + 6, 0, 0, 0) == null;
+				OemerConfig.get().noExplosionParticles = false;
+			});
+			check("explosion-particles-normal", expl[0], "");
+			check("no-explosion-particles", expl[1], "");
+
+			// ------------------------------------------ Own Custom Name (Farbe, Verlauf, Rainbow)
+			boolean[] nm = new boolean[8];
+			ctx.runOnClient(mc -> {
+				OemerConfig c = OemerConfig.get();
+				c.customName = true;
+				c.customNameText = "ÖmerKing";
+				c.nameMode = 0;
+				c.nameColor1 = 9;
+				nm[0] = mc.player.getDisplayName().getString().equals("ÖmerKing");
+				var one = NameStyle.display().toFlatList(net.minecraft.network.chat.Style.EMPTY);
+				nm[1] = one.size() == 8 && one.stream().allMatch(s -> s.getStyle().getColor().getValue() == NameStyle.COLORS[9]);
+				c.nameMode = 1;
+				c.nameColor1 = 2;
+				c.nameColor2 = 7;
+				var grad = NameStyle.display().toFlatList(net.minecraft.network.chat.Style.EMPTY);
+				nm[2] = grad.get(0).getStyle().getColor().getValue() == NameStyle.COLORS[2] && grad.get(7).getStyle().getColor().getValue() == NameStyle.COLORS[7];
+				c.nameMode = 2;
+				var rb = NameStyle.display().toFlatList(net.minecraft.network.chat.Style.EMPTY);
+				nm[3] = rb.get(0).getStyle().getColor().getValue() != rb.get(4).getStyle().getColor().getValue();
+				String real = mc.getUser().getName();
+				var chat = NameStyle.replaceInChat(net.minecraft.network.chat.Component.translatable("chat.type.text",
+						net.minecraft.network.chat.Component.literal(real), "Hallo"));
+				nm[4] = chat.getString().contains("ÖmerKing") && !chat.getString().contains(real) && chat.getString().contains("Hallo");
+				var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+				nm[5] = info != null && mc.gui.getTabList().getNameForDisplay(info).getString().equals("ÖmerKing");
+				c.nameInChat = false;
+				nm[6] = NameStyle.replaceInChat(net.minecraft.network.chat.Component.literal("<" + real + "> hi")).getString().contains(real);
+				c.nameInChat = true;
+				c.customName = false;
+				nm[7] = mc.player.getDisplayName().getString().equals(real);
+				c.customName = true;
+			});
+			check("name-display", nm[0], "");
+			check("name-one-color", nm[1], "");
+			check("name-gradient", nm[2], "");
+			check("name-rainbow", nm[3], "");
+			check("name-chat", nm[4], "");
+			check("name-tablist", nm[5], "");
+			check("name-chat-off", nm[6], "");
+			check("name-off-real", nm[7], "");
+			ctx.runOnClient(mc -> {
+				OemerConfig c = OemerConfig.get();
+				c.nameMode = 1;
+				c.nameColor1 = 8;
+				c.nameColor2 = 9;
+				c.nameBold = true;
+				mc.gui.getChat().addMessage(net.minecraft.network.chat.Component.translatable("chat.type.text",
+						net.minecraft.network.chat.Component.literal(mc.getUser().getName()), "Hallo Leute, mein Name ist jetzt bunt!"));
+				mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+			});
+			ctx.waitTicks(10);
+			ctx.getInput().holdKey(o -> o.keyPlayerList);
+			ctx.waitTicks(5);
+			ctx.takeScreenshot("48-eigener-name-tab-chat");
+			ctx.getInput().releaseKey(o -> o.keyPlayerList);
+			ctx.runOnClient(mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT));
+			ctx.waitTicks(10);
+			ctx.takeScreenshot("49-eigener-name-schild");
+			ctx.runOnClient(mc -> {
+				mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+				OemerConfig.get().customName = false;
 			});
 
 			// ------------------------------------------ Sounds + Totem (Ressourcenpaket)
