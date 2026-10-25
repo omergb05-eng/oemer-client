@@ -80,6 +80,36 @@ public final class DistantHorizonsBridge {
 		throw new NoSuchMethodException("setValue");
 	}
 
+	/** Auto-Updater von DH ausschalten (die Version kommt mit dem Ömer Client). */
+	public static void disableUpdater() {
+		if (!installed()) return;
+		String[] classes = {"com.seibel.distanthorizons.core.config.Config$Client$Advanced$AutoUpdater",
+				"com.seibel.distanthorizons.core.config.Config$Client$AutoUpdater"};
+		for (String cls : classes) {
+			try {
+				Class<?> c = Class.forName(cls);
+				for (String field : new String[]{"enableAutoUpdater", "enableSilentUpdates"}) {
+					try {
+						Object entry = c.getField(field).get(null);
+						Method set = null;
+						for (Method m : entry.getClass().getMethods()) {
+							if ((m.getName().equals("set") || m.getName().equals("setValue")) && m.getParameterCount() == 1) set = m;
+						}
+						if (set != null) {
+							set.setAccessible(true);
+							set.invoke(entry, false);
+							OemerClient.LOGGER.info("Distant Horizons: {} aus", field);
+						}
+					} catch (NoSuchFieldException ignored) {
+					}
+				}
+				return;
+			} catch (Throwable t) {
+				OemerClient.LOGGER.info("Distant Horizons Updater ({}) nicht gefunden: {}", cls, t.toString());
+			}
+		}
+	}
+
 	public static void changed() {
 		applied = null;
 		tickCounter = 39;

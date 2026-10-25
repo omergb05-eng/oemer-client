@@ -68,6 +68,7 @@ jobs:
           find build/run -path '*screenshots*' -name '*.png' -exec cp {} "$OUT/screenshots/" \; 2>/dev/null
           find build/run -path '*logs*' \( -name 'latest.log' -o -name 'debug.log' \) -exec cp {} "$OUT/run-logs/" \; 2>/dev/null
           find build/run -path '*crash-reports*' -name '*.txt' -exec cp {} "$OUT/run-logs/" \; 2>/dev/null
+          find build/run -name 'DistantHorizons.toml' -exec cp {} "$OUT/run-logs/" \; 2>/dev/null
           grep -h "OEMER-TEST" "$OUT/test.log" > "$OUT/test-summary.txt" 2>/dev/null
           printf 'commit: %s\nrun: %s\nbuild: %s\ngametest: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" \
             "${{ steps.build.outcome }}" "${{ steps.gametest.outcome }}" > "$OUT/status.txt"

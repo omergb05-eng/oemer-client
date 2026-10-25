@@ -3,7 +3,7 @@
 	"id": "oemerclient",
 	"version": "${version}",
 	"name": "Ömer Client",
-	"description": "Ömers eigener Client: Galaxy-Design, Spotify, Crosshair, Cape-, Totem- und Cosmetic-Editor, Cosmetics, Custom Sounds, Kit-HUD, Material List, Looks, Fullbright und Free Cam.",
+	"description": "Ömers eigener Client: Mods-Menü mit Suche, Kits mit eigenen Einstellungen, YouTube-Musik + Spotify, Foto-Hintergründe, AppleSkin, Zoom, Dark GUI, Clear Glass, Distant Horizons und mehr.",
 	"authors": [
 		"Ömer"
 	],
@@ -13,6 +13,9 @@
 	"entrypoints": {
 		"client": [
 			"com.oemer.client.OemerClient"
+		],
+		"preLaunch": [
+			"com.oemer.client.OemerPreLaunch"
 		]
 	},
 	"mixins": [

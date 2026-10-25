@@ -61,12 +61,14 @@ public class OemerClient implements ClientModInitializer {
 		createFolders();
 		Sounds.createFolders();
 		OemerKeys.register();
+		DistantHorizonsBridge.disableUpdater();
 
 		// Galaxy-Bild und Skin schon im Hintergrund vorbereiten
 		GalaxyArt.prepare();
 		ClientLifecycleEvents.CLIENT_STARTED.register(mc -> {
 			SkinTotem.prepare();
 			YouTubeMusic.start();
+			DistantHorizonsBridge.disableUpdater();
 		});
 
 		// Spotify: nur abfragen, wenn man es sieht
