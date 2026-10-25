@@ -20,7 +20,7 @@ import java.nio.file.Path;
 public class CapeEditorScreen extends Screen {
 
 	public enum Tool {
-		PINSEL("Pinsel"), EIMER("Eimer"), RADIERER("Radierer"), PIPETTE("Pipette");
+		PINSEL("Pinsel"), EIMER("Eimer"), RADIERER("Gummi"), PIPETTE("Pipette");
 
 		final String label;
 
@@ -34,7 +34,7 @@ public class CapeEditorScreen extends Screen {
 			0xFF2FBF71, 0xFF2EC4B6, 0xFF8ED6FF, 0xFF3B82F6, 0xFF6366F1, 0xFFA855F7, 0xFFFF8FC7, 0xFF8B5A2B, 0xFFE8D3B0,
 	};
 	private static final int ERASE = 0xFFF4F4F4;
-	private static final String[] BRUSH_NAMES = {"1 Pixel", "2x2", "3x3"};
+	private static final String[] BRUSH_NAMES = {"1px", "2px", "3px"};
 
 	private final Screen parent;
 	private CapeCanvas canvas;
@@ -150,14 +150,14 @@ public class CapeEditorScreen extends Screen {
 		y += rowH + gap;
 
 		// Rückgängig / Wiederholen / Füllen
-		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, third, rowH, "Rückgängig", () -> {
+		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, third, rowH, "↶ Undo", () -> {
 			if (!canvas.undo()) say("Nichts zum Rückgängigmachen");
-		}));
-		this.addRenderableWidget(new OmerWidgets.Flat(rx + third + 4, y, third, rowH, "Wiederholen", () -> canvas.redo()));
-		this.addRenderableWidget(new OmerWidgets.Flat(rx + 2 * (third + 4), y, rw - 2 * (third + 4), rowH, "Alles füllen", () -> {
+		}).tip("Rückgängig (Strg+Z)"));
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + third + 4, y, third, rowH, "↷ Redo", () -> canvas.redo()).tip("Wiederholen (Strg+Y)"));
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + 2 * (third + 4), y, rw - 2 * (third + 4), rowH, "Füllen", () -> {
 			canvas.snapshot();
 			canvas.clear(color);
-		}));
+		}).tip("Ganze Fläche mit der Farbe füllen"));
 		y += rowH + gap;
 		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, rw, rowH, "Aktuelles Cape laden", this::loadCurrent));
 		y += rowH + gap + 2;
