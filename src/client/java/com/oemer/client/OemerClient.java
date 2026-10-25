@@ -61,7 +61,6 @@ public class OemerClient implements ClientModInitializer {
 		createFolders();
 		Sounds.createFolders();
 		OemerKeys.register();
-		DistantHorizonsBridge.disableUpdater();
 
 		// Galaxy-Bild und Skin schon im Hintergrund vorbereiten
 		GalaxyArt.prepare();
