@@ -219,7 +219,12 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.waitFor(mc -> mc.getOverlay() == null, 1200);
 			ctx.waitTicks(10);
 			boolean packOn = ctx.computeOnClient(mc -> mc.getResourcePackRepository().getSelectedIds().contains(LooksPack.PACK_ID));
-			check("totem-pack-active", packOn, "");
+			String compat = ctx.computeOnClient(mc -> {
+				var pack = mc.getResourcePackRepository().getPack(LooksPack.PACK_ID);
+				return pack == null ? "kein Pack" : String.valueOf(pack.getCompatibility());
+			});
+			check("totem-pack-active", packOn, compat);
+			check("totem-pack-compatible", compat.equals("COMPATIBLE"), compat);
 			sp.getServer().runCommand("give @a totem_of_undying");
 			ctx.waitTicks(10);
 			ctx.takeScreenshot("12-totem");

@@ -4,7 +4,7 @@ import com.oemer.client.OemerClient;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.feature.CapeManager;
 import com.oemer.client.feature.LooksPack;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
