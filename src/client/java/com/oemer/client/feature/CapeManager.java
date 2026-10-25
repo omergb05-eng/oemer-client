@@ -31,6 +31,7 @@ public final class CapeManager {
 	private static String loadedKey;
 	private static Identifier loadedId;
 	private static ClientAsset.Texture loadedTexture;
+	private static BufferedImage loadedImage;
 	private static int counter;
 
 	public static Path folder() {
@@ -96,6 +97,20 @@ public final class CapeManager {
 		return loadedTexture;
 	}
 
+	/** Das Cape-Bild der aktuellen Auswahl (für die Vorschau im Menü), auch wenn das Cape aus ist. */
+	public static BufferedImage previewImage() {
+		OemerConfig c = OemerConfig.get();
+		String key = c.capeSelection + (c.capeSelection.startsWith(DESIGN) ? "@" + c.accent : "");
+		if (!key.equals(loadedKey)) {
+			load(c.capeSelection, key);
+		}
+		return loadedImage;
+	}
+
+	public static String previewKey() {
+		return loadedKey == null ? "" : loadedKey;
+	}
+
 	/** Neu laden, z. B. wenn du ein Bild im Ordner ausgetauscht hast. */
 	public static void invalidate() {
 		loadedKey = null;
@@ -112,6 +127,7 @@ public final class CapeManager {
 			} else {
 				img = ImageTools.toCape(ImageTools.read(folder().resolve(choice)));
 			}
+			loadedImage = img;
 			NativeImage nativeImage = NativeImage.read(ImageTools.toPng(img));
 
 			Identifier id = Identifier.fromNamespaceAndPath(OemerClient.MOD_ID, "cape/" + (counter++));
@@ -124,6 +140,7 @@ public final class CapeManager {
 		} catch (Exception e) {
 			OemerClient.LOGGER.warn("Cape {} konnte nicht geladen werden", choice, e);
 			loadedTexture = null;
+			loadedImage = null;
 		}
 	}
 }

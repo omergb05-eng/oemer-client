@@ -3,273 +3,640 @@ package com.oemer.client.gui;
 import com.oemer.client.OemerClient;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.feature.CapeManager;
+import com.oemer.client.feature.Cosmetics;
+import com.oemer.client.feature.Hud;
+import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
-import net.minecraft.util.Util;
+import com.oemer.client.feature.MaterialList;
+import com.oemer.client.feature.Sounds;
+import com.oemer.client.feature.Textures;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Util;
 
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 /**
  * Das Ömer-Client-Menü: schwarzer Screen, oben rechts die Tabs
- * Settings · Skins · Layout · Graphics, darunter eine weiße Glas-Fläche.
+ * Settings · Skins · Layout · Graphics, jeder Tab mit eigenen Unter-Reitern.
  */
 public class OmerScreen extends Screen {
 
 	enum Tab {
-		SETTINGS("Settings", "Kits und Spiel-Funktionen"),
-		SKINS("Skins", "Capes, Totems und Sounds"),
-		LAYOUT("Layout", "So sieht dein Client aus"),
-		GRAPHICS("Graphics", "Looks und Grafik");
+		SETTINGS("Settings"), SKINS("Skins"), LAYOUT("Layout"), GRAPHICS("Graphics");
 
+		final String title;
+
+		Tab(String title) {
+			this.title = title;
+		}
+	}
+
+	enum Sub {
+		ALLGEMEIN(Tab.SETTINGS, "Allgemein", "Fullbright und Free Cam"),
+		KITS(Tab.SETTINGS, "Kits", "Kit Select und Kit-HUD"),
+		MATERIAL(Tab.SETTINGS, "Material List", "Blöcke für deine Schematic"),
+		CAPE(Tab.SKINS, "Cape", "Dein eigenes Cape"),
+		COSMETICS(Tab.SKINS, "Cosmetics", "Hüte, Flügel und mehr"),
+		TOTEM(Tab.SKINS, "Totem", "Dein eigenes Totem"),
+		SOUNDS(Tab.SKINS, "Sounds", "Eigene Sounds, jeder mit eigenem Ordner"),
+		DESIGN(Tab.LAYOUT, "Design", "So sieht dein Client aus"),
+		HUD(Tab.LAYOUT, "HUD", "Anzeigen im Spiel"),
+		LOOKS(Tab.GRAPHICS, "Looks", "Eigene Bilder als Hintergrund");
+
+		final Tab tab;
 		final String title;
 		final String subtitle;
 
-		Tab(String title, String subtitle) {
+		Sub(Tab tab, String title, String subtitle) {
+			this.tab = tab;
 			this.title = title;
 			this.subtitle = subtitle;
+		}
+
+		static List<Sub> of(Tab tab) {
+			List<Sub> list = new ArrayList<>();
+			for (Sub s : values()) if (s.tab == tab) list.add(s);
+			return list;
 		}
 	}
 
 	/** Bleibt gemerkt, solange das Spiel läuft. */
 	private static Tab current = Tab.SETTINGS;
+	private static final Map<Tab, Sub> CURRENT_SUB = new EnumMap<>(Tab.class);
 
-	/** Totem geändert → beim Schließen Ressourcen neu laden. Gilt über Tab-Wechsel hinweg. */
+	/** Totem/Sounds geändert → beim Schließen Ressourcen neu laden. */
 	private static boolean looksChanged;
+	/** Beim Tab-Wechsel nicht nochmal einblenden. */
+	private static boolean skipFade;
+	/** Gleitende Markierung unter den Tabs. */
+	private static float tabHighlightX = -1, tabHighlightW;
 
-	private static final int PAD = 16;
-	private static final int TOP = 38;
-	private static final int ROW_H = 22;
-	private static final int GAP = 5;
+	private static final int PAD = 14;
+	private static final int TOP = 50;
+	private static final int ROW_H = 24;
+	private static final int GAP = 6;
 
 	private final Screen parent;
-	private final List<String> infoLines = new ArrayList<>();
+	private final List<Supplier<String>> infoLines = new ArrayList<>();
+	private final long openedAt = System.currentTimeMillis();
+	private final boolean fadeIn;
+	private long lastFrame = System.nanoTime();
 
 	private int panelX, panelY, panelW, panelH;
+	private int contentX, contentY, contentW;
 	private int colW, colCount;
 	private int nextIndex;
+	private int tabsX, tabsW, tabsY = 13, tabsH = 20;
+	private final int[] tabX = new int[Tab.values().length];
+	private final int[] tabW = new int[Tab.values().length];
+	/** Rechte Hälfte der Glas-Fläche für Vorschauen (null = keine). */
+	private Consumer<GuiGraphics> previewArea;
+	private int previewX, previewY, previewW, previewH;
 
 	public OmerScreen(Screen parent) {
 		super(Component.literal("Ömer Client"));
 		this.parent = parent;
+		this.fadeIn = !skipFade;
+		skipFade = false;
+	}
+
+	private Sub sub() {
+		Sub s = CURRENT_SUB.get(current);
+		if (s == null || s.tab != current) {
+			s = Sub.of(current).get(0);
+			CURRENT_SUB.put(current, s);
+		}
+		return s;
 	}
 
 	@Override
 	protected void init() {
 		infoLines.clear();
+		previewArea = null;
 		nextIndex = 0;
 
-		// Glas-Fläche
 		panelX = PAD;
 		panelY = TOP;
 		panelW = this.width - PAD * 2;
-		panelH = this.height - TOP - 30;
+		panelH = this.height - TOP - 34;
+		contentX = panelX + 14;
+		contentY = panelY + 44;
+		contentW = panelW - 28;
+		colCount = contentW >= 330 ? 2 : 1;
+		colW = (contentW - (colCount - 1) * 8) / colCount;
 
-		colCount = panelW >= 340 ? 2 : 1;
-		colW = (panelW - 24 - (colCount - 1) * 8) / colCount;
-
-		// Tabs oben rechts: Settings · Skins · Layout · Graphics
-		int tabH = 18;
-		int x = this.width - PAD;
+		// ---- Tabs oben rechts (in einer Glas-Pille)
 		Tab[] tabs = Tab.values();
-		for (int i = tabs.length - 1; i >= 0; i--) {
+		int total = 0;
+		for (int i = 0; i < tabs.length; i++) {
+			tabW[i] = Draw.width(tabs[i].title) + 22;
+			total += tabW[i];
+		}
+		tabsW = total + 4;
+		tabsX = this.width - PAD - tabsW;
+		int x = tabsX + 2;
+		for (int i = 0; i < tabs.length; i++) {
 			Tab tab = tabs[i];
-			int w = this.font.width(tab.title) + 16;
-			x -= w;
-			this.addRenderableWidget(new OmerWidgets.Flat(x, 10, w, tabH, tab.title,
-					() -> switchTab(tab), () -> current == tab));
-			x -= 4;
+			tabX[i] = x;
+			this.addRenderableWidget(new OmerWidgets.Flat(x, tabsY + 2, tabW[i], tabsH - 4, tab.title,
+					() -> switchTab(tab), () -> current == tab).style(OmerWidgets.Style.TAB));
+			x += tabW[i];
 		}
 
-		switch (current) {
-			case SETTINGS -> buildSettings();
-			case SKINS -> buildSkins();
-			case LAYOUT -> buildLayout();
-			case GRAPHICS -> buildGraphics();
+		// ---- Unter-Reiter (Pillen) oben rechts in der Glas-Fläche
+		List<Sub> subs = Sub.of(current);
+		if (subs.size() > 1) {
+			int px = panelX + panelW - 12;
+			for (int i = subs.size() - 1; i >= 0; i--) {
+				Sub s = subs.get(i);
+				int w = Draw.width(s.title) + 16;
+				px -= w;
+				this.addRenderableWidget(new OmerWidgets.Flat(px, panelY + 12, w, 16, s.title,
+						() -> switchSub(s), () -> sub() == s).style(OmerWidgets.Style.PILL));
+				px -= 4;
+			}
 		}
 
-		// Fertig-Button unten rechts
-		this.addRenderableWidget(new OmerWidgets.Flat(this.width - PAD - 70, this.height - 24, 70, 18,
-				"Fertig", this::onClose));
+		switch (sub()) {
+			case ALLGEMEIN -> buildGeneral();
+			case KITS -> buildKits();
+			case MATERIAL -> buildMaterial();
+			case CAPE -> buildCape();
+			case COSMETICS -> buildCosmetics();
+			case TOTEM -> buildTotem();
+			case SOUNDS -> buildSounds();
+			case DESIGN -> buildDesign();
+			case HUD -> buildHud();
+			case LOOKS -> buildLooks();
+		}
+
+		// ---- Fußzeile
+		this.addRenderableWidget(new OmerWidgets.Flat(this.width - PAD - 76, this.height - 26, 76, 18,
+				"Fertig", this::onClose).style(OmerWidgets.Style.PRIMARY));
 	}
 
-	// ---------------------------------------------------------------- Tabs
+	// ============================================================== Inhalte
 
-	private void buildSettings() {
+	private void buildGeneral() {
 		OemerConfig c = OemerConfig.get();
-		boolean inWorld = this.minecraft != null && this.minecraft.level != null;
-
-		cycle("Kit Select", OemerConfig.KITS, () -> c.kit, v -> c.kit = v);
-		toggle("Fullbright", () -> c.fullbright, v -> c.fullbright = v, false);
+		toggle("Fullbright", () -> c.fullbright, v -> c.fullbright = v, false, "Alles hell, auch nachts und in Höhlen (Taste G)");
 		toggle("Free Cam", () -> c.freecam, v -> {
-			if (this.minecraft != null && this.minecraft.level != null) {
-				c.freecam = v;
-			}
-		}, false);
+			if (this.minecraft.level != null) c.freecam = v;
+		}, false, "Frei fliegen, aber nicht durch Blöcke (Taste F4)");
 		cycle("Free Cam Tempo", OemerConfig.FREECAM_SPEED_NAMES, () -> c.freecamSpeed, v -> c.freecamSpeed = v);
-		toggle("Material List", () -> c.materialList, v -> c.materialList = v, true);
-		cycle("Material List Ort", OemerConfig.CORNERS, () -> c.materialListCorner, v -> c.materialListCorner = v);
 
-		infoLines.add("Tasten: R-Shift Menü · F4 Free Cam · G Fullbright");
-		infoLines.add(inWorld
-				? "Free Cam: WASD fliegen, Leertaste hoch, Shift runter."
+		info(() -> "Tasten: R-Shift Menü · F4 Free Cam · G Fullbright");
+		info(() -> this.minecraft.level != null
+				? "Free Cam: WASD fliegen, Leertaste hoch, Shift runter, Sprinten = schneller."
 				: "Free Cam geht nur in einer Welt oder auf Servern.");
 	}
 
-	private void buildSkins() {
+	private void buildKits() {
 		OemerConfig c = OemerConfig.get();
+		cycle("Kit Select", OemerConfig.KITS, () -> c.kit, v -> c.kit = v);
+		toggle("Kit-HUD anzeigen", () -> c.kitHud, v -> c.kitHud = v, false, "Zeigt im Spiel, wie viel du von den Kit-Items hast");
+		cycle("Kit-HUD Ort", OemerConfig.CORNERS, () -> c.kitHudCorner, v -> c.kitHudCorner = v);
+		cycle("HUD-Größe", OemerConfig.HUD_SCALE_NAMES, () -> c.hudScale, v -> c.hudScale = v);
 
-		// Cape: Designs + eigene Bilder
-		List<String> capes = CapeManager.choices();
-		String[] capeNames = capes.stream().map(CapeManager::displayName).toArray(String[]::new);
-		toggle("Eigenes Cape", () -> c.customCape, v -> c.customCape = v, false);
-		cycle("Cape", capeNames, () -> Math.max(0, capes.indexOf(c.capeSelection)), v -> {
-			c.capeSelection = capes.get(v);
-			CapeManager.invalidate();
+		info(() -> OemerConfig.KITS[Math.floorMod(c.kit, OemerConfig.KITS.length)] + ": " + Hud.kitDescription(c.kit));
+		info(() -> "Rot = du hast nichts mehr davon.");
+	}
+
+	private void buildMaterial() {
+		OemerConfig c = OemerConfig.get();
+		toggle("Material List anzeigen", () -> c.materialList, v -> c.materialList = v, false, "Zeigt die Blöcke deiner Schematic im Spiel");
+		cycleDynamic("Schematic", () -> {
+			List<String> f = MaterialList.files();
+			return f.isEmpty() ? new String[]{"(keine Datei)"} : f.stream().map(n -> n.replaceAll("\\.(litematic|schem)$", "")).toArray(String[]::new);
+		}, () -> Math.max(0, MaterialList.files().indexOf(c.schematic)), v -> {
+			List<String> f = MaterialList.files();
+			if (!f.isEmpty()) {
+				c.schematic = f.get(v);
+				c.materialDone.clear();
+				MaterialList.reload();
+			}
 		});
+		cycle("Material List Ort", OemerConfig.CORNERS, () -> c.materialListCorner, v -> c.materialListCorner = v);
+		button("Liste öffnen & bearbeiten", () -> this.minecraft.setScreen(new MaterialListScreen(this)), OmerWidgets.Style.PRIMARY);
+		button("Schematic-Ordner öffnen", () -> open(MaterialList.folder()), OmerWidgets.Style.GLASS);
 
-		// Totem: eigene Bilder
+		if (c.schematic.isEmpty() && !MaterialList.files().isEmpty()) {
+			c.schematic = MaterialList.files().get(0);
+		}
+		info(() -> ".litematic oder .schem in den Ordner schematics/ legen.");
+		info(() -> {
+			if (c.schematic.isEmpty()) return "Noch keine Schematic gefunden.";
+			if (!MaterialList.error().isEmpty()) return "Fehler: " + MaterialList.error();
+			var e = MaterialList.entries();
+			int sum = 0;
+			for (var x : e) sum += x.needed();
+			return e.size() + " verschiedene Blöcke, " + sum + " insgesamt.";
+		});
+	}
+
+	private void buildCape() {
+		OemerConfig c = OemerConfig.get();
+		usePreview(this::drawCapePreview);
+		List<String> capes = CapeManager.choices();
+		toggle("Eigenes Cape", () -> c.customCape, v -> c.customCape = v, false, "Das Cape siehst nur du");
+		cycleDynamic("Cape-Auswahl", () -> CapeManager.choices().stream().map(CapeManager::displayName).toArray(String[]::new),
+				() -> Math.max(0, CapeManager.choices().indexOf(c.capeSelection)), v -> {
+					List<String> list = CapeManager.choices();
+					c.capeSelection = list.get(Math.min(v, list.size() - 1));
+					CapeManager.invalidate();
+				});
+		button("Cape-Editor öffnen", () -> this.minecraft.setScreen(new CapeEditorScreen(this)), OmerWidgets.Style.PRIMARY);
+		button("Bilder-Ordner öffnen", () -> open(CapeManager.folder()), OmerWidgets.Style.GLASS);
+		if (capes.isEmpty()) c.capeSelection = "design:0";
+
+		info(() -> "Bilder (PNG/JPG) in capes/ legen oder selbst malen.");
+	}
+
+	private void buildCosmetics() {
+		OemerConfig c = OemerConfig.get();
+		boolean inWorld = this.minecraft.player != null;
+		if (inWorld) usePreview(this::drawPlayerPreview);
+		toggle(Cosmetics.NAMES[0], () -> c.cosHalo, v -> c.cosHalo = v, false, "Leuchtender Ring über dem Kopf");
+		toggle(Cosmetics.NAMES[1], () -> c.cosCrown, v -> c.cosCrown = v, false, "Krone mit roten Steinen");
+		toggle(Cosmetics.NAMES[2], () -> c.cosTopHat, v -> c.cosTopHat = v, false, "Eleganter Zylinder-Hut");
+		toggle(Cosmetics.NAMES[3], () -> c.cosWings, v -> c.cosWings = v, false, "Flügel auf dem Rücken");
+		toggle(Cosmetics.NAMES[4], () -> c.cosEars, v -> c.cosEars = v, false, "Süße Hasenohren");
+		toggle(Cosmetics.NAMES[5], () -> c.cosHorns, v -> c.cosHorns = v, false, "Gebogene Hörner");
+		cycle("Farbe", OemerConfig.COSMETIC_COLOR_NAMES, () -> c.cosColor, v -> c.cosColor = v);
+		toggle("Animation", () -> c.cosAnimate, v -> c.cosAnimate = v, false, "Heiligenschein dreht sich, Flügel schlagen");
+
+		info(() -> inWorld ? "Tipp: Mit F5 oder Free Cam (F4) siehst du dich von außen."
+				: "Im Spiel siehst du hier eine Vorschau von dir.");
+	}
+
+	private void buildTotem() {
+		OemerConfig c = OemerConfig.get();
+		usePreview(this::drawTotemPreview);
 		List<String> totems = LooksPack.totemChoices();
 		if (!totems.contains(c.totemSelection)) {
 			c.totemSelection = totems.isEmpty() ? "" : totems.get(0);
 		}
-		String[] totemNames = totems.isEmpty()
-				? new String[]{"(kein Bild)"}
-				: totems.stream().map(LooksPack::displayName).toArray(String[]::new);
 		toggle("Custom Totem", () -> c.customTotem, v -> {
 			c.customTotem = v;
 			looksChanged = true;
-		}, false);
-		cycle("Totem-Bild", totemNames, () -> Math.max(0, totems.indexOf(c.totemSelection)), v -> {
-			if (!totems.isEmpty()) {
-				c.totemSelection = totems.get(v);
+		}, false, "Dein Bild wird zum Totem (lädt beim Schließen neu)");
+		cycleDynamic("Totem-Bild", () -> {
+			List<String> t = LooksPack.totemChoices();
+			return t.isEmpty() ? new String[]{"(kein Bild)"} : t.stream().map(LooksPack::displayName).toArray(String[]::new);
+		}, () -> Math.max(0, LooksPack.totemChoices().indexOf(c.totemSelection)), v -> {
+			List<String> t = LooksPack.totemChoices();
+			if (!t.isEmpty()) {
+				c.totemSelection = t.get(Math.min(v, t.size() - 1));
 				looksChanged = true;
 			}
 		});
+		button("Totem-Ordner öffnen", () -> open(LooksPack.totemFolder()), OmerWidgets.Style.GLASS);
 
-		toggle("Custom Sounds", () -> c.customSounds, v -> c.customSounds = v, true);
-		button("Bilder-Ordner öffnen", () -> Util.getPlatform().openPath(CapeManager.folder().getParent()));
-
-		infoLines.add("Bilder (PNG/JPG) in die Ordner capes/ und totems/ legen.");
-		infoLines.add("Das Cape siehst nur du. Totem lädt beim Schließen neu.");
+		info(() -> "Bilder (PNG/JPG) in den Ordner totems/ legen.");
 	}
 
-	private void buildLayout() {
+	private void buildSounds() {
 		OemerConfig c = OemerConfig.get();
+		toggle("Custom Sounds", () -> c.customSounds, v -> {
+			c.customSounds = v;
+			looksChanged = true;
+		}, false, "Ersetzt Minecraft-Sounds durch deine eigenen .ogg-Dateien");
+		for (Sounds.Slot slot : Sounds.SLOTS) {
+			cycleDynamic(slot.name(), () -> Sounds.choices(slot).stream().map(Sounds::displayName).toArray(String[]::new),
+					() -> Math.max(0, Sounds.choices(slot).indexOf(c.soundSelection.getOrDefault(slot.id(), ""))),
+					v -> {
+						List<String> list = Sounds.choices(slot);
+						String f = list.get(Math.min(v, list.size() - 1));
+						if (f.isEmpty()) c.soundSelection.remove(slot.id());
+						else c.soundSelection.put(slot.id(), f);
+						looksChanged = true;
+					});
+		}
+		button("Sound-Ordner öffnen", () -> open(Sounds.folder()), OmerWidgets.Style.GLASS);
+
+		info(() -> "Jeder Sound hat einen Unterordner in sounds/ (z. B. sounds/treffer/). Nur .ogg!");
+		info(() -> {
+			List<String> bad = Sounds.invalid();
+			if (!bad.isEmpty()) return "§c" + bad.get(0) + " ist keine echte .ogg-Datei.";
+			return Sounds.activeCount() + " Sounds ersetzt · wird beim Schließen geladen.";
+		});
+	}
+
+	private void buildDesign() {
+		OemerConfig c = OemerConfig.get();
+		cycle("Akzentfarbe", OemerConfig.ACCENT_NAMES, () -> c.accent, v -> {
+			c.accent = v;
+			CapeManager.invalidate();
+		});
 		cycle("Transparenz", OemerConfig.OPACITY_NAMES, () -> c.menuOpacity, v -> c.menuOpacity = v);
-		cycle("Akzentfarbe", OemerConfig.ACCENT_NAMES, () -> c.accent, v -> c.accent = v);
-		toggle("Version anzeigen", () -> c.showVersion, v -> c.showVersion = v, false);
+		toggle("Menü-Partikel", () -> c.menuParticles, v -> c.menuParticles = v, false, "Funkelnde Punkte im Hintergrund");
+		toggle("Menü-Blur im Spiel", () -> c.menuBlur, v -> c.menuBlur = v, false, "Welt hinter dem Menü verschwommen");
+		toggle("Version anzeigen", () -> c.showVersion, v -> c.showVersion = v, false, "");
 
-		infoLines.add("Änderungen siehst du sofort.");
+		info(() -> "Änderungen siehst du sofort.");
 	}
 
-	private void buildGraphics() {
+	private void buildHud() {
 		OemerConfig c = OemerConfig.get();
-		toggle("Look-Modus", () -> c.lookMode, v -> c.lookMode = v, true);
-		toggle("Menü-Blur", () -> c.menuBlur, v -> c.menuBlur = v, true);
+		cycle("HUD-Größe", OemerConfig.HUD_SCALE_NAMES, () -> c.hudScale, v -> c.hudScale = v);
+		cycle("Kit-HUD Ort", OemerConfig.CORNERS, () -> c.kitHudCorner, v -> c.kitHudCorner = v);
+		cycle("Material List Ort", OemerConfig.CORNERS, () -> c.materialListCorner, v -> c.materialListCorner = v);
+		toggle("Kit-HUD anzeigen", () -> c.kitHud, v -> c.kitHud = v, false, "");
+		toggle("Material List anzeigen", () -> c.materialList, v -> c.materialList = v, false, "");
 
-		infoLines.add("Look-Modus: eigene Bilder als Hintergrund und Theme.");
+		info(() -> "Beide in derselben Ecke? Dann stapeln sie sich.");
 	}
 
-	// ------------------------------------------------------------- Helfer
+	private void buildLooks() {
+		OemerConfig c = OemerConfig.get();
+		usePreview(this::drawLookPreview);
+		toggle("Look-Modus", () -> c.lookMode, v -> c.lookMode = v, false, "Dein Bild als Hintergrund vom Menü");
+		cycleDynamic("Bild", () -> {
+			List<String> l = Looks.choices();
+			return l.isEmpty() ? new String[]{"(kein Bild)"} : l.stream().map(LooksPack::displayName).toArray(String[]::new);
+		}, () -> Math.max(0, Looks.choices().indexOf(c.lookImage)), v -> {
+			List<String> l = Looks.choices();
+			if (!l.isEmpty()) c.lookImage = l.get(Math.min(v, l.size() - 1));
+		});
+		cycle("Abdunkeln", OemerConfig.LOOK_DIM_NAMES, () -> c.lookDim, v -> c.lookDim = v);
+		toggle("Auch im Startscreen", () -> c.lookTitle, v -> c.lookTitle = v, false, "Bild statt dem drehenden Panorama");
+		button("Looks-Ordner öffnen", () -> open(Looks.folder()), OmerWidgets.Style.GLASS);
+
+		info(() -> "Lieblingsbilder (PNG/JPG) in den Ordner looks/ legen.");
+	}
+
+	// ============================================================== Helfer
+
+	private void info(Supplier<String> line) {
+		infoLines.add(line);
+	}
+
+	/** Linke Hälfte für Einstellungen, rechte Hälfte für eine Vorschau. */
+	private void usePreview(Consumer<GuiGraphics> draw) {
+		if (contentW < 330) return; // zu schmal → keine Vorschau
+		previewArea = draw;
+		colCount = 1;
+		colW = (contentW - 12) / 2;
+		previewX = contentX + colW + 12;
+		previewY = contentY;
+		previewW = contentW - colW - 12;
+		previewH = panelY + panelH - 14 - previewY - 26;
+	}
 
 	private int[] nextSlot() {
 		int col = nextIndex % colCount;
 		int row = nextIndex / colCount;
 		nextIndex++;
-		int x = panelX + 12 + col * (colW + 8);
-		int y = panelY + 34 + row * (ROW_H + GAP);
-		return new int[]{x, y};
+		return new int[]{contentX + col * (colW + 8), contentY + row * (ROW_H + GAP)};
 	}
 
-	private void toggle(String label, java.util.function.BooleanSupplier get,
-						java.util.function.Consumer<Boolean> set, boolean soon) {
+	private void toggle(String label, BooleanSupplier get, Consumer<Boolean> set, boolean soon, String tip) {
 		int[] p = nextSlot();
-		this.addRenderableWidget(new OmerWidgets.Toggle(p[0], p[1], colW, ROW_H, label, get,
-				v -> {
-					set.accept(v);
-					OemerConfig.save();
-				}, soon));
+		var t = new OmerWidgets.Toggle(p[0], p[1], colW, ROW_H, label, get, v -> {
+			set.accept(v);
+			OemerConfig.save();
+		}, soon);
+		if (!tip.isEmpty()) t.tip(tip);
+		this.addRenderableWidget(t);
 	}
 
-	private void cycle(String label, String[] options, java.util.function.IntSupplier get,
-					   java.util.function.IntConsumer set) {
+	private void cycle(String label, String[] options, IntSupplier get, IntConsumer set) {
 		int[] p = nextSlot();
-		this.addRenderableWidget(new OmerWidgets.Cycle(p[0], p[1], colW, ROW_H, label, options, get,
-				v -> {
-					set.accept(v);
-					OemerConfig.save();
-				}));
+		this.addRenderableWidget(new OmerWidgets.Cycle(p[0], p[1], colW, ROW_H, label, options, get, v -> {
+			set.accept(v);
+			OemerConfig.save();
+		}));
 	}
 
-	private void button(String label, Runnable action) {
+	private void cycleDynamic(String label, Supplier<String[]> options, IntSupplier get, IntConsumer set) {
 		int[] p = nextSlot();
-		this.addRenderableWidget(new OmerWidgets.Flat(p[0], p[1], colW, ROW_H, label, action));
+		this.addRenderableWidget(new OmerWidgets.Cycle(p[0], p[1], colW, ROW_H, label, options, get, v -> {
+			set.accept(v);
+			OemerConfig.save();
+		}));
+	}
+
+	private void button(String label, Runnable action, OmerWidgets.Style style) {
+		int[] p = nextSlot();
+		this.addRenderableWidget(new OmerWidgets.Flat(p[0], p[1], colW, ROW_H, label, action).style(style));
+	}
+
+	private static void open(Path dir) {
+		try {
+			Files.createDirectories(dir);
+		} catch (Exception ignored) {
+		}
+		Util.getPlatform().openPath(dir);
 	}
 
 	private void switchTab(Tab tab) {
-		if (current == tab) {
-			return;
-		}
+		if (current == tab) return;
 		current = tab;
-		// Screen neu öffnen = Tab neu aufbauen
+		skipFade = true;
 		this.minecraft.setScreen(new OmerScreen(parent));
 	}
 
-	// ------------------------------------------------------------ Zeichnen
+	private void switchSub(Sub s) {
+		if (sub() == s) return;
+		CURRENT_SUB.put(current, s);
+		skipFade = true;
+		this.minecraft.setScreen(new OmerScreen(parent));
+	}
+
+	// ============================================================ Zeichnen
 
 	@Override
 	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
-		// komplett schwarzer Screen (im Spiel leicht durchsichtig)
-		boolean inWorld = this.minecraft != null && this.minecraft.level != null;
-		g.fill(0, 0, this.width, this.height, inWorld ? 0xD8000000 : Theme.BACKGROUND);
-		// weiße, durchsichtige Glas-Fläche
-		OmerWidgets.frame(g, panelX, panelY, panelW, panelH, Theme.panel(), Theme.white(0x30));
-		// dünne Linie unter der Kopfzeile
-		g.fill(0, TOP - 8, this.width, TOP - 7, Theme.white(0x18));
+		boolean inWorld = this.minecraft.level != null;
+		if (inWorld && OemerConfig.get().menuBlur) {
+			this.renderBlurredBackground(g);
+		}
+		Backdrop.render(g, this.width, this.height, inWorld);
+
+		long now = System.nanoTime();
+		float d = Math.min(0.1f, (now - lastFrame) / 1_000_000_000f);
+		lastFrame = now;
+
+		// ---- Kopfzeile: Logo
+		int lx = PAD, ly = 12;
+		Draw.round(g, lx, ly, 22, 22, 6, 0xFFFFFFFF);
+		g.pose().pushMatrix();
+		g.pose().translate(lx + 6.5f, ly + 5.5f);
+		g.pose().scale(1.5f);
+		Draw.text(g, "§lÖ", 0, 0, 0xFF0B0B0F);
+		g.pose().popMatrix();
+		g.pose().pushMatrix();
+		g.pose().translate(lx + 30, ly + 3);
+		g.pose().scale(1.25f);
+		Draw.text(g, "§lÖMER", 0, 0, Theme.TEXT);
+		Draw.text(g, "CLIENT", Draw.width("§lÖMER") + 4, 0, Theme.TEXT_DIM);
+		g.pose().popMatrix();
+		Draw.text(g, "dein eigener Client", lx + 30, ly + 15, Theme.TEXT_FAINT);
+
+		// ---- Tabs: Glas-Pille + gleitende weiße Markierung
+		Draw.glass(g, tabsX, tabsY, tabsW, tabsH, tabsH / 2, Theme.white(0x12), Theme.white(0x2A));
+		int idx = current.ordinal();
+		float targetX = tabX[idx], targetW = tabW[idx];
+		if (tabHighlightX < 0) {
+			tabHighlightX = targetX;
+			tabHighlightW = targetW;
+		}
+		tabHighlightX = Draw.approach(tabHighlightX, targetX, 18f, d);
+		tabHighlightW = Draw.approach(tabHighlightW, targetW, 18f, d);
+		Draw.round(g, Math.round(tabHighlightX), tabsY + 2, Math.round(tabHighlightW), tabsH - 4, (tabsH - 4) / 2, 0xF5FFFFFF);
+
+		// ---- Glas-Fläche
+		Draw.glass(g, panelX, panelY, panelW, panelH, 8, Theme.panel(), Theme.white(0x2A));
+
+		// Überschrift
+		Sub s = sub();
+		g.pose().pushMatrix();
+		g.pose().translate(panelX + 14, panelY + 12);
+		g.pose().scale(1.35f);
+		Draw.text(g, s.title, 0, 0, Theme.TEXT);
+		g.pose().popMatrix();
+		Draw.text(g, s.subtitle, panelX + 14, panelY + 27, Theme.TEXT_DIM);
+		g.fill(panelX + 14, panelY + 38, panelX + panelW - 14, panelY + 39, Theme.white(0x14));
+
+		// Vorschau-Karte
+		if (previewArea != null) {
+			Draw.round(g, previewX, previewY, previewW, previewH, 6, 0x40000000);
+			Draw.roundBorder(g, previewX, previewY, previewW, previewH, 6, Theme.white(0x22));
+		}
 	}
 
 	@Override
 	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
 		super.render(g, mouseX, mouseY, delta);
 
-		// Logo oben links
-		g.drawString(this.font, "§lÖMER §rCLIENT", PAD, 15, Theme.TEXT, false);
-		int logoW = this.font.width("§lÖMER §rCLIENT");
-		g.fill(PAD + logoW + 5, 14, PAD + logoW + 7, 24, Theme.accent());
-
-		// Tab-Überschrift in der Glas-Fläche
-		g.drawString(this.font, current.title, panelX + 12, panelY + 10, Theme.TEXT, false);
-		g.drawString(this.font, current.subtitle, panelX + 12 + this.font.width(current.title) + 8,
-				panelY + 10, Theme.TEXT_DIM, false);
+		if (previewArea != null) {
+			this.mouseXNow = mouseX;
+			this.mouseYNow = mouseY;
+			previewArea.accept(g);
+		}
 
 		// Infos unten in der Glas-Fläche
 		int y = panelY + panelH - 10 - infoLines.size() * 11;
-		for (String line : infoLines) {
-			g.drawString(this.font, line, panelX + 12, y, Theme.TEXT_DIM, false);
+		for (Supplier<String> line : infoLines) {
+			String text = Draw.fit(line.get(), panelW - 28);
+			Draw.text(g, "•", panelX + 14, y, Theme.accent());
+			Draw.text(g, text, panelX + 22, y, Theme.TEXT_DIM);
 			y += 11;
 		}
 
 		// Fußzeile
-		g.drawString(this.font, "ESC = zurück", PAD, this.height - 19, Theme.TEXT_FAINT, false);
+		Draw.text(g, "ESC zurück  ·  R-Shift öffnet das Menü im Spiel", PAD, this.height - 21, Theme.TEXT_FAINT);
 		if (OemerConfig.get().showVersion) {
 			String v = "v" + OemerClient.VERSION;
-			g.drawString(this.font, v, this.width - PAD - 78 - this.font.width(v), this.height - 19,
-					Theme.TEXT_FAINT, false);
+			int vw = Draw.width(v) + 12;
+			int vx = this.width - PAD - 76 - 8 - vw;
+			Draw.round(g, vx, this.height - 25, vw, 16, 8, Theme.white(0x12));
+			Draw.text(g, v, vx + 6, this.height - 21, Theme.TEXT_DIM);
 		}
+
+		// Einblenden beim Öffnen
+		if (fadeIn) {
+			float t = (System.currentTimeMillis() - openedAt) / 220f;
+			if (t < 1f) {
+				int a = Math.round(255 * (1f - t) * (1f - t));
+				g.fill(0, 0, this.width, this.height, (a << 24) | 0x060608);
+			}
+		}
+
 	}
+
+	private int mouseXNow, mouseYNow;
+
+	// ------------------------------------------------------------ Vorschauen
+
+	private void previewLabel(GuiGraphics g, String text) {
+		Draw.centered(g, text, previewX + previewW / 2, previewY + previewH - 14, Theme.TEXT_DIM);
+	}
+
+	private void drawCapePreview(GuiGraphics g) {
+		BufferedImage img = CapeManager.previewImage();
+		if (img == null) {
+			Draw.centered(g, "Kein Bild", previewX + previewW / 2, previewY + previewH / 2 - 4, Theme.TEXT_DIM);
+			return;
+		}
+		Textures.Tex t = Textures.image("cape_preview", CapeManager.previewKey() + "@" + img.hashCode(), img);
+		if (t == null) return;
+		int u = Math.max(1, img.getWidth() / 64);
+		int availH = previewH - 34;
+		int ch = Math.min(availH, (previewW - 20) * 16 / 10);
+		int cw = ch * 10 / 16;
+		int cx = previewX + (previewW - cw) / 2;
+		int cy = previewY + 10;
+		Draw.shadow(g, cx, cy, cw, ch, 3, 120);
+		Textures.drawRegion(g, t, cx, cy, cw, ch, u, u, 10 * u, 16 * u);
+		Draw.roundBorder(g, cx - 1, cy - 1, cw + 2, ch + 2, 2, Theme.white(0x40));
+		previewLabel(g, CapeManager.displayName(OemerConfig.get().capeSelection) + (OemerConfig.get().customCape ? "" : "  (aus)"));
+	}
+
+	private void drawPlayerPreview(GuiGraphics g) {
+		if (this.minecraft.player == null) return;
+		int size = Math.min(previewW, previewH) * 2 / 5;
+		InventoryScreen.renderEntityInInventoryFollowsMouse(g, previewX + 4, previewY + 4, previewX + previewW - 4,
+				previewY + previewH - 20, size, 0.0625f, mouseXNow, mouseYNow, this.minecraft.player);
+		previewLabel(g, "Vorschau · Maus bewegen");
+	}
+
+	private void drawTotemPreview(GuiGraphics g) {
+		OemerConfig c = OemerConfig.get();
+		Textures.Tex t = c.totemSelection.isEmpty() ? null
+				: Textures.file("totem_preview", LooksPack.totemFolder().resolve(c.totemSelection), 256);
+		if (t == null) {
+			Draw.centered(g, "Kein Bild im Ordner totems/", previewX + previewW / 2, previewY + previewH / 2 - 4, Theme.TEXT_DIM);
+			return;
+		}
+		int s = Math.min(previewW - 30, previewH - 40);
+		int x = previewX + (previewW - s) / 2, y = previewY + 10;
+		Draw.shadow(g, x, y, s, s, 6, 110);
+		Textures.drawCover(g, t, x, y, s, s);
+		previewLabel(g, LooksPack.displayName(c.totemSelection) + (c.customTotem ? "" : "  (aus)"));
+	}
+
+	private void drawLookPreview(GuiGraphics g) {
+		Textures.Tex t = Looks.selected();
+		if (t == null) {
+			Draw.centered(g, "Kein Bild im Ordner looks/", previewX + previewW / 2, previewY + previewH / 2 - 4, Theme.TEXT_DIM);
+			return;
+		}
+		int w = previewW - 20;
+		int h = Math.min(previewH - 34, w * 9 / 16);
+		w = h * 16 / 9;
+		int x = previewX + (previewW - w) / 2, y = previewY + 10;
+		Draw.shadow(g, x, y, w, h, 4, 110);
+		Textures.drawCover(g, t, x, y, w, h);
+		int dim = OemerConfig.LOOK_DIM[Math.floorMod(OemerConfig.get().lookDim, OemerConfig.LOOK_DIM.length)];
+		g.fill(x, y, x + w, y + h, dim << 24);
+		Draw.centered(g, "§lÖMER", x + w / 2, y + h / 2 - 4, Theme.TEXT);
+		previewLabel(g, LooksPack.displayName(OemerConfig.get().lookImage) + (OemerConfig.get().lookMode ? "" : "  (aus)"));
+	}
+
+	// ------------------------------------------------------------ Schließen
 
 	@Override
 	public void onClose() {
 		OemerConfig.save();
-		if (looksChanged && this.minecraft != null) {
+		if (looksChanged) {
 			looksChanged = false;
 			LooksPack.apply(this.minecraft);
 		}
-		if (this.minecraft != null) {
-			this.minecraft.setScreen(parent);
-		}
+		this.minecraft.setScreen(parent);
 	}
 }

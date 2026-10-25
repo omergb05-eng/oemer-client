@@ -3,7 +3,7 @@
 	"id": "oemerclient",
 	"version": "${version}",
 	"name": "Ömer Client",
-	"description": "Ömers eigener Client: cleanes Menü, Fullbright und Free Cam.",
+	"description": "Ömers eigener Client: neues Design, Cape-Editor, Cosmetics, Custom Sounds, Kit-HUD, Material List, Looks, Fullbright und Free Cam.",
 	"authors": [
 		"Ömer"
 	],

@@ -51,32 +51,69 @@ public final class LooksPack {
 	public static void apply(Minecraft mc) {
 		try {
 			Path dir = mc.getResourcePackDirectory().resolve(FOLDER);
-			boolean active = totemActive();
+			boolean totem = totemActive();
 
 			Files.createDirectories(dir);
 			Files.writeString(dir.resolve("pack.mcmeta"), mcmeta(), StandardCharsets.UTF_8);
 
-			Path totem = dir.resolve(TOTEM_PATH);
-			if (active) {
-				Files.createDirectories(totem.getParent());
+			// ---- Totem
+			Path totemFile = dir.resolve(TOTEM_PATH);
+			if (totem) {
+				Files.createDirectories(totemFile.getParent());
 				var img = ImageTools.squareCrop(ImageTools.read(totemFolder().resolve(OemerConfig.get().totemSelection)), 64);
-				Files.write(totem, ImageTools.toPng(img));
+				Files.write(totemFile, ImageTools.toPng(img));
 			} else {
-				Files.deleteIfExists(totem);
+				Files.deleteIfExists(totemFile);
 			}
 
+			// ---- Sounds: jede ausgewählte Ogg-Datei + sounds.json, das die Original-Sounds ersetzt
+			Path soundDir = dir.resolve("assets/oemerclient/sounds/custom");
+			Path soundsJson = dir.resolve("assets/minecraft/sounds.json");
+			StringBuilder json = new StringBuilder("{\n");
+			int sounds = 0;
+			Files.createDirectories(soundDir);
+			for (Sounds.Slot slot : Sounds.SLOTS) {
+				Path target = soundDir.resolve(slot.id() + ".ogg");
+				Path src = Sounds.active(slot);
+				if (src == null) {
+					Files.deleteIfExists(target);
+					continue;
+				}
+				Files.copy(src, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+				for (String event : slot.events()) {
+					if (sounds++ > 0) json.append(",\n");
+					json.append("  \"").append(event).append("\": {\"replace\": true, \"sounds\": [{\"name\": \"oemerclient:custom/")
+							.append(slot.id()).append("\"}]}");
+				}
+			}
+			json.append("\n}\n");
+			if (sounds > 0) {
+				Files.createDirectories(soundsJson.getParent());
+				Files.writeString(soundsJson, json.toString(), StandardCharsets.UTF_8);
+			} else {
+				Files.deleteIfExists(soundsJson);
+			}
+
+			boolean active = totem || sounds > 0;
 			PackRepository repo = mc.getResourcePackRepository();
 			repo.reload();
 			List<String> selected = new ArrayList<>(repo.getSelectedIds());
-			selected.remove(PACK_ID);
+			boolean was = selected.remove(PACK_ID);
 			if (active) {
 				selected.add(PACK_ID); // ganz oben = gewinnt gegen andere Pakete
 			}
 			repo.setSelected(selected);
-			mc.options.updateResourcePacks(repo);
+			if (active || was) {
+				mc.options.updateResourcePacks(repo);
+			}
 		} catch (Exception e) {
 			OemerClient.LOGGER.warn("Ömer Client Looks konnte nicht gebaut werden", e);
 		}
+	}
+
+	/** Pfad der eingebauten Sound-Datei im Paket (für den Test). */
+	public static Path soundsJson(Minecraft mc) {
+		return mc.getResourcePackDirectory().resolve(FOLDER).resolve("assets/minecraft/sounds.json");
 	}
 
 	private static String mcmeta() {

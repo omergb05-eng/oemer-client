@@ -29,6 +29,22 @@ public final class ImageTools {
 		return toArgb(img);
 	}
 
+	/** Verkleinert sehr große Bilder (z. B. 4K-Fotos), damit die Grafikkarte sie gut packt. */
+	public static BufferedImage limit(BufferedImage src, int maxSize) {
+		int w = src.getWidth(), h = src.getHeight();
+		if (w <= maxSize && h <= maxSize) {
+			return src;
+		}
+		double s = (double) maxSize / Math.max(w, h);
+		int nw = Math.max(1, (int) Math.round(w * s));
+		int nh = Math.max(1, (int) Math.round(h * s));
+		BufferedImage out = new BufferedImage(nw, nh, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = smooth(out);
+		g.drawImage(src, 0, 0, nw, nh, null);
+		g.dispose();
+		return out;
+	}
+
 	public static byte[] toPng(BufferedImage img) throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		ImageIO.write(img, "png", out);

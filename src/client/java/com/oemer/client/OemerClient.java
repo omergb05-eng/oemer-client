@@ -1,12 +1,19 @@
 package com.oemer.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.oemer.client.feature.Cosmetics;
 import com.oemer.client.feature.Freecam;
+import com.oemer.client.feature.Hud;
+import com.oemer.client.feature.Looks;
+import com.oemer.client.feature.Sounds;
 import com.oemer.client.gui.OmerScreen;
 import com.oemer.client.gui.OmerWidgets;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.fabricmc.loader.api.FabricLoader;
@@ -16,6 +23,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -31,7 +39,7 @@ public class OemerClient implements ClientModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger("Ömer Client");
 	public static final String VERSION = FabricLoader.getInstance().getModContainer(MOD_ID)
 			.map(c -> c.getMetadata().getVersion().getFriendlyString())
-			.orElse("2.0.0");
+			.orElse("4.0.0");
 
 	private static KeyMapping menuKey;
 	private static KeyMapping freecamKey;
@@ -41,7 +49,18 @@ public class OemerClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		OemerConfig.load();
 		createFolders();
+		Sounds.createFolders();
 		registerKeys();
+
+		// Kit-HUD + Material List im Spiel
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(MOD_ID, "hud"), Hud::render);
+
+		// Cosmetics an den Spieler-Renderer hängen
+		LivingEntityFeatureRendererRegistrationCallback.EVENT.register((entityType, renderer, helper, context) -> {
+			if (renderer instanceof AvatarRenderer avatar) {
+				helper.register(new Cosmetics.Layer(avatar));
+			}
+		});
 
 		ClientTickEvents.START_CLIENT_TICK.register(Freecam::preTick);
 		ClientTickEvents.END_CLIENT_TICK.register(OemerClient::handleKeys);
@@ -49,6 +68,12 @@ public class OemerClient implements ClientModInitializer {
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
 			if (screen instanceof TitleScreen) {
 				addTitleButton(client, screen);
+				// Look-Modus: dein Bild statt Panorama
+				ScreenEvents.afterBackground(screen).register((s, g, mx, my, d) -> {
+					if (OemerConfig.get().lookTitle) {
+						Looks.drawFullscreen(g, s.width, s.height);
+					}
+				});
 			} else if (screen instanceof PauseScreen) {
 				Screens.getButtons(screen).add(new OmerWidgets.Flat(6, 6, 90, 20, "Ömer Client",
 						() -> client.setScreen(new OmerScreen(screen))));
