@@ -788,7 +788,7 @@ public class OmerScreen extends Screen {
 		}).tip("Design zurück auf Standard"));
 
 		// ---- großes Vorschaubild + Datei wählen
-		int prevW = cw >= 480 ? cw * 45 / 100 : cw;
+		int prevW = cw >= 420 ? cw / 2 : cw;
 		int prevH = prevW * 9 / 16;
 		int top = cy;
 		addContent(new OmerWidgets.Painter(cx0, top, prevW, prevH, (g, x, y, w, h, mx, my) -> {
@@ -827,12 +827,12 @@ public class OmerScreen extends Screen {
 		List<String> choices = new ArrayList<>();
 		for (int i = 0; i < Looks.PHOTOS.length; i++) choices.add(Looks.WEB + i);
 		choices.addAll(Looks.files());
-		int gx = cw >= 480 ? cx0 + prevW + 14 : cx0;
-		int gw = cw >= 480 ? cw - prevW - 14 : cw;
-		int gy = cw >= 480 ? top : leftBottom + 4;
+		int gx = cw >= 420 ? cx0 + prevW + 14 : cx0;
+		int gw = cw >= 420 ? cw - prevW - 14 : cw;
+		int gy = cw >= 420 ? top : leftBottom + 4;
 		addContent(new OmerWidgets.Label(gx, gy, gw, 14, "Vorlagen", false, Theme.TEXT));
 		gy += 18;
-		int cols = Math.max(2, gw / 92);
+		int cols = Math.max(2, gw / 80);
 		int tw = (gw - (cols - 1) * 6) / cols;
 		int th = tw * 9 / 16 + 18;
 		int i = 0;
@@ -1563,7 +1563,7 @@ public class OmerScreen extends Screen {
 		String title = section == Section.MODS && openMod != null ? "" : section.subtitle;
 		int titleX = sx + sw + 12;
 		int maxTitle = panelX + panelW - 14 - titleX - rightHeaderWidth();
-		if (maxTitle > 40) Draw.text(g, Draw.fit(title, maxTitle), titleX, sy + 7, Theme.TEXT_DIM);
+		if (maxTitle > 110) Draw.text(g, Draw.fit(title, maxTitle), titleX, sy + 7, Theme.TEXT_DIM);
 		g.fill(panelX + 14, panelY + 38, panelX + panelW - 14, panelY + 39, Theme.white(0x12));
 
 		if (previewArea != null) {
@@ -1673,8 +1673,14 @@ public class OmerScreen extends Screen {
 	private void drawPlayerPreview(GuiGraphics g) {
 		if (this.minecraft.player == null) return;
 		int size = Math.min(previewW, previewH) * 2 / 5;
-		InventoryScreen.renderEntityInInventoryFollowsMouse(g, previewX + 4, previewY + 4, previewX + previewW - 4,
-				previewY + previewH - 20, size, 0.0625f, mouseXNow, mouseYNow, this.minecraft.player);
+		// Die Spieler-Vorschau kennt unseren Menü-Maßstab nicht → in echten Koordinaten zeichnen
+		float s = uiScale;
+		g.pose().pushMatrix();
+		g.pose().identity();
+		InventoryScreen.renderEntityInInventoryFollowsMouse(g, Math.round((previewX + 4) * s), Math.round((previewY + 4) * s),
+				Math.round((previewX + previewW - 4) * s), Math.round((previewY + previewH - 20) * s), Math.round(size * s), 0.0625f,
+				mouseXNow * s, mouseYNow * s, this.minecraft.player);
+		g.pose().popMatrix();
 		Draw.centered(g, "Vorschau · Maus bewegen", previewX + previewW / 2, previewY + previewH - 14, Theme.TEXT_DIM);
 	}
 

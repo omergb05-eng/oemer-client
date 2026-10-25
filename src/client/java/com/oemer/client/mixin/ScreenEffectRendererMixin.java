@@ -23,7 +23,7 @@ public class ScreenEffectRendererMixin {
 	@Inject(method = "renderFire", at = @At("HEAD"), require = 0)
 	private static void oemer$lowFireStart(PoseStack pose, MultiBufferSource buffers, TextureAtlasSprite sprite, CallbackInfo ci) {
 		OemerConfig c = OemerConfig.get();
-		oemer$fireShift = c.lowFire ? OemerConfig.LOW_AMOUNTS[c.lowFireLevel] * 1.6f : 0f;
+		oemer$fireShift = c.lowFire ? OemerConfig.LOW_AMOUNTS[c.lowFireLevel] : 0f;
 		if (oemer$fireShift != 0f) pose.translate(0f, -oemer$fireShift, 0f);
 	}
 

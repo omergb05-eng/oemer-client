@@ -608,10 +608,13 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			});
 			check("shulker-tooltip", shulker, "");
 			// Low Fire
-			ctx.runOnClient(mc -> OemerConfig.get().lowFire = true);
+			ctx.runOnClient(mc -> OemerConfig.get().lowFire = false);
 			sp.getServer().runCommand("setblock " + x + " " + (y - 1) + " " + z + " netherrack");
 			sp.getServer().runCommand("setblock " + x + " " + y + " " + z + " fire");
 			ctx.waitTicks(40);
+			ctx.takeScreenshot("44a-feuer-normal");
+			ctx.runOnClient(mc -> OemerConfig.get().lowFire = true);
+			ctx.waitTicks(3);
 			ctx.takeScreenshot("44-low-fire");
 			sp.getServer().runCommand("setblock " + x + " " + y + " " + z + " air");
 			sp.getServer().runCommand("setblock " + x + " " + (y - 1) + " " + z + " grass_block");
