@@ -93,78 +93,78 @@ public class CapeEditorScreen extends Screen {
 		canvasX = 14 + (leftW - cw) / 2;
 		canvasY = top + (availH - ch) / 2 + 4;
 
-		int rx = leftW + 20;
-		int rw = this.width - rx - 14;
-		int y = top + 8;
+		int rx = leftW + 22;
+		int rw = this.width - rx - 18;
+
+		// Höhe der Zeilen und Abstände an den Platz anpassen (kleine Fenster = kompakter)
+		int space = this.height - top - 8 - 34;
+		int rowH = space < 190 ? 15 : 18;
+		int sw = space < 190 ? 12 : 14;
+		int swGap = 3;
+		int perRow = Math.max(6, Math.min(PALETTE.length + 1, (rw + swGap) / (sw + swGap)));
+		int paletteRows = (PALETTE.length + 1 + perRow - 1) / perRow;
+		int fixed = rowH * 6 + (rowH + 4) + paletteRows * (sw + swGap);
+		int gap = Math.max(2, Math.min(8, (space - fixed) / 7));
+		int y = top + 6;
 
 		// Werkzeuge
 		int tw = (rw - 3 * 4) / 4;
 		for (int i = 0; i < Tool.values().length; i++) {
 			Tool t = Tool.values()[i];
-			this.addRenderableWidget(new OmerWidgets.Flat(rx + i * (tw + 4), y, tw, 18, t.label, () -> tool = t, () -> tool == t));
+			this.addRenderableWidget(new OmerWidgets.Flat(rx + i * (tw + 4), y, tw, rowH, t.label, () -> tool = t, () -> tool == t));
 		}
-		y += 26;
+		y += rowH + gap;
 		int half = (rw - 6) / 2;
-		this.addRenderableWidget(new OmerWidgets.Cycle(rx, y, half, 20, "Pinsel", BRUSH_NAMES, () -> brush, v -> brush = v));
-		this.addRenderableWidget(new OmerWidgets.Cycle(rx + half + 6, y, rw - half - 6, 20, "Größe",
-				OemerConfig.EDITOR_SIZE_NAMES, () -> OemerConfig.get().editorSize, v -> {
+		this.addRenderableWidget(new OmerWidgets.Cycle(rx, y, half, rowH, "Pinsel", BRUSH_NAMES, () -> brush, v -> brush = v));
+		this.addRenderableWidget(new OmerWidgets.Cycle(rx + half + 6, y, rw - half - 6, rowH, "Fläche",
+				new String[]{"10x16", "HD 20x32"}, () -> OemerConfig.get().editorSize, v -> {
 			OemerConfig.get().editorSize = v;
 			OemerConfig.save();
 			newCanvas(OemerConfig.EDITOR_SCALE[v]);
 			say("Neue leere Fläche: " + OemerConfig.EDITOR_SIZE_NAMES[v]);
 			this.rebuildWidgets();
 		}));
-		y += 30;
+		y += rowH + gap;
 
-		// Farben
-		int sw = 14, gap = 4;
-		int perRow = Math.max(6, Math.min(PALETTE.length, (rw + gap) / (sw + gap)));
-		for (int i = 0; i < PALETTE.length; i++) {
-			int c = PALETTE[i];
-			int sx = rx + (i % perRow) * (sw + gap);
-			int sy = y + (i / perRow) * (sw + gap);
+		// Farben (+ Akzentfarbe als letztes Feld)
+		int ac = Theme.accent() | 0xFF000000;
+		for (int i = 0; i <= PALETTE.length; i++) {
+			int c = i < PALETTE.length ? PALETTE[i] : ac;
+			int sx = rx + (i % perRow) * (sw + swGap);
+			int sy = y + (i / perRow) * (sw + swGap);
 			this.addRenderableWidget(new OmerWidgets.Swatch(sx, sy, sw, c, () -> color == c, () -> {
 				color = c;
 				if (tool == Tool.RADIERER || tool == Tool.PIPETTE) tool = Tool.PINSEL;
 			}));
 		}
-		int rows = (PALETTE.length + perRow - 1) / perRow;
-		int accentX = rx + (PALETTE.length % perRow) * (sw + gap);
-		int accentY = y + (rows - 1) * (sw + gap);
-		if (PALETTE.length % perRow == 0) {
-			accentX = rx;
-			accentY = y + rows * (sw + gap);
-			rows++;
-		}
-		int ac = Theme.accent() | 0xFF000000;
-		this.addRenderableWidget(new OmerWidgets.Swatch(accentX, accentY, sw, ac, () -> color == ac, () -> color = ac));
-		y += rows * (sw + gap) + 6;
+		y += paletteRows * (sw + swGap) + gap - swGap;
 
-		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, half, 18, "Heller", () -> color = shade(color, 1.18f)));
-		this.addRenderableWidget(new OmerWidgets.Flat(rx + half + 6, y, rw - half - 6, 18, "Dunkler", () -> color = shade(color, 0.82f)));
-		y += 26;
-
-		// Bearbeiten
+		// Farbe anpassen + Spiegeln
 		int third = (rw - 8) / 3;
-		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, third, 18, "Rückgängig", () -> {
-			if (!canvas.undo()) say("Nichts zum Rückgängigmachen");
-		}));
-		this.addRenderableWidget(new OmerWidgets.Flat(rx + third + 4, y, third, 18, "Wiederholen", () -> canvas.redo()));
-		this.addRenderableWidget(new OmerWidgets.Flat(rx + 2 * (third + 4), y, rw - 2 * (third + 4), 18, "Spiegeln", () -> {
+		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, third, rowH, "Heller", () -> color = shade(color, 1.18f)));
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + third + 4, y, third, rowH, "Dunkler", () -> color = shade(color, 0.82f)));
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + 2 * (third + 4), y, rw - 2 * (third + 4), rowH, "Spiegeln", () -> {
 			canvas.snapshot();
 			canvas.mirror();
 		}));
-		y += 24;
-		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, half, 18, "Alles füllen", () -> {
+		y += rowH + gap;
+
+		// Rückgängig / Wiederholen / Füllen
+		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, third, rowH, "Rückgängig", () -> {
+			if (!canvas.undo()) say("Nichts zum Rückgängigmachen");
+		}));
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + third + 4, y, third, rowH, "Wiederholen", () -> canvas.redo()));
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + 2 * (third + 4), y, rw - 2 * (third + 4), rowH, "Alles füllen", () -> {
 			canvas.snapshot();
 			canvas.clear(color);
 		}));
-		this.addRenderableWidget(new OmerWidgets.Flat(rx + half + 6, y, rw - half - 6, 18, "Aktuelles Cape laden", this::loadCurrent));
-		y += 30;
+		y += rowH + gap;
+		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, rw, rowH, "Aktuelles Cape laden", this::loadCurrent));
+		y += rowH + gap + 2;
 
 		// Speichern
-		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, half, 22, "Speichern", this::save).style(OmerWidgets.Style.PRIMARY));
-		this.addRenderableWidget(new OmerWidgets.Flat(rx + half + 6, y, rw - half - 6, 22, "Als neues Cape", () -> {
+		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, half, rowH + 4, "Speichern", this::save).style(OmerWidgets.Style.PRIMARY));
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + half + 6, y, rw - half - 6, rowH + 4, "Als neues Cape", () -> {
 			editingFile = null;
 			save();
 		}));

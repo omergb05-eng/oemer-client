@@ -148,6 +148,9 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.takeScreenshot("07-skins-totem");
 		click(ctx, "Sounds");
 		ctx.takeScreenshot("08-skins-sounds");
+		ctx.runOnClient(mc -> mc.screen.mouseScrolled(mc.screen.width / 2.0, mc.screen.height / 2.0, 0, -10));
+		ctx.waitTicks(3);
+		ctx.takeScreenshot("08b-skins-sounds-gescrollt");
 		click(ctx, "Layout");
 		ctx.takeScreenshot("09-layout-design");
 		click(ctx, "HUD");
@@ -265,20 +268,20 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				c.cosCrown = true;
 				c.cosHorns = false;
 			});
-			shotFreecam(ctx, 0, 1.3, 1.9, 180, 25, "25-cosmetics-krone");
+			shotFreecam(ctx, 0, 1.2, 3.0, 180, 14, "25-cosmetics-krone");
 			ctx.runOnClient(mc -> {
 				OemerConfig c = OemerConfig.get();
 				c.cosCrown = false;
 				c.cosTopHat = true;
 			});
-			shotFreecam(ctx, 0, 1.3, 1.9, 180, 25, "26-cosmetics-zylinder");
+			shotFreecam(ctx, 0, 1.2, 3.0, 180, 14, "26-cosmetics-zylinder");
 			ctx.runOnClient(mc -> {
 				OemerConfig c = OemerConfig.get();
 				c.cosTopHat = false;
 				c.cosHorns = true;
 				c.cosColor = 6;
 			});
-			shotFreecam(ctx, 0, 1.3, 1.9, 180, 25, "27-cosmetics-hoerner");
+			shotFreecam(ctx, 0, 1.2, 3.0, 180, 14, "27-cosmetics-hoerner");
 			ctx.runOnClient(mc -> OemerConfig.get().freecam = false);
 			ctx.waitTicks(3);
 

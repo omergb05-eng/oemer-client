@@ -41,23 +41,29 @@ public class MaterialListScreen extends Screen {
 		listH = this.height - listY - 40;
 
 		this.addRenderableWidget(new OmerWidgets.Flat(14, 12, 64, 20, "‹ Zurück", this::onClose).style(OmerWidgets.Style.GHOST));
-		int bw = 110;
-		int x = this.width - 14 - bw;
-		this.addRenderableWidget(new OmerWidgets.Flat(x, 46, bw, 18, "Neu laden", () -> {
+		int x = this.width - 14;
+		int w = Draw.width("Neu laden") + 18;
+		x -= w;
+		this.addRenderableWidget(new OmerWidgets.Flat(x, 46, w, 18, "Neu laden", () -> {
 			MaterialList.reload();
 			scroll = 0;
 		}));
-		x -= bw + 6;
-		this.addRenderableWidget(new OmerWidgets.Flat(x, 46, bw, 18, "Haken entfernen", () -> {
+		w = Draw.width("Haken weg") + 18;
+		x -= w + 5;
+		this.addRenderableWidget(new OmerWidgets.Flat(x, 46, w, 18, "Haken weg", () -> {
 			OemerConfig.get().materialDone.clear();
 			OemerConfig.save();
-		}));
-		x -= bw + 6;
-		this.addRenderableWidget(new OmerWidgets.Toggle(x - 30, 46, bw + 30, 18, "Nur fehlende", () -> onlyMissing, v -> {
+		}).tip("Alle Haken entfernen"));
+		w = Draw.width("Nur fehlende") + 52;
+		x -= w + 5;
+		this.addRenderableWidget(new OmerWidgets.Toggle(x, 46, w, 18, "Nur fehlende", () -> onlyMissing, v -> {
 			onlyMissing = v;
 			scroll = 0;
 		}, false));
+		headerRight = x - 8;
 	}
+
+	private int headerRight;
 
 	@Override
 	public boolean mouseScrolled(double mx, double my, double h, double v) {
@@ -110,8 +116,8 @@ public class MaterialListScreen extends Screen {
 			total += e.needed();
 			if (!MaterialList.isDone(e)) missing += Math.max(0, e.needed() - MaterialList.have(e.item()));
 		}
-		Draw.text(g, MaterialList.entries().size() + " Blöcke · " + total + " insgesamt · " + missing + " fehlen noch",
-				listX, 51, Theme.TEXT_SOFT);
+		Draw.text(g, Draw.fit(MaterialList.entries().size() + " Blöcke · " + total + " insgesamt · " + missing + " fehlen",
+				headerRight - listX), listX, 51, Theme.TEXT_SOFT);
 
 		if (!MaterialList.error().isEmpty()) {
 			Draw.centered(g, MaterialList.error(), this.width / 2, listY + 30, Theme.BAD);
@@ -123,7 +129,9 @@ public class MaterialListScreen extends Screen {
 			return;
 		}
 
-		int nameW = listW - 260;
+		int needX = listX + (int) (listW * 0.50f);
+		int haveX = listX + (int) (listW * 0.76f);
+		int nameW = needX - listX - 36;
 		g.enableScissor(listX, listY, listX + listW, listY + listH);
 		int y0 = listY + 4 - (int) scroll;
 		for (int i = 0; i < rows.size(); i++) {
@@ -143,9 +151,9 @@ public class MaterialListScreen extends Screen {
 			int textColor = done ? Theme.TEXT_FAINT : Theme.TEXT;
 			Draw.text(g, Draw.fit(e.name(), nameW), listX + 28, y + 7, textColor);
 			String need = MaterialList.amount(e.needed(), e.icon().getMaxStackSize());
-			Draw.text(g, need, listX + listW - 250, y + 7, done ? Theme.TEXT_FAINT : Theme.TEXT_SOFT);
+			Draw.text(g, Draw.fit(need, haveX - needX - 6), needX, y + 7, done ? Theme.TEXT_FAINT : Theme.TEXT_SOFT);
 			String hv = "hast " + have;
-			Draw.text(g, hv, listX + listW - 120, y + 7, done ? Theme.TEXT_FAINT : (enough ? Theme.GOOD : Theme.TEXT_DIM));
+			Draw.text(g, hv, haveX, y + 7, done ? Theme.TEXT_FAINT : (enough ? Theme.GOOD : Theme.TEXT_DIM));
 
 			// Haken
 			int bx = listX + listW - 24, by = y + 4;

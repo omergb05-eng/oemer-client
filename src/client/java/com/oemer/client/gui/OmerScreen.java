@@ -105,6 +105,12 @@ public class OmerScreen extends Screen {
 	private final int[] tabW = new int[Tab.values().length];
 	/** Rechte Hälfte der Glas-Fläche für Vorschauen (null = keine). */
 	private Consumer<GuiGraphics> previewArea;
+	/** Inhalte, die scrollen (eigene Liste, damit wir sie abschneiden können). */
+	private final List<net.minecraft.client.gui.components.AbstractWidget> content = new ArrayList<>();
+	private final List<Integer> contentBaseY = new ArrayList<>();
+	private int viewTop, viewBottom;
+	private double scroll;
+	private int pillsLeft;
 	private int previewX, previewY, previewW, previewH;
 
 	public OmerScreen(Screen parent) {
@@ -128,6 +134,8 @@ public class OmerScreen extends Screen {
 		infoLines.clear();
 		previewArea = null;
 		nextIndex = 0;
+		content.clear();
+		contentBaseY.clear();
 
 		panelX = PAD;
 		panelY = TOP;
@@ -159,6 +167,7 @@ public class OmerScreen extends Screen {
 
 		// ---- Unter-Reiter (Pillen) oben rechts in der Glas-Fläche
 		List<Sub> subs = Sub.of(current);
+		pillsLeft = panelX + panelW - 12;
 		if (subs.size() > 1) {
 			int px = panelX + panelW - 12;
 			for (int i = subs.size() - 1; i >= 0; i--) {
@@ -169,6 +178,7 @@ public class OmerScreen extends Screen {
 						() -> switchSub(s), () -> sub() == s).style(OmerWidgets.Style.PILL));
 				px -= 4;
 			}
+			pillsLeft = px;
 		}
 
 		switch (sub()) {
@@ -184,9 +194,61 @@ public class OmerScreen extends Screen {
 			case LOOKS -> buildLooks();
 		}
 
+		// ---- Sichtbarer Bereich für die Inhalte (darunter stehen die Infos)
+		viewTop = contentY - 2;
+		viewBottom = panelY + panelH - 12 - infoLines.size() * 11 - 4;
+		if (previewArea != null) {
+			previewH = Math.max(40, viewBottom - previewY);
+		}
+		scroll = Math.max(0, Math.min(maxScroll(), scroll));
+
 		// ---- Fußzeile
 		this.addRenderableWidget(new OmerWidgets.Flat(this.width - PAD - 76, this.height - 26, 76, 18,
 				"Fertig", this::onClose).style(OmerWidgets.Style.PRIMARY));
+	}
+
+	private <T extends net.minecraft.client.gui.components.AbstractWidget> T addContent(T w) {
+		content.add(w);
+		contentBaseY.add(w.getY());
+		this.addWidget(w);
+		return w;
+	}
+
+	private int maxScroll() {
+		int bottom = viewTop;
+		for (int i = 0; i < content.size(); i++) {
+			bottom = Math.max(bottom, contentBaseY.get(i) + content.get(i).getHeight());
+		}
+		return Math.max(0, bottom + 4 - viewBottom);
+	}
+
+	private boolean inView(double mx, double my) {
+		return mx >= contentX - 4 && mx <= contentX + contentW + 4 && my >= viewTop && my <= viewBottom;
+	}
+
+	@Override
+	public boolean mouseScrolled(double mx, double my, double h, double v) {
+		if (maxScroll() > 0 && inView(mx, my)) {
+			scroll = Math.max(0, Math.min(maxScroll(), scroll - v * 18));
+			return true;
+		}
+		return super.mouseScrolled(mx, my, h, v);
+	}
+
+	@Override
+	public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+		if (!inView(event.x(), event.y())) {
+			// Klick außerhalb vom sichtbaren Bereich darf keine halb versteckten Inhalte treffen
+			boolean[] was = new boolean[content.size()];
+			for (int i = 0; i < content.size(); i++) {
+				was[i] = content.get(i).visible;
+				content.get(i).visible = false;
+			}
+			boolean r = super.mouseClicked(event, doubleClick);
+			for (int i = 0; i < content.size(); i++) content.get(i).visible = was[i];
+			return r;
+		}
+		return super.mouseClicked(event, doubleClick);
 	}
 
 	// ============================================================== Inhalte
@@ -411,12 +473,12 @@ public class OmerScreen extends Screen {
 			OemerConfig.save();
 		}, soon);
 		if (!tip.isEmpty()) t.tip(tip);
-		this.addRenderableWidget(t);
+		addContent(t);
 	}
 
 	private void cycle(String label, String[] options, IntSupplier get, IntConsumer set) {
 		int[] p = nextSlot();
-		this.addRenderableWidget(new OmerWidgets.Cycle(p[0], p[1], colW, ROW_H, label, options, get, v -> {
+		addContent(new OmerWidgets.Cycle(p[0], p[1], colW, ROW_H, label, options, get, v -> {
 			set.accept(v);
 			OemerConfig.save();
 		}));
@@ -424,7 +486,7 @@ public class OmerScreen extends Screen {
 
 	private void cycleDynamic(String label, Supplier<String[]> options, IntSupplier get, IntConsumer set) {
 		int[] p = nextSlot();
-		this.addRenderableWidget(new OmerWidgets.Cycle(p[0], p[1], colW, ROW_H, label, options, get, v -> {
+		addContent(new OmerWidgets.Cycle(p[0], p[1], colW, ROW_H, label, options, get, v -> {
 			set.accept(v);
 			OemerConfig.save();
 		}));
@@ -432,7 +494,7 @@ public class OmerScreen extends Screen {
 
 	private void button(String label, Runnable action, OmerWidgets.Style style) {
 		int[] p = nextSlot();
-		this.addRenderableWidget(new OmerWidgets.Flat(p[0], p[1], colW, ROW_H, label, action).style(style));
+		addContent(new OmerWidgets.Flat(p[0], p[1], colW, ROW_H, label, action).style(style));
 	}
 
 	private static void open(Path dir) {
@@ -509,7 +571,7 @@ public class OmerScreen extends Screen {
 		g.pose().scale(1.35f);
 		Draw.text(g, s.title, 0, 0, Theme.TEXT);
 		g.pose().popMatrix();
-		Draw.text(g, s.subtitle, panelX + 14, panelY + 27, Theme.TEXT_DIM);
+		Draw.text(g, Draw.fit(s.subtitle, Math.max(40, pillsLeft - panelX - 26)), panelX + 14, panelY + 27, Theme.TEXT_DIM);
 		g.fill(panelX + 14, panelY + 38, panelX + panelW - 14, panelY + 39, Theme.white(0x14));
 
 		// Vorschau-Karte
@@ -522,6 +584,37 @@ public class OmerScreen extends Screen {
 	@Override
 	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
 		super.render(g, mouseX, mouseY, delta);
+
+		// ---- Inhalte (scrollbar, abgeschnitten)
+		int max = maxScroll();
+		scroll = Math.max(0, Math.min(max, scroll));
+		for (int i = 0; i < content.size(); i++) {
+			var w = content.get(i);
+			int y = contentBaseY.get(i) - (int) Math.round(scroll);
+			w.setY(y);
+			w.visible = y + w.getHeight() > viewTop && y < viewBottom;
+		}
+		boolean mouseIn = inView(mouseX, mouseY);
+		g.enableScissor(contentX - 6, viewTop, contentX + contentW + 6, viewBottom);
+		for (var w : content) {
+			if (w.visible) w.render(g, mouseIn ? mouseX : -1000, mouseIn ? mouseY : -1000, delta);
+		}
+		g.disableScissor();
+		if (max > 0) {
+			// Hinweis: es gibt mehr → weiche Kante + Scrollbalken
+			int barX = contentX + contentW + 3;
+			int trackH = viewBottom - viewTop;
+			int barH = Math.max(16, trackH * trackH / (trackH + max));
+			int barY = viewTop + (int) ((trackH - barH) * (scroll / max));
+			Draw.round(g, barX, viewTop, 3, trackH, 1, Theme.white(0x10));
+			Draw.round(g, barX, barY, 3, barH, 1, Theme.white(0x70));
+			if (scroll < max) {
+				Draw.vGradient(g, contentX - 6, viewBottom - 12, contentW + 12, 12, 0x00000000, 0x90060608);
+			}
+			if (scroll > 0) {
+				Draw.vGradient(g, contentX - 6, viewTop, contentW + 12, 10, 0x90060608, 0x00000000);
+			}
+		}
 
 		if (previewArea != null) {
 			this.mouseXNow = mouseX;

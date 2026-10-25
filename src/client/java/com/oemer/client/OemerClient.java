@@ -151,7 +151,7 @@ public class OemerClient implements ClientModInitializer {
 		}
 
 		buttons.add(new OmerWidgets.Flat(mp.getX(), mpY + step, mp.getWidth(), mp.getHeight(),
-				"Ömer Client", () -> client.setScreen(new OmerScreen(screen))));
+				"Ömer Client", () -> client.setScreen(new OmerScreen(screen))).style(OmerWidgets.Style.PRIMARY));
 	}
 
 	/** Ordner für eigene Bilder & Sounds (für die nächsten Versionen). */
