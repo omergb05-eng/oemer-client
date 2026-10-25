@@ -108,6 +108,7 @@ public class OemerClient implements ClientModInitializer {
 			DistantHorizonsBridge.tick();
 			com.oemer.client.feature.SchematicPlacer.tick(mc);
 			com.oemer.client.feature.Clipper.tick(mc);
+			com.oemer.client.gui.OmerLoading.tick(mc);
 		});
 
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {

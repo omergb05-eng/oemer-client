@@ -8,12 +8,17 @@ import com.oemer.client.feature.ImageTools;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.MaterialList;
+import com.oemer.client.feature.OmerBadge;
+import com.oemer.client.feature.SchematicPlacer;
+import com.oemer.client.feature.SchematicGrid;
+import com.oemer.client.feature.Clipper;
 import com.oemer.client.feature.NameStyle;
 import com.oemer.client.feature.OwnFiles;
 import com.oemer.client.feature.Sounds;
 import com.oemer.client.gui.CapeEditorScreen;
 import com.oemer.client.gui.MaterialListScreen;
 import com.oemer.client.gui.OmerScreen;
+import com.oemer.client.gui.OmerLoading;
 import com.oemer.client.gui.SpotifyScreen;
 import com.oemer.client.feature.Crosshair;
 import com.oemer.client.feature.CustomCosmetics;
@@ -372,6 +377,9 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			mc.level.addEntity(rp);
 		});
 		ctx.waitTicks(10);
+		check("badge-friend", OmerBadge.isOmer(java.util.UUID.fromString(bobMc)), "");
+		ctx.waitTicks(10);
+		check("badge-nametag-drawn", OmerBadge.drawn > 0, "drawn=" + OmerBadge.drawn);
 		ctx.takeScreenshot("54-freund-cape-in-welt");
 		ctx.runOnClient(mc -> {
 			for (var e : mc.level.entitiesForRendering()) {
@@ -382,6 +390,21 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		Social.removeFriend(bob.uid, null);
 		Social.logout();
 		check("online-cleanup", until(ctx, 300, () -> !Social.loggedIn()), "");
+	}
+
+	/** Zeigt den Ömer-Ladescreen fest an (für das Testbild). */
+	private static final class TestLoadingScreen extends net.minecraft.client.gui.screens.Screen {
+		private final float progress;
+
+		TestLoadingScreen(float progress) {
+			super(net.minecraft.network.chat.Component.literal("Ladescreen-Test"));
+			this.progress = progress;
+		}
+
+		@Override
+		public void render(net.minecraft.client.gui.GuiGraphics g, int mx, int my, float pt) {
+			OmerLoading.draw(g, 1f, progress, progress >= 0 ? "Welt wird geladen" : "Dimension wird geladen", "test");
+		}
 	}
 
 	/** Buntes Testbild (Verlauf mit Kreis). */
@@ -468,6 +491,19 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(20);
 		String firstScreen = ctx.computeOnClient(mc -> mc.screen == null ? "null" : mc.screen.getClass().getName());
 		check("first-screen-title", firstScreen.equals(TitleScreen.class.getName()), firstScreen);
+
+		// ---------------------------------------------- Ömer-Ladescreen
+		check("loading-overlay-drawn", OmerLoading.overlayFrames > 0, "Bilder=" + OmerLoading.overlayFrames);
+		Path shotsDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("screenshots");
+		check("loading-overlay-screenshot", until(ctx, 200, () -> Files.isRegularFile(shotsDir.resolve("60-ladescreen-start.png"))), "");
+		ctx.setScreen(() -> new TestLoadingScreen(0.62f));
+		ctx.waitTicks(20);
+		ctx.takeScreenshot("62-ladescreen-test");
+		ctx.setScreen(() -> new TestLoadingScreen(-1f));
+		ctx.waitTicks(15);
+		ctx.takeScreenshot("62b-ladescreen-unbestimmt");
+		ctx.setScreen(() -> new TitleScreen());
+		ctx.waitTicks(10);
 		if (!firstScreen.equals(TitleScreen.class.getName())) {
 			ctx.takeScreenshot("00-erster-screen");
 			ctx.setScreen(() -> new TitleScreen());
@@ -800,6 +836,8 @@ public class OemerClientGameTest implements FabricClientGameTest {
 
 		// ---------------------------------------------- Welt
 		try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
+			check("loading-level-drawn", OmerLoading.levelFrames > 0 || OmerLoading.progressFrames > 0,
+					"level=" + OmerLoading.levelFrames + " progress=" + OmerLoading.progressFrames);
 			sp.getClientWorld().waitForChunksRender();
 			sp.getServer().runCommand("time set midnight");
 			ctx.waitTicks(20);
@@ -1254,6 +1292,8 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.takeScreenshot("32b-galaxy-ingame");
 			ctx.setScreen(() -> null);
 
+			v8WorldCheck(ctx, sp, x, y, z);
+
 			onlineWorldCheck(ctx);
 
 			ctx.setScreen(() -> new PauseScreen(true));
@@ -1289,6 +1329,301 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		System.out.println("[OEMER-TEST] fertig, Fehler: " + failures.size());
 		if (!failures.isEmpty()) {
 			throw new AssertionError("Ömer-Client-Test fehlgeschlagen: " + failures);
+		}
+	}
+
+	// ================================================================ v8: Schematic-Platzierung + Clipper
+
+	private void v8WorldCheck(ClientGameTestContext ctx, TestSingleplayerContext sp, int x, int y, int z) {
+		try {
+			v8Inner(ctx, sp, x, y, z);
+		} catch (Throwable t) {
+			t.printStackTrace();
+			check("v8-exception", false, t.toString());
+		}
+	}
+
+	private static String chunkBytes(byte[] b, int from, int len) {
+		return new String(b, from, Math.min(len, Math.max(0, b.length - from)), java.nio.charset.StandardCharsets.ISO_8859_1);
+	}
+
+	private static boolean contains(byte[] b, String needle) {
+		return new String(b, java.nio.charset.StandardCharsets.ISO_8859_1).contains(needle);
+	}
+
+	private void v8Inner(ClientGameTestContext ctx, TestSingleplayerContext sp, int x, int y, int z) throws Exception {
+		ctx.runOnClient(mc -> {
+			OemerConfig.get().freecam = false;
+			OemerConfig.get().kitHud = false;
+			OemerConfig.get().materialList = false;
+		});
+		sp.getServer().runCommand("fill " + (x - 10) + " " + y + " " + (z + 1) + " " + (x + 10) + " " + (y + 12) + " " + (z + 16) + " air");
+		sp.getServer().runCommand("fill " + (x - 10) + " " + (y - 1) + " " + (z + 1) + " " + (x + 10) + " " + (y - 1) + " " + (z + 16) + " grass_block");
+		sp.getServer().runCommand("tp @a " + (x + 0.5) + " " + y + " " + (z + 0.5) + " 0 25");
+		sp.getClientWorld().waitForChunksRender();
+		ctx.waitTicks(10);
+
+		// ------------------------------------------------ Ömer-Symbol
+		check("badge-self", ctx.computeOnClient(mc -> OmerBadge.isOmer(mc.getUser().getProfileId())), "");
+		check("badge-stranger", !OmerBadge.isOmer(java.util.UUID.randomUUID()), "");
+		String tabName = ctx.computeOnClient(mc -> {
+			try {
+				var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+				return mc.gui.getTabList().getNameForDisplay(info).getString();
+			} catch (Throwable t) {
+				return "Fehler " + t;
+			}
+		});
+		check("badge-tablist-prefix", tabName.startsWith(OmerBadge.GLYPH), tabName);
+		ctx.runOnClient(mc -> OemerConfig.get().nameIcon = false);
+		check("badge-off", !ctx.computeOnClient(mc -> OmerBadge.isOmer(mc.getUser().getProfileId())), "");
+		ctx.runOnClient(mc -> OemerConfig.get().nameIcon = true);
+
+		// ------------------------------------------------ Schematic laden
+		ctx.runOnClient(mc -> {
+			OemerConfig c = OemerConfig.get();
+			c.placeFile = "haus.litematic";
+			c.placeRot = 0;
+			c.placeMirror = 0;
+			c.placeLayerMode = 0;
+			c.placeLayer = 0;
+			c.placeShowWrong = true;
+			c.placeShowCorrect = true;
+			c.placeBox = true;
+			c.placeX = x - 2;
+			c.placeY = y;
+			c.placeZ = z + 5;
+			c.placeSet = true;
+			c.placeOn = true;
+			SchematicPlacer.reload();
+		});
+		boolean loaded = until(ctx, 200, () -> SchematicPlacer.grid() != null);
+		SchematicGrid g = SchematicPlacer.grid();
+		check("schem-loaded", loaded && g != null && g.sx > 0 && g.sy > 0 && g.sz > 0 && g.solid > 0,
+				g == null ? SchematicPlacer.error() : g.name + " " + g.sx + "x" + g.sy + "x" + g.sz + " solid=" + g.solid);
+		if (g == null) return;
+		check("schem-active", SchematicPlacer.active(), "");
+
+		boolean counted = until(ctx, 200, () -> SchematicPlacer.missing() > 0);
+		check("schem-missing-counted", counted && SchematicPlacer.wrong() == 0 && SchematicPlacer.correct() == 0,
+				SchematicPlacer.stats());
+		ctx.waitTicks(10);
+		ctx.takeScreenshot("50-schematic-hologramm");
+
+		// erste zwei Blöcke der untersten Ebene finden
+		int[][] first = new int[2][];
+		int found = 0;
+		for (int gz = 0; gz < g.sz && found < 2; gz++) {
+			for (int gx = 0; gx < g.sx && found < 2; gx++) {
+				if (g.at(gx, 0, gz) >= 0) first[found++] = new int[]{gx, gz};
+			}
+		}
+		check("schem-has-blocks-layer0", found == 2, "found=" + found);
+		if (found < 2) return;
+		int[] a = first[0], b = first[1];
+		String palA = g.palette[g.at(a[0], 0, a[1])];
+		sp.getServer().runCommand("setblock " + (x - 2 + a[0]) + " " + y + " " + (z + 5 + a[1]) + " " + palA);
+		sp.getServer().runCommand("setblock " + (x - 2 + b[0]) + " " + y + " " + (z + 5 + b[1]) + " minecraft:netherrack");
+		boolean okCorrect = until(ctx, 300, () -> SchematicPlacer.correct() >= 1);
+		boolean okWrong = until(ctx, 300, () -> SchematicPlacer.wrong() >= 1);
+		check("schem-correct-detected", okCorrect, SchematicPlacer.stats() + " | " + palA);
+		check("schem-wrong-detected", okWrong, SchematicPlacer.stats());
+		ctx.waitTicks(10);
+		ctx.takeScreenshot("51-schematic-richtig-falsch");
+
+		// ------------------------------------------------ Drehen / Spiegeln
+		int w0 = SchematicPlacer.finalW(), d0 = SchematicPlacer.finalD();
+		ctx.runOnClient(mc -> SchematicPlacer.rotate());
+		ctx.waitTicks(5);
+		int rot = ctx.computeOnClient(mc -> OemerConfig.get().placeRot);
+		check("schem-rotate", rot == 1 && SchematicPlacer.finalW() == d0 && SchematicPlacer.finalD() == w0, "rot=" + rot + " " + SchematicPlacer.finalW() + "x" + SchematicPlacer.finalD());
+		ctx.runOnClient(mc -> {
+			SchematicPlacer.rotate();
+			SchematicPlacer.rotate();
+			SchematicPlacer.rotate();
+		});
+		check("schem-rotate-full", ctx.computeOnClient(mc -> OemerConfig.get().placeRot) == 0, "");
+		// 4x drehen = wieder wie vorher: der richtige Block muss wieder passen
+		boolean again = until(ctx, 300, () -> SchematicPlacer.correct() >= 1 && SchematicPlacer.wrong() >= 1);
+		check("schem-rotate-restores", again, SchematicPlacer.stats());
+
+		// gedreht auf der Welt zeigen (Bild)
+		ctx.runOnClient(mc -> {
+			SchematicPlacer.rotate();
+			OemerConfig.get().placeMirror = 1;
+			SchematicPlacer.changed();
+		});
+		ctx.waitTicks(15);
+		ctx.takeScreenshot("52-schematic-gedreht-gespiegelt");
+		ctx.runOnClient(mc -> {
+			OemerConfig.get().placeRot = 0;
+			OemerConfig.get().placeMirror = 0;
+			SchematicPlacer.changed();
+		});
+
+		// ------------------------------------------------ Ebenen
+		int layers = SchematicPlacer.layers();
+		check("schem-layers", layers == g.sy && layers > 1, "layers=" + layers);
+		ctx.runOnClient(mc -> {
+			OemerConfig.get().placeLayerMode = 1;
+			OemerConfig.get().placeLayer = 0;
+			OemerConfig.get().placeShowCorrect = false;
+			SchematicPlacer.changed();
+		});
+		ctx.waitTicks(15);
+		int shown0 = SchematicPlacer.shownCount();
+		ctx.takeScreenshot("53-schematic-ebene-1");
+		ctx.getInput().pressKey(GLFW.GLFW_KEY_PAGE_UP);
+		ctx.waitTicks(3);
+		check("schem-layer-key-up", ctx.computeOnClient(mc -> OemerConfig.get().placeLayer) == 1, "");
+		ctx.waitTicks(15);
+		ctx.takeScreenshot("54-schematic-ebene-2");
+		ctx.getInput().pressKey(GLFW.GLFW_KEY_PAGE_DOWN);
+		ctx.waitTicks(3);
+		check("schem-layer-key-down", ctx.computeOnClient(mc -> OemerConfig.get().placeLayer) == 0, "");
+		ctx.runOnClient(mc -> SchematicPlacer.layer(1000));
+		check("schem-layer-clamp-top", ctx.computeOnClient(mc -> OemerConfig.get().placeLayer) == layers - 1, "");
+		ctx.runOnClient(mc -> SchematicPlacer.layer(-1000));
+		check("schem-layer-clamp-bottom", ctx.computeOnClient(mc -> OemerConfig.get().placeLayer) == 0, "");
+		// nur eine Ebene → weniger Zellen als alle Ebenen
+		ctx.runOnClient(mc -> {
+			OemerConfig.get().placeLayerMode = 0;
+			SchematicPlacer.changed();
+		});
+		ctx.waitTicks(20);
+		int shownAll = SchematicPlacer.shownCount();
+		check("schem-layer-filter", shown0 > 0 && shown0 < shownAll, shown0 + " < " + shownAll);
+
+		// Verschieben
+		ctx.runOnClient(mc -> SchematicPlacer.move(1, 0, 0));
+		check("schem-move", ctx.computeOnClient(mc -> OemerConfig.get().placeX) == x - 1, "");
+		ctx.runOnClient(mc -> SchematicPlacer.move(-1, 0, 0));
+		check("schem-position-saved", ctx.computeOnClient(mc -> OemerConfig.get().placeX) == x - 2, "");
+
+		// Taste "dort setzen" auf Block schauen
+		ctx.runOnClient(mc -> {
+			mc.player.setXRot(60);
+		});
+		ctx.waitTicks(5);
+		ctx.runOnClient(mc -> OemerConfig.get().placeSet = false);
+		ctx.runOnClient(mc -> {
+			boolean ok = SchematicPlacer.setLooking(mc);
+			System.out.println("[OEMER-INFO] setLooking=" + ok + " pos=" + OemerConfig.get().placeX + "," + OemerConfig.get().placeY + "," + OemerConfig.get().placeZ);
+		});
+		check("schem-set-looking", ctx.computeOnClient(mc -> OemerConfig.get().placeSet), "");
+		ctx.runOnClient(mc -> {
+			mc.player.setXRot(25);
+			OemerConfig.get().placeX = x - 2;
+			OemerConfig.get().placeY = y;
+			OemerConfig.get().placeZ = z + 5;
+			OemerConfig.get().placeSet = true;
+			OemerConfig.get().placeOn = false;
+		});
+		sp.getServer().runCommand("fill " + (x - 10) + " " + y + " " + (z + 1) + " " + (x + 10) + " " + (y + 12) + " " + (z + 16) + " air");
+
+		// Menü-Seite
+		OmerScreen.sectionForTest("MODS", "schematic");
+		ctx.runOnClient(mc -> OemerConfig.get().placeOn = true);
+		ctx.setScreen(() -> new OmerScreen(null));
+		ctx.waitTicks(10);
+		check("schem-menu", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
+		ctx.takeScreenshot("55-menue-schematic");
+		ctx.setScreen(() -> null);
+		ctx.runOnClient(mc -> OemerConfig.get().placeOn = false);
+
+		// ------------------------------------------------ Clipper
+		Path clipDir = Files.createTempDirectory("oemer-clips-test");
+		ctx.runOnClient(mc -> {
+			OemerConfig c = OemerConfig.get();
+			c.clipperOn = true;
+			c.clipFps = 2;       // 20 Bilder/s
+			c.clipQuality = 1;   // 854 breit
+			c.clipLen = 0;       // 30 s
+			c.clipFormat = 1;    // AVI zuerst
+			c.clipFolder = clipDir.toString();
+			Clipper.clear();
+			mc.player.setXRot(10);
+		});
+		sp.getServer().runCommand("summon minecraft:armor_stand " + (x + 1.5) + " " + y + " " + (z + 4) + " {NoGravity:1b}");
+		ctx.waitTicks(140); // ca. 7 Sekunden aufnehmen
+		int frames = Clipper.bufferedFrames();
+		check("clipper-frames", frames >= 40, frames + " Bilder, " + Clipper.bufferedSeconds() + " s, " + (Clipper.bufferedBytes() / 1024) + " KB");
+		BufferedImage fr = Clipper.frameImage(-1);
+		boolean varied = false;
+		if (fr != null) {
+			int c0 = fr.getRGB(2, 2);
+			for (int i = 0; i < 200 && !varied; i++) varied = Math.abs(((fr.getRGB(fr.getWidth() / 5 + i * 2, fr.getHeight() / 3) >> 8) & 0xFF) - ((c0 >> 8) & 0xFF)) > 12;
+		}
+		check("clipper-frame-content", fr != null && fr.getWidth() == 854 && varied, fr == null ? "kein Bild" : fr.getWidth() + "x" + fr.getHeight());
+		if (fr != null) {
+			Path shots = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("screenshots");
+			Files.createDirectories(shots);
+			ImageIO.write(fr, "png", shots.resolve("56-clipper-vorschau-bild.png").toFile());
+		}
+
+		// AVI
+		Path avi = Clipper.saveNow(5);
+		byte[] ab = Files.readAllBytes(avi);
+		boolean aviOk = ab.length > 20000 && chunkBytes(ab, 0, 4).equals("RIFF") && chunkBytes(ab, 8, 4).equals("AVI ")
+				&& contains(ab, "MJPG") && contains(ab, "idx1") && avi.getParent().equals(clipDir) && avi.toString().endsWith(".avi");
+		check("clipper-avi", aviOk, avi.getFileName() + " " + ab.length / 1024 + " KB");
+		int ci = new String(ab, java.nio.charset.StandardCharsets.ISO_8859_1).indexOf("00dc");
+		boolean jpgOk = false;
+		if (ci > 0) {
+			int len = (ab[ci + 4] & 0xFF) | ((ab[ci + 5] & 0xFF) << 8) | ((ab[ci + 6] & 0xFF) << 16) | ((ab[ci + 7] & 0xFF) << 24);
+			BufferedImage dec = ImageIO.read(new java.io.ByteArrayInputStream(ab, ci + 8, len));
+			jpgOk = dec != null && dec.getWidth() == 854;
+		}
+		check("clipper-avi-frame-decodes", jpgOk, "");
+		check("clipper-ffprobe-avi", ffprobeOk(avi, 3.5, 6.5), "");
+
+		// MP4
+		ctx.runOnClient(mc -> OemerConfig.get().clipFormat = 0);
+		long t0 = System.currentTimeMillis();
+		Path mp4 = Clipper.saveNow(5);
+		long took = System.currentTimeMillis() - t0;
+		byte[] mb = Files.readAllBytes(mp4);
+		boolean mp4Ok = mb.length > 5000 && chunkBytes(mb, 4, 4).equals("ftyp") && contains(mb, "moov") && mp4.toString().endsWith(".mp4");
+		check("clipper-mp4", mp4Ok, mp4.getFileName() + " " + mb.length / 1024 + " KB, " + took / 1000 + " s");
+		check("clipper-ffprobe-mp4", ffprobeOk(mp4, 3.5, 6.5), "");
+
+		// Taste F9
+		long before = Files.list(clipDir).count();
+		ctx.runOnClient(mc -> OemerConfig.get().clipFormat = 1);
+		ctx.getInput().pressKey(GLFW.GLFW_KEY_F9);
+		boolean viaKey = until(ctx, 400, () -> Files.list(clipDir).count() > before && !Clipper.saving());
+		check("clipper-key-f9", viaKey, Clipper.status());
+		ctx.runOnClient(mc -> {
+			OemerConfig.get().clipperOn = false;
+			Clipper.clear();
+		});
+		check("clipper-off-clears", Clipper.bufferedFrames() == 0, "");
+
+		OmerScreen.sectionForTest("MODS", "clipper");
+		ctx.runOnClient(mc -> OemerConfig.get().clipperOn = true);
+		ctx.setScreen(() -> new OmerScreen(null));
+		ctx.waitTicks(10);
+		ctx.takeScreenshot("57-menue-clipper");
+		ctx.setScreen(() -> null);
+		ctx.runOnClient(mc -> OemerConfig.get().clipperOn = false);
+	}
+
+	/** Falls ffprobe auf dem Rechner ist: Länge prüfen (sonst gilt die Prüfung als bestanden). */
+	private static boolean ffprobeOk(Path file, double min, double max) {
+		try {
+			Process p = new ProcessBuilder("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file.toString())
+					.redirectErrorStream(true).start();
+			String out = new String(p.getInputStream().readAllBytes()).trim();
+			p.waitFor();
+			double d = Double.parseDouble(out);
+			System.out.println("[OEMER-INFO] ffprobe " + file.getFileName() + " Dauer " + d);
+			return d >= min && d <= max;
+		} catch (java.io.IOException e) {
+			System.out.println("[OEMER-INFO] ffprobe nicht vorhanden");
+			return true;
+		} catch (Exception e) {
+			System.out.println("[OEMER-INFO] ffprobe Fehler " + e);
+			return false;
 		}
 	}
 }

@@ -1,0 +1,11 @@
+{
+	"providers": [
+		{
+			"type": "bitmap",
+			"file": "oemerclient:font/logo.png",
+			"ascent": 8,
+			"height": 9,
+			"chars": [""]
+		}
+	]
+}

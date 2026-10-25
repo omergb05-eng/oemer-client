@@ -531,6 +531,8 @@ public class OmerScreen extends Screen {
 			c.clipperOn = v;
 			if (!v) com.oemer.client.feature.Clipper.clear();
 		}, null));
+		l.add(new ModInfo("loading", "◔", "Ömer-Ladescreen", "Eigener Ladebildschirm beim Start und in Welten", () -> c.customLoading, v -> c.customLoading = v, null));
+		l.add(new ModInfo("nameicon", "☾", "Ömer-Symbol", "Kleines Symbol über deinem Namen und bei Freunden", () -> c.nameIcon, v -> c.nameIcon = v, null));
 		l.add(new ModInfo("kithud", "⚔", "Kit-HUD", "Zeigt deine Kit-Items im Spiel", () -> c.kitHud, v -> c.kitHud = v, null));
 		l.add(new ModInfo("appleskin", "🍏", "AppleSkin", "Sättigung + Essens-Vorschau", () -> c.appleSkin, v -> c.appleSkin = v, null));
 		l.add(new ModInfo("clearglass", "◻", "Clear Glass", "Klares Glas ohne Streifen", () -> c.clearGlass, v -> {
@@ -654,6 +656,8 @@ public class OmerScreen extends Screen {
 			case "crosshair" -> buildCrosshair();
 			case "material" -> buildMaterial();
 			case "schematic" -> buildSchematicPlace();
+			case "loading" -> info(() -> "Gilt beim Start von Minecraft, beim Betreten einer Welt und bei Portalen. Aus = normaler Ladebildschirm.");
+			case "nameicon" -> info(() -> "Das Symbol steht eine Zeile über dem Namen – bei dir (in F5 / Free Cam), bei Freunden mit Ömer Client und in der Tab-Liste.");
 			case "clipper" -> buildClipper();
 			case "kithud" -> {
 				cycle("Ort", OemerConfig.CORNERS, () -> c.kitHudCorner, v -> c.kitHudCorner = v);

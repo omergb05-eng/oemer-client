@@ -52,6 +52,12 @@ einmal öffnen – dann zählt ihr Inhalt in der Liste mit, und die Kiste leucht
 
 Alle Ordner liegen in `.minecraft/config/oemerclient/`. Cape, Cosmetics, Totem und Sounds siehst bzw. hörst nur du.
 
+## Neu in 8.0
+- **Schematic-Platzierung** (Mods → Schematic-Platzierung): `.litematic` oder `.schem` wählen, per „Dort setzen“ in die Welt stellen, verschieben, drehen (90°), spiegeln. Fehlende Blöcke erscheinen als durchsichtiger Geist, falsche Blöcke rot, richtige grün. **Ebene für Ebene:** nur eine Ebene / bis zu / ab einer Ebene zeigen, mit Bild ↑ / Bild ↓ (frei belegbar) hoch und runter. Es werden nur Blockarten verglichen (nicht die Ausrichtung von Treppen o. ä.).
+- **Clipper** (Mods → Clipper): nimmt im Hintergrund auf. **F9** = die letzten 30 s / 1 min / 2 min als Video speichern, in einen Ordner, den du selbst wählst. MP4 (läuft überall) oder AVI (sofort fertig). Ohne Ton.
+- **Ömer-Ladescreen:** beim Start von Minecraft und beim Betreten einer Welt / Dimension (Mods → Ömer-Ladescreen zum Ausschalten).
+- **Ömer-Symbol:** kleines Mond-Haus-Symbol eine Zeile über dem Namen – bei dir, bei Freunden mit dem Client und in der Tab-Liste (Mods → Ömer-Symbol).
+
 ## Freunde (online) – neu in 7.0
 Im Menü gibt es links den Bereich **Freunde** (Reiter Freunde · Chat · Konto).
 

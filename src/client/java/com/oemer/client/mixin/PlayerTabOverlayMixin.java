@@ -1,6 +1,7 @@
 package com.oemer.client.mixin;
 
 import com.oemer.client.feature.NameStyle;
+import com.oemer.client.feature.OmerBadge;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.PlayerTabOverlay;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -18,6 +19,10 @@ public class PlayerTabOverlayMixin {
 		Minecraft mc = Minecraft.getInstance();
 		if (NameStyle.active() && mc.getUser() != null && info.getProfile().id().equals(mc.getUser().getProfileId())) {
 			cir.setReturnValue(NameStyle.display());
+		}
+		// Ömer-Symbol vor dem Namen in der Tab-Liste
+		if (OmerBadge.isOmer(info.getProfile().id())) {
+			cir.setReturnValue(OmerBadge.prefix(cir.getReturnValue()));
 		}
 	}
 }
