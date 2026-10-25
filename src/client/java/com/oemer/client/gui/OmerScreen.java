@@ -15,7 +15,10 @@ import com.oemer.client.feature.ImageTools;
 import com.oemer.client.feature.KitProfiles;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
+import com.oemer.client.feature.Clipper;
 import com.oemer.client.feature.MaterialList;
+import com.oemer.client.feature.SchematicGrid;
+import com.oemer.client.feature.SchematicPlacer;
 import com.oemer.client.feature.NameStyle;
 import com.oemer.client.feature.OwnFiles;
 import com.oemer.client.feature.Music;
@@ -30,6 +33,7 @@ import com.oemer.client.online.Firebase;
 import com.oemer.client.online.FriendSkins;
 import com.oemer.client.online.Social;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -319,7 +323,7 @@ public class OmerScreen extends Screen {
 				}
 				yield sb.toString();
 			}
-			case MODS -> openMod != null && openMod.equals("material") ? ChestMarker.here().size() + ":" + MaterialList.files().size() : "";
+			case MODS -> openMod != null && openMod.equals("schematic") ? MaterialList.files().size() + ":" + SchematicPlacer.layers() + ":" + OemerConfig.get().placeSet : openMod != null && openMod.equals("material") ? ChestMarker.here().size() + ":" + MaterialList.files().size() : "";
 			default -> "";
 		};
 	}
@@ -522,6 +526,11 @@ public class OmerScreen extends Screen {
 		l.add(new ModInfo("zoom", "⌕", "Just Zoom", "Taste halten = Zoom", () -> c.zoomOn, v -> c.zoomOn = v, null));
 		l.add(new ModInfo("crosshair", "✛", "Custom Crosshair", "Eigenes Fadenkreuz", () -> c.customCrosshair, v -> c.customCrosshair = v, null));
 		l.add(new ModInfo("material", "▤", "Material List", "Blöcke für deine Schematic + Kisten", () -> c.materialList, v -> c.materialList = v, null));
+		l.add(new ModInfo("schematic", "▦", "Schematic-Platzierung", "Hologramm setzen, drehen, Ebene für Ebene", () -> c.placeOn, v -> c.placeOn = v, null));
+		l.add(new ModInfo("clipper", "●", "Clipper", "Taste drücken = letzte 30 s / 1 / 2 min speichern", () -> c.clipperOn, v -> {
+			c.clipperOn = v;
+			if (!v) com.oemer.client.feature.Clipper.clear();
+		}, null));
 		l.add(new ModInfo("kithud", "⚔", "Kit-HUD", "Zeigt deine Kit-Items im Spiel", () -> c.kitHud, v -> c.kitHud = v, null));
 		l.add(new ModInfo("appleskin", "🍏", "AppleSkin", "Sättigung + Essens-Vorschau", () -> c.appleSkin, v -> c.appleSkin = v, null));
 		l.add(new ModInfo("clearglass", "◻", "Clear Glass", "Klares Glas ohne Streifen", () -> c.clearGlass, v -> {
@@ -644,6 +653,8 @@ public class OmerScreen extends Screen {
 			}
 			case "crosshair" -> buildCrosshair();
 			case "material" -> buildMaterial();
+			case "schematic" -> buildSchematicPlace();
+			case "clipper" -> buildClipper();
 			case "kithud" -> {
 				cycle("Ort", OemerConfig.CORNERS, () -> c.kitHudCorner, v -> c.kitHudCorner = v);
 				cycle("HUD-Größe", OemerConfig.HUD_SCALE_NAMES, () -> c.hudScale, v -> c.hudScale = v);
@@ -846,6 +857,156 @@ public class OmerScreen extends Screen {
 			for (var e : MaterialList.entries()) sum += e.needed();
 			return MaterialList.entries().size() + " verschiedene Blöcke, " + sum + " insgesamt.";
 		});
+	}
+
+	// ================================================================ Schematic-Platzierung
+
+	private void buildSchematicPlace() {
+		OemerConfig c = OemerConfig.get();
+		List<String> files = MaterialList.files();
+		if (c.placeFile.isEmpty() && !files.isEmpty()) c.placeFile = files.get(0);
+		cycle("Schematic", () -> {
+			List<String> f = MaterialList.files();
+			return f.isEmpty() ? new String[]{"(keine Datei)"} : f.stream().map(n -> n.replaceAll("\\.(litematic|schem)$", "")).toArray(String[]::new);
+		}, () -> Math.max(0, MaterialList.files().indexOf(c.placeFile)), v -> {
+			List<String> f = MaterialList.files();
+			if (!f.isEmpty()) {
+				c.placeFile = f.get(v);
+				c.placeLayer = 0;
+				SchematicPlacer.reload();
+			}
+		});
+		button("Schematic hinzufügen", () -> FilePicker.pickSchematic(SchematicPlacer.folder(), name -> {
+			c.placeFile = name;
+			c.placeLayer = 0;
+			OemerConfig.save();
+			SchematicPlacer.reload();
+			refresh();
+		}), OmerWidgets.Style.PRIMARY, "Wähle eine .litematic oder .schem – sie wird in den Ordner kopiert");
+		button("Ordner öffnen", () -> open(SchematicPlacer.folder()), OmerWidgets.Style.GLASS);
+		endFlow();
+
+		heading("Platzieren");
+		note("Schau auf einen Block und drück „Dort setzen“ – die Ecke der Schematic kommt direkt daneben.");
+		button("Dort setzen (Block, auf den ich schaue)", () -> {
+			if (this.minecraft.level == null) return;
+			Minecraft mc = this.minecraft;
+			mc.setScreen(null);
+			mc.execute(() -> {
+				if (!SchematicPlacer.setLooking(mc)) SchematicPlacer.setHere(mc);
+			});
+		}, OmerWidgets.Style.PRIMARY, "Menü schließt sich, die Schematic erscheint dort");
+		button("Hier setzen (wo ich stehe)", () -> {
+			if (this.minecraft.level != null) SchematicPlacer.setHere(this.minecraft);
+		}, OmerWidgets.Style.GLASS);
+		endFlow();
+		cycle("Schrittweite", OemerConfig.PLACE_STEP_NAMES, () -> c.placeStep, v -> c.placeStep = v);
+		endFlow();
+		buttonRow(new String[]{"◄ X−", "X+ ►", "▼ Y−", "Y+ ▲", "Z− ▲", "Z+ ▼"}, new Runnable[]{
+				() -> SchematicPlacer.move(-1, 0, 0), () -> SchematicPlacer.move(1, 0, 0),
+				() -> SchematicPlacer.move(0, -1, 0), () -> SchematicPlacer.move(0, 1, 0),
+				() -> SchematicPlacer.move(0, 0, -1), () -> SchematicPlacer.move(0, 0, 1)}, null);
+		buttonRow(new String[]{"Drehen 90°", "Spiegeln", "Zurücksetzen"}, new Runnable[]{
+				SchematicPlacer::rotate,
+				() -> {
+					c.placeMirror = (c.placeMirror + 1) % 3;
+					SchematicPlacer.changed();
+				},
+				() -> {
+					c.placeRot = 0;
+					c.placeMirror = 0;
+					c.placeSet = false;
+					SchematicPlacer.changed();
+				}}, null);
+		info(() -> {
+			if (!c.placeSet) return "Noch nicht gesetzt.";
+			return "Position " + c.placeX + " " + c.placeY + " " + c.placeZ + " · gedreht " + c.placeRot * 90 + "° · Spiegel: " + OemerConfig.PLACE_MIRRORS[c.placeMirror];
+		});
+
+		heading("Ebene für Ebene");
+		cycle("Anzeige", OemerConfig.PLACE_MODES, () -> c.placeLayerMode, v -> {
+			c.placeLayerMode = v;
+			SchematicPlacer.changed();
+		});
+		endFlow();
+		buttonRow(new String[]{"Ebene −", "Ebene +", "Auf meine Höhe"}, new Runnable[]{
+				() -> SchematicPlacer.layer(-1), () -> SchematicPlacer.layer(1),
+				() -> SchematicPlacer.layerToPlayer(this.minecraft)}, null);
+		info(() -> SchematicPlacer.layers() == 0 ? "" : "Ebene " + (c.placeLayer + 1) + " von " + SchematicPlacer.layers()
+				+ " · Y = " + (c.placeY + c.placeLayer));
+
+		heading("Anzeige");
+		cycle("Reichweite", OemerConfig.PLACE_RANGE_NAMES, () -> c.placeRange, v -> {
+			c.placeRange = v;
+			SchematicPlacer.changed();
+		});
+		toggle("Falsche Blöcke rot", () -> c.placeShowWrong, v -> {
+			c.placeShowWrong = v;
+			SchematicPlacer.changed();
+		}, "Rot = dort steht ein anderer Block");
+		toggle("Richtige Blöcke grün", () -> c.placeShowCorrect, v -> {
+			c.placeShowCorrect = v;
+			SchematicPlacer.changed();
+		}, "Grün = Block stimmt schon");
+		toggle("Rahmen um die Schematic", () -> c.placeBox, v -> c.placeBox = v, "Zeigt die Größe der Schematic");
+		endFlow();
+		keyRow(OemerKeys.placeToggle, "Taste: Schematic an/aus", "");
+		keyRow(OemerKeys.placeHere, "Taste: dort setzen", "");
+		keyRow(OemerKeys.placeLayerUp, "Taste: Ebene höher", "");
+		keyRow(OemerKeys.placeLayerDown, "Taste: Ebene tiefer", "");
+		info(() -> SchematicPlacer.stats());
+		info(() -> {
+			SchematicGrid g = SchematicPlacer.grid();
+			if (g == null) return files.isEmpty() ? ".litematic oder .schem in den Ordner legen." : "";
+			return g.name + ": " + g.sx + "×" + g.sy + "×" + g.sz + " Blöcke · " + g.solid + " gesetzte Blöcke";
+		});
+	}
+
+	// ================================================================ Clipper
+
+	private void buildClipper() {
+		OemerConfig c = OemerConfig.get();
+		note("Der Clipper nimmt im Hintergrund ständig auf. Auf Tastendruck landen die letzten Sekunden als Video im Ordner. Ohne Ton.");
+		endFlow();
+		cycle("Länge", OemerConfig.CLIP_LENGTH_NAMES, () -> c.clipLen, v -> c.clipLen = v);
+		cycle("Bilder pro Sekunde", OemerConfig.CLIP_FPS_NAMES, () -> c.clipFps, v -> c.clipFps = v);
+		cycle("Qualität", OemerConfig.CLIP_QUALITY_NAMES, () -> c.clipQuality, v -> {
+			c.clipQuality = v;
+			Clipper.clear();
+		});
+		cycle("Format", OemerConfig.CLIP_FORMATS, () -> c.clipFormat, v -> c.clipFormat = v);
+		endFlow();
+		heading("Ordner");
+		addContent(new OmerWidgets.Painter(cx0, cy, cw, ROW_H, (g, x, y, w, h, mx, my) -> {
+			Draw.round(g, x, y, w, h, 4, Theme.white(0x0E));
+			Draw.text(g, "▣", x + 8, y + 9, Theme.accent());
+			Draw.text(g, Draw.fit(Clipper.folder().toString(), w - 30), x + 22, y + 9, Theme.TEXT_SOFT);
+		}, null));
+		cy += ROW_H + GAP;
+		button("Ordner wählen", () -> FilePicker.pickFolder("Ordner für Clips wählen", Clipper.folder().toString(), path -> {
+			c.clipFolder = path;
+			OemerConfig.save();
+			refresh();
+		}), OmerWidgets.Style.PRIMARY, "Hier werden deine Clips gespeichert");
+		button("Ordner öffnen", () -> open(Clipper.folder()), OmerWidgets.Style.GLASS);
+		button("Standard-Ordner", () -> {
+			c.clipFolder = "";
+			OemerConfig.save();
+			refresh();
+		}, OmerWidgets.Style.GLASS, ".minecraft/oemer-clips");
+		endFlow();
+		heading("Speichern");
+		button("Jetzt Clip speichern", () -> {
+			if (this.minecraft.level == null) return;
+			Clipper.saveRequested(this.minecraft);
+		}, OmerWidgets.Style.PRIMARY, "Dasselbe wie die Taste");
+		endFlow();
+		keyRow(OemerKeys.clipSave, "Taste: Clip speichern", "");
+		keyRow(OemerKeys.clipToggle, "Taste: Clipper an/aus", "");
+		info(() -> c.clipperOn ? "Puffer: " + Clipper.bufferedSeconds() + " s · " + Clipper.bufferedFrames() + " Bilder · "
+				+ (Clipper.bufferedBytes() / 1048576) + " MB" : "Clipper ist aus (oben bei „Aktiv“ einschalten).");
+		info(() -> Clipper.status().isEmpty() ? "" : Clipper.status());
+		info(() -> "MP4 läuft überall (Discord, YouTube), braucht beim Speichern ein paar Sekunden. AVI ist sofort fertig.");
 	}
 
 	// ================================================================ Settings

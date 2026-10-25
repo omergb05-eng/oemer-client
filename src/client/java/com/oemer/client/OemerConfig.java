@@ -130,6 +130,33 @@ public class OemerConfig {
 	public boolean chatToasts = true;     // Freunde-Nachrichten kurz im Spiel anzeigen
 	public java.util.Map<String, Long> chatRead = new java.util.HashMap<>(); // Freund -> zuletzt gelesene Nachricht
 
+	// ---- Schematic-Platzierung ----
+	public boolean placeOn = false;
+	public String placeFile = "";
+	public boolean placeSet = false;      // Position gesetzt?
+	public int placeX, placeY, placeZ;
+	public int placeRot = 0;              // 0..3 mal 90 Grad
+	public int placeMirror = 0;           // 0 aus, 1 links/rechts, 2 vorne/hinten
+	public int placeLayerMode = 0;        // 0 alle, 1 eine, 2 bis, 3 ab
+	public int placeLayer = 0;
+	public boolean placeShowCorrect = false;
+	public boolean placeShowWrong = true;
+	public boolean placeBox = true;
+	public int placeRange = 1;            // Index in PLACE_RANGES
+	public int placeStep = 0;             // Index in PLACE_STEPS
+
+	// ---- Clipper ----
+	public boolean clipperOn = false;
+	public int clipLen = 1;               // Index in CLIP_LENGTHS (Sekunden)
+	public int clipFps = 1;               // Index in CLIP_FPS
+	public int clipQuality = 1;           // Index in CLIP_WIDTHS
+	public int clipFormat = 0;            // 0 = MP4, 1 = AVI (sofort fertig)
+	public String clipFolder = "";        // leer = .minecraft/oemer-clips
+
+	// ---- Ladescreen + Symbol ----
+	public boolean customLoading = true;
+	public boolean nameIcon = true;
+
 	// ---- Spotify ----
 	public String spotifyClientId = "";
 	public boolean spotifyHud = true;
@@ -183,6 +210,20 @@ public class OemerConfig {
 	public static final float[] LOW_AMOUNTS = {0.12f, 0.25f, 0.4f};
 	public static final String[] SMALL_NAMES = {"75 %", "50 %", "30 %"};
 	public static final float[] SMALL_SCALES = {0.75f, 0.5f, 0.3f};
+	public static final String[] PLACE_MODES = {"Alle Ebenen", "Nur diese Ebene", "Bis zu dieser Ebene", "Ab dieser Ebene"};
+	public static final String[] PLACE_MIRRORS = {"Aus", "Links ↔ rechts", "Vorne ↔ hinten"};
+	public static final int[] PLACE_RANGES = {32, 64, 96};
+	public static final String[] PLACE_RANGE_NAMES = {"32 Blöcke", "64 Blöcke", "96 Blöcke"};
+	public static final int[] PLACE_STEPS = {1, 4, 16};
+	public static final String[] PLACE_STEP_NAMES = {"1 Block", "4 Blöcke", "16 Blöcke"};
+	public static final int[] CLIP_LENGTHS = {30, 60, 120};
+	public static final String[] CLIP_LENGTH_NAMES = {"30 Sekunden", "1 Minute", "2 Minuten"};
+	public static final int[] CLIP_FPS = {10, 15, 20};
+	public static final String[] CLIP_FPS_NAMES = {"10 Bilder/s (sparsam)", "15 Bilder/s", "20 Bilder/s (flüssig)"};
+	public static final int[] CLIP_WIDTHS = {640, 854, 1280};
+	public static final String[] CLIP_QUALITY_NAMES = {"Niedrig (360p)", "Mittel (480p)", "Hoch (720p)"};
+	public static final String[] CLIP_FORMATS = {"MP4 (überall abspielbar)", "AVI (sofort fertig)"};
+
 	public static final String[] ACCENT_NAMES = {"Weiß", "Eisblau", "Rosa", "Lila", "Mint"};
 
 	public static OemerConfig get() {
@@ -249,6 +290,18 @@ public class OemerConfig {
 		ytVolume = Math.max(0, Math.min(100, ytVolume));
 		musicService = Math.floorMod(musicService, 2);
 		if (chatRead == null) chatRead = new java.util.HashMap<>();
+		if (placeFile == null) placeFile = "";
+		if (clipFolder == null) clipFolder = "";
+		placeRot = Math.floorMod(placeRot, 4);
+		placeMirror = Math.floorMod(placeMirror, 3);
+		placeLayerMode = Math.floorMod(placeLayerMode, 4);
+		placeLayer = Math.max(0, placeLayer);
+		placeRange = Math.floorMod(placeRange, PLACE_RANGES.length);
+		placeStep = Math.floorMod(placeStep, PLACE_STEPS.length);
+		clipLen = Math.floorMod(clipLen, CLIP_LENGTHS.length);
+		clipFps = Math.floorMod(clipFps, CLIP_FPS.length);
+		clipQuality = Math.floorMod(clipQuality, CLIP_WIDTHS.length);
+		clipFormat = Math.floorMod(clipFormat, 2);
 		zoomLevel = Math.floorMod(zoomLevel, ZOOM_NAMES.length);
 		lowFireLevel = Math.floorMod(lowFireLevel, LOW_NAMES.length);
 	portalLevel = Math.floorMod(portalLevel, PORTAL_NAMES.length);

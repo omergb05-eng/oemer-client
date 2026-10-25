@@ -1,4 +1,10 @@
 {
+	"key.oemerclient.clip_save": "Save clip",
+	"key.oemerclient.clip_toggle": "Toggle Clipper",
+	"key.oemerclient.place_toggle": "Toggle schematic",
+	"key.oemerclient.place_layer_up": "Layer up",
+	"key.oemerclient.place_layer_down": "Layer down",
+	"key.oemerclient.place_here": "Place schematic here",
 	"key.category.oemerclient.main": "Ömer Client",
 	"key.oemerclient.menu": "Open Ömer Client menu",
 	"key.oemerclient.freecam": "Toggle Free Cam",

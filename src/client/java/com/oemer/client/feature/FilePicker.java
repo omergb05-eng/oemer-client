@@ -24,16 +24,45 @@ public final class FilePicker {
 
 	/** Bild auswählen → in folder kopieren → onDone(Dateiname) im Spiel-Thread. */
 	public static void pickImage(String title, Path folder, Consumer<String> onDone) {
+		pickFile(title, folder, new String[]{"*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"}, "Bilder", onDone);
+	}
+
+	/** Schematic wählen (.litematic / .schem) → in den schematics-Ordner kopieren. */
+	public static void pickSchematic(Path folder, Consumer<String> onDone) {
+		pickFile("Schematic wählen", folder, new String[]{"*.litematic", "*.schem"}, "Schematics", onDone);
+	}
+
+	/** Ordner wählen → onDone(Pfad) im Spiel-Thread. */
+	public static void pickFolder(String title, String start, Consumer<String> onDone) {
+		if (open) return;
+		open = true;
+		Thread t = new Thread(() -> {
+			String chosen = null;
+			try {
+				String def = start == null || start.isBlank() ? System.getProperty("user.home") + "/" : start;
+				chosen = TinyFileDialogs.tinyfd_selectFolderDialog(title, def);
+			} catch (Throwable e) {
+				OemerClient.LOGGER.warn("Ordner-Fenster ging nicht auf", e);
+			}
+			open = false;
+			final String result = chosen;
+			if (result != null && !result.isBlank()) Minecraft.getInstance().execute(() -> onDone.accept(result));
+		}, "Ömer Ordner wählen");
+		t.setDaemon(true);
+		t.start();
+	}
+
+	/** Beliebige Datei auswählen → in folder kopieren → onDone(Dateiname) im Spiel-Thread. */
+	public static void pickFile(String title, Path folder, String[] patterns, String description, Consumer<String> onDone) {
 		if (open) return;
 		open = true;
 		Thread t = new Thread(() -> {
 			String chosen = null;
 			try (MemoryStack stack = MemoryStack.stackPush()) {
-				String[] patterns = {"*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"};
 				PointerBuffer filters = stack.mallocPointer(patterns.length);
 				for (String p : patterns) filters.put(stack.UTF8(p));
 				filters.flip();
-				chosen = TinyFileDialogs.tinyfd_openFileDialog(title, System.getProperty("user.home") + "/", filters, "Bilder", false);
+				chosen = TinyFileDialogs.tinyfd_openFileDialog(title, System.getProperty("user.home") + "/", filters, description, false);
 			} catch (Throwable e) {
 				OemerClient.LOGGER.warn("Datei-Fenster ging nicht auf", e);
 			}

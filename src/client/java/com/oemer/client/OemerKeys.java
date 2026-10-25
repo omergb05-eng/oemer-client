@@ -1,8 +1,10 @@
 package com.oemer.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.oemer.client.feature.Clipper;
 import com.oemer.client.feature.KitProfiles;
 import com.oemer.client.feature.Music;
+import com.oemer.client.feature.SchematicPlacer;
 import com.oemer.client.gui.MaterialListScreen;
 import com.oemer.client.gui.OmerScreen;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -26,7 +28,8 @@ public final class OemerKeys {
 	public static final List<Entry> ALL = new ArrayList<>();
 
 	public static KeyMapping menu, freecam, fullbright, zoom, kitNext, materialToggle, materialOpen,
-			cosmeticsToggle, crosshairToggle, weatherToggle, musicPlay, musicNext, musicPrev, musicOpen;
+			cosmeticsToggle, crosshairToggle, weatherToggle, musicPlay, musicNext, musicPrev, musicOpen,
+			placeToggle, placeLayerUp, placeLayerDown, placeHere, clipSave, clipToggle;
 	public static final KeyMapping[] KIT = new KeyMapping[OemerConfig.KITS.length];
 
 	private static KeyMapping.Category category;
@@ -58,6 +61,12 @@ public final class OemerKeys {
 		musicNext = key("music_next", none, "Nächster Song", "Musik");
 		musicPrev = key("music_prev", none, "Vorheriger Song", "Musik");
 		musicOpen = key("music_open", none, "Musik-Player öffnen", "Musik");
+		clipSave = key("clip_save", GLFW.GLFW_KEY_F9, "Clip speichern (letzte Sekunden)", "Clipper");
+		clipToggle = key("clip_toggle", none, "Clipper an/aus", "Clipper");
+		placeToggle = key("place_toggle", none, "Schematic anzeigen an/aus", "Schematic");
+		placeLayerUp = key("place_layer_up", GLFW.GLFW_KEY_PAGE_UP, "Ebene höher", "Schematic");
+		placeLayerDown = key("place_layer_down", GLFW.GLFW_KEY_PAGE_DOWN, "Ebene tiefer", "Schematic");
+		placeHere = key("place_here", none, "Schematic hier setzen", "Schematic");
 	}
 
 	private static void say(Minecraft mc, String name, boolean on) {
@@ -99,6 +108,31 @@ public final class OemerKeys {
 		}
 		while (materialOpen.consumeClick()) {
 			if (mc.screen == null) mc.setScreen(new MaterialListScreen(null));
+		}
+		while (clipSave.consumeClick()) {
+			if (mc.level != null) Clipper.saveRequested(mc);
+		}
+		while (clipToggle.consumeClick()) {
+			c.clipperOn = !c.clipperOn;
+			OemerConfig.save();
+			say(mc, "Clipper", c.clipperOn);
+		}
+		while (placeToggle.consumeClick()) {
+			c.placeOn = !c.placeOn;
+			OemerConfig.save();
+			say(mc, "Schematic", c.placeOn);
+		}
+		while (placeLayerUp.consumeClick()) {
+			if (mc.screen == null && c.placeOn) SchematicPlacer.layer(1);
+		}
+		while (placeLayerDown.consumeClick()) {
+			if (mc.screen == null && c.placeOn) SchematicPlacer.layer(-1);
+		}
+		while (placeHere.consumeClick()) {
+			if (mc.level != null) {
+				if (!SchematicPlacer.setLooking(mc)) SchematicPlacer.setHere(mc);
+				say(mc, "Schematic gesetzt", true);
+			}
 		}
 		while (kitNext.consumeClick()) KitProfiles.next();
 		for (int i = 0; i < KIT.length; i++) {

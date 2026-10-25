@@ -106,6 +106,8 @@ public class OemerClient implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
 			OemerKeys.tick(mc);
 			DistantHorizonsBridge.tick();
+			com.oemer.client.feature.SchematicPlacer.tick(mc);
+			com.oemer.client.feature.Clipper.tick(mc);
 		});
 
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
@@ -126,6 +128,7 @@ public class OemerClient implements ClientModInitializer {
 		});
 
 		com.oemer.client.online.Social.start();
+		com.oemer.client.feature.SchematicPlacer.init();
 
 		LOGGER.info("Ömer Client {} geladen", VERSION);
 	}

@@ -231,6 +231,11 @@ public final class Schematic {
 
 	// ------------------------------------------------------- NBT-Leser
 
+	/** Für SchematicGrid: die rohe NBT-Datei als Map lesen. */
+	static Map<String, Object> read(Path file) throws IOException {
+		return readNbt(file);
+	}
+
 	private static Map<String, Object> readNbt(Path file) throws IOException {
 		try (InputStream raw = new BufferedInputStream(Files.newInputStream(file))) {
 			raw.mark(2);

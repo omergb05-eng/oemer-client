@@ -1,4 +1,10 @@
 {
+	"key.oemerclient.clip_save": "Clip speichern",
+	"key.oemerclient.clip_toggle": "Clipper an/aus",
+	"key.oemerclient.place_toggle": "Schematic an/aus",
+	"key.oemerclient.place_layer_up": "Ebene höher",
+	"key.oemerclient.place_layer_down": "Ebene tiefer",
+	"key.oemerclient.place_here": "Schematic hier setzen",
 	"key.category.oemerclient.main": "Ömer Client",
 	"key.oemerclient.menu": "Ömer-Client-Menü öffnen",
 	"key.oemerclient.freecam": "Free Cam an/aus",
