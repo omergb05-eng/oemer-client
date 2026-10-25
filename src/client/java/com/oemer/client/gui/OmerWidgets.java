@@ -122,7 +122,8 @@ public final class OmerWidgets {
 			int track = on ? Theme.accent(0xB0) : Theme.white(0x30);
 			frame(g, tx, ty, tw, th, track, on ? Theme.accent(0xFF) : Theme.white(0x60));
 			int knob = tx + 1 + Math.round(anim * (tw - th));
-			g.fill(knob, ty + 1, knob + th - 2, ty + th - 1, 0xFFFFFFFF);
+			// An = dunkler Knopf auf hellem Grund, Aus = weißer Knopf
+			g.fill(knob, ty + 1, knob + th - 2, ty + th - 1, on ? 0xFF111111 : 0xFFFFFFFF);
 		}
 
 		@Override
