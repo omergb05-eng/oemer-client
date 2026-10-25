@@ -146,7 +146,7 @@ public final class SpriteCosmetics {
 		if (item.kind() == Kind.WINGS && !item.id().startsWith("custom:")) {
 			BufferedImage pair = new BufferedImage(img.getWidth() * 2, img.getHeight(), BufferedImage.TYPE_INT_ARGB);
 			Graphics2D g = pair.createGraphics();
-			g.drawImage(PresetArt.mirror(img), 0, 0, null);
+			g.drawImage(mirror(img), 0, 0, null);
 			g.drawImage(img, img.getWidth(), 0, null);
 			g.dispose();
 			return pair;
@@ -184,7 +184,15 @@ public final class SpriteCosmetics {
 		g.drawImage(back, w, 0, w, h, null);
 		g.dispose();
 		Textures.Tex t = Textures.image("cs_" + key, stamp, a);
-		return t == null ? null : t.id();
+		if (t == null) throw new IllegalStateException("Textur fehlt: " + key);
+		return t.id();
+	}
+
+	private static final Map<BufferedImage, BufferedImage> MIRRORED = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
+	/** Gespiegeltes Bild, nur einmal berechnet (nicht jedes Bild neu). */
+	private static BufferedImage mirror(BufferedImage img) {
+		return MIRRORED.computeIfAbsent(img, PresetArt::mirror);
 	}
 
 	private static final Map<String, BufferedImage[]> HALVES = new ConcurrentHashMap<>();
@@ -237,13 +245,13 @@ public final class SpriteCosmetics {
 					pose.pushPose();
 					model.body.translateAndRotate(pose);
 					pose.translate(0, 6f * px + 8f * px, 2.6f * px);
-					Identifier id = atlas(item.id(), stamp, PresetArt.mirror(img), img);
+					Identifier id = atlas(item.id(), stamp, mirror(img), img);
 					pose.scale(0.75f, 0.75f, 1f);
 					collector.submitModelPart(planeBottom, pose, RenderTypes.entityTranslucent(id), lit, ov, null);
 					pose.popPose();
 					return;
 				} else {
-					left = PresetArt.mirror(img);
+					left = mirror(img);
 					right = img;
 					aspect = 1f;
 				}
@@ -257,8 +265,8 @@ public final class SpriteCosmetics {
 					pose.mulPose(new Quaternionf().rotationZYX(side * -0.18f, side * -spread, 0f));
 					pose.scale(k * aspect, k, 1f);
 					Identifier id = side > 0
-							? atlas(item.id() + "_l", stamp, PresetArt.mirror(left), left)
-							: atlas(item.id() + "_r", stamp, PresetArt.mirror(right), right);
+							? atlas(item.id() + "_l", stamp, mirror(left), left)
+							: atlas(item.id() + "_r", stamp, mirror(right), right);
 					// links: Bild mit Ansatz rechts (gespiegelt) → Fläche nach +x
 					collector.submitModelPart(side > 0 ? planeLeftEdge : planeRightEdge, pose,
 							RenderTypes.entityTranslucent(id), lit, ov, null);
@@ -278,7 +286,7 @@ public final class SpriteCosmetics {
 				pose.popPose();
 			}
 			case RING -> {
-				Identifier id = atlas(item.id(), stamp, img, PresetArt.mirror(img));
+				Identifier id = atlas(item.id(), stamp, img, mirror(img));
 				for (int i = 0; i < 4; i++) {
 					pose.pushPose();
 					model.head.translateAndRotate(pose);
@@ -296,8 +304,8 @@ public final class SpriteCosmetics {
 					pose.translate(side * 2.6f * px, -8.2f * px, -0.5f * px);
 					pose.mulPose(new Quaternionf().rotationZ(side * 0.22f));
 					pose.scale(4.5f / 16f, 4.5f / 16f, 1f);
-					BufferedImage f = side > 0 ? img : PresetArt.mirror(img);
-					Identifier id = atlas(item.id() + (side > 0 ? "_a" : "_b"), stamp, f, PresetArt.mirror(f));
+					BufferedImage f = side > 0 ? img : mirror(img);
+					Identifier id = atlas(item.id() + (side > 0 ? "_a" : "_b"), stamp, f, mirror(f));
 					collector.submitModelPart(planeBottom, pose, RenderTypes.entityTranslucent(id), lit, ov, null);
 					pose.popPose();
 				}
@@ -309,7 +317,7 @@ public final class SpriteCosmetics {
 				float aspect = (float) img.getWidth() / img.getHeight();
 				float size = OemerConfig.CUSTOM_COS_SIZES[Math.floorMod(OemerConfig.get().customCosSize, 3)] * 1.2f;
 				pose.scale(size * Math.min(1.5f, aspect), size, 1f);
-				Identifier id = atlas(item.id(), stamp, img, PresetArt.mirror(img));
+				Identifier id = atlas(item.id(), stamp, img, mirror(img));
 				collector.submitModelPart(planeBottom, pose, RenderTypes.entityTranslucent(id), lit, ov, null);
 				pose.popPose();
 			}
@@ -320,7 +328,7 @@ public final class SpriteCosmetics {
 				if (anim) pose.mulPose(new Quaternionf().rotationY((float) Math.sin(t * 0.9) * 0.7f));
 				float aspect = (float) img.getWidth() / img.getHeight();
 				pose.scale(0.55f * Math.min(1.5f, aspect), 0.55f, 1f);
-				Identifier id = atlas(item.id(), stamp, img, PresetArt.mirror(img));
+				Identifier id = atlas(item.id(), stamp, img, mirror(img));
 				collector.submitModelPart(planeCenter, pose, RenderTypes.entityTranslucent(id), lit, ov, null);
 				pose.popPose();
 			}

@@ -55,7 +55,8 @@ public final class Textures {
 		}
 		try {
 			NativeImage nativeImage = NativeImage.read(ImageTools.toPng(img));
-			Identifier id = Identifier.fromNamespaceAndPath(OemerClient.MOD_ID, "img/" + slot + "_" + (counter++));
+			String safe = slot.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9/._-]", "_");
+			Identifier id = Identifier.fromNamespaceAndPath(OemerClient.MOD_ID, "img/" + safe + "_" + Integer.toHexString(slot.hashCode()) + "_" + (counter++));
 			Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(() -> "Ömer " + slot, nativeImage));
 			release(slot);
 			Tex tex = new Tex(id, img.getWidth(), img.getHeight());
