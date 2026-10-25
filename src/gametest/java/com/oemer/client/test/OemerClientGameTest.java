@@ -279,24 +279,24 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	check("playlist-track-remove", pls[0].tracks.size() == 2 && pls[0].tracks.stream().noneMatch(t -> t.id.equals(tr[2].id)), "");
 
 	// Menü: Meine Songs mit ✕, Playlist-Verwaltung, Song zu Playlist
-	OemerScreen.sectionForTest("MUSIK", null);
-	OemerScreen.musicForTest(null, null);
+	OmerScreen.sectionForTest("MUSIK", null);
+	OmerScreen.musicForTest(null, null);
 	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
 	ctx.waitTicks(30);
 	ctx.takeScreenshot("11a-musik-loeschen");
 	ctx.runOnClient(mc -> mc.screen.mouseScrolled(mc.screen.width / 2.0, mc.screen.height / 2.0, 0, -12));
 	ctx.waitTicks(10);
 	ctx.takeScreenshot("11b-musik-playlists");
-	OemerScreen.musicForTest(null, tr[3]);
+	OmerScreen.musicForTest(null, tr[3]);
 	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
 	ctx.waitTicks(20);
 	ctx.takeScreenshot("11c-musik-zu-playlist");
-	OemerScreen.musicForTest(pls[0], null);
+	OmerScreen.musicForTest(pls[0], null);
 	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
 	ctx.waitTicks(30);
 	ctx.takeScreenshot("11d-musik-playlist-offen");
 	check("playlist-open-menu", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
-	OemerScreen.musicForTest(null, null);
+	OmerScreen.musicForTest(null, null);
 
 	// Warteschlange: Song entfernen, aktueller Song entfernen, leeren
 	httpGet(page + "api/state");
@@ -344,7 +344,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		c.lookImage = "zz_del.png";
 		c.lookMode = true;
 	});
-	OemerScreen.sectionForTest("DESIGN", null);
+	OmerScreen.sectionForTest("DESIGN", null);
 	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
 	ctx.waitFor(mc -> Looks.photoReady(0), 600);
 	ctx.waitTicks(40);
