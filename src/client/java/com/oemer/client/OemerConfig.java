@@ -124,6 +124,12 @@ public class OemerConfig {
 	public boolean kitAutoSave = true;   // beim Kit-Wechsel das alte Kit automatisch speichern
 	public int graphicsLevel = -1;       // zuletzt gewählte Grafik-Stufe (-1 = eigene)
 
+	// ---- Freunde (online) ----
+	public boolean shareMusic = true;     // meine Musik für Freunde sichtbar
+	public boolean shareSkins = true;     // Cape + Totem mit Freunden teilen
+	public boolean chatToasts = true;     // Freunde-Nachrichten kurz im Spiel anzeigen
+	public java.util.Map<String, Long> chatRead = new java.util.HashMap<>(); // Freund -> zuletzt gelesene Nachricht
+
 	// ---- Spotify ----
 	public String spotifyClientId = "";
 	public boolean spotifyHud = true;
@@ -242,6 +248,7 @@ public class OemerConfig {
 		if (ytApiKey == null) ytApiKey = "";
 		ytVolume = Math.max(0, Math.min(100, ytVolume));
 		musicService = Math.floorMod(musicService, 2);
+		if (chatRead == null) chatRead = new java.util.HashMap<>();
 		zoomLevel = Math.floorMod(zoomLevel, ZOOM_NAMES.length);
 		lowFireLevel = Math.floorMod(lowFireLevel, LOW_NAMES.length);
 	portalLevel = Math.floorMod(portalLevel, PORTAL_NAMES.length);

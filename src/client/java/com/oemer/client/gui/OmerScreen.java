@@ -26,6 +26,9 @@ import com.oemer.client.feature.Spotify;
 import com.oemer.client.feature.SpriteCosmetics;
 import com.oemer.client.feature.Textures;
 import com.oemer.client.feature.YouTubeMusic;
+import com.oemer.client.online.Firebase;
+import com.oemer.client.online.FriendSkins;
+import com.oemer.client.online.Social;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -64,6 +67,7 @@ public class OmerScreen extends Screen {
 		DESIGN("Design", "✎", "Hintergrund, Vorlagen, Grafik"),
 		MUSIK("Musik", "♪", "YouTube-Musik und Spotify"),
 		SKIN("Skin", "☺", "Cape, Totem, Cosmetics, Sounds"),
+		FREUNDE("Freunde", "☻", "Freunde, Chat und gemeinsam Musik hören"),
 		KITS("Kits", "⚔", "Eigene Einstellungen und Tasten für jedes Kit");
 
 		final String title, icon, subtitle;
@@ -182,6 +186,8 @@ public class OmerScreen extends Screen {
 		keyBox = null;
 		plBox = null;
 		nameBox = null;
+		boxes.clear();
+		enters.clear();
 
 		boolean narrow = this.width < 420;
 		sideW = narrow ? 34 : 104;
@@ -225,7 +231,7 @@ public class OmerScreen extends Screen {
 		cy = contentTop;
 		flowN = 0;
 
-		String key = section + "|" + openMod + "|" + skinTab + "|" + OemerConfig.get().musicService;
+		String key = section + "|" + openMod + "|" + skinTab + "|" + friendTab + "|" + chatWith + "|" + OemerConfig.get().musicService;
 		if (!key.equals(pageKey)) {
 			pageKey = key;
 			scroll = 0;
@@ -249,6 +255,7 @@ public class OmerScreen extends Screen {
 			case DESIGN -> buildDesign();
 			case MUSIK -> buildMusic();
 			case SKIN -> buildSkin();
+			case FREUNDE -> buildFriends();
 			case KITS -> buildKits();
 		}
 		endFlow();
@@ -268,7 +275,7 @@ public class OmerScreen extends Screen {
 			case "key" -> keyBox;
 			case "pl" -> plBox;
 			case "nm" -> nameBox;
-			default -> null;
+			default -> boxes.get(focusName);
 		};
 		if (focus != null) {
 			this.setFocused(focus);
@@ -304,6 +311,14 @@ public class OmerScreen extends Screen {
 					+ ":" + Spotify.status();
 			case SKIN -> CapeManager.choices().size() + ":" + LooksPack.totemChoices().size() + ":" + CustomCosmetics.files().size();
 			case DESIGN -> Looks.files().size() + "";
+			case FREUNDE -> {
+				StringBuilder sb = new StringBuilder().append(Social.version()).append(Social.busy()).append(Social.loggedIn()).append(Social.status());
+				for (Social.Friend f : Social.friends()) {
+					sb.append(f.online() ? 1 : 0).append(Social.unread(f.uid));
+					sb.append(f.listening == null ? "-" : f.listening.title() + f.listening.playing());
+				}
+				yield sb.toString();
+			}
 			case MODS -> openMod != null && openMod.equals("material") ? ChestMarker.here().size() + ":" + MaterialList.files().size() : "";
 			default -> "";
 		};
@@ -317,7 +332,12 @@ public class OmerScreen extends Screen {
 			if (ytBox != null && ytBox.isFocused()) focusName = "yt";
 			if (plBox != null && plBox.isFocused()) focusName = "pl";
 			if (nameBox != null && nameBox.isFocused()) focusName = "nm";
+			for (var en : boxes.entrySet()) if (en.getValue().isFocused()) focusName = en.getKey();
 			refresh();
+		}
+		if (section == Section.FREUNDE) {
+			Social.watch();
+			if (friendTab == 1 && !chatWith.isEmpty()) Social.markRead(chatWith);
 		}
 	}
 
@@ -1334,6 +1354,351 @@ public class OmerScreen extends Screen {
 
 	// ==================================================================== Skin
 
+	// ================================================================ Freunde (online)
+
+	private static final String[] FRIEND_TABS = {"Freunde", "Chat", "Konto"};
+	private static int friendTab = 0;
+	private static String chatWith = "";
+	private static boolean registerMode;
+	private static boolean showServer;
+	private static final java.util.Map<String, String> DRAFTS = new java.util.HashMap<>();
+	private final java.util.Map<String, EditBox> boxes = new java.util.LinkedHashMap<>();
+	private final java.util.Map<String, Runnable> enters = new java.util.HashMap<>();
+
+	/** Texteingabe im Inhalt. Der Text bleibt erhalten, auch wenn die Seite neu aufgebaut wird. */
+	private EditBox fbox(String key, String hint, int max, int width, boolean secret, Runnable enter) {
+		endFlow();
+		EditBox b = new EditBox(this.font, cx0 + 10, cy + 8, width - 20, 12, Component.literal(hint));
+		b.setBordered(false);
+		b.setMaxLength(max);
+		b.setTextColor(0xFFFFFFFF);
+		b.setHint(Component.literal(hint));
+		if (secret) {
+			b.addFormatter((text, pos) -> net.minecraft.util.FormattedCharSequence.forward("•".repeat(text.length()), net.minecraft.network.chat.Style.EMPTY));
+		}
+		b.setValue(DRAFTS.getOrDefault(key, ""));
+		b.setResponder(v -> DRAFTS.put(key, v));
+		addContent(b);
+		boxes.put(key, b);
+		if (enter != null) enters.put(key, enter);
+		return b;
+	}
+
+	private void buildFriends() {
+		int x = panelX + panelW - 12;
+		for (int s = FRIEND_TABS.length - 1; s >= 0; s--) {
+			final int idx = s;
+			int w = Draw.width(FRIEND_TABS[s]) + 18;
+			x -= w;
+			String label = FRIEND_TABS[s] + (s == 1 && Social.unreadTotal() > 0 ? " (" + Social.unreadTotal() + ")" : "");
+			if (s == 1 && Social.unreadTotal() > 0) {
+				int extra = Draw.width(" (" + Social.unreadTotal() + ")");
+				w += extra;
+				x -= extra;
+			}
+			this.addRenderableWidget(new OmerWidgets.Flat(x, panelY + 11, w, 18, label, () -> {
+				friendTab = idx;
+				refresh();
+			}, () -> friendTab == idx).style(OmerWidgets.Style.PILL));
+			x -= 4;
+		}
+		Social.watch();
+		if (!Social.loggedIn()) {
+			friendTab = 2;
+			buildAccount();
+			return;
+		}
+		switch (friendTab) {
+			case 0 -> buildFriendList();
+			case 1 -> buildChat();
+			default -> buildAccount();
+		}
+	}
+
+	private void sendRequest() {
+		focusName = "add";
+		Social.addFriend(DRAFTS.getOrDefault("add", ""), ok -> {
+			if (ok) DRAFTS.remove("add");
+		});
+	}
+
+	private void buildFriendList() {
+		heading("Freund hinzufügen");
+		fbox("add", "Username deines Freundes …", 16, cw - 128, false, this::sendRequest);
+		addContent(new OmerWidgets.Flat(cx0 + cw - 120, cy, 120, ROW_H, "＋ Anfrage senden", this::sendRequest)
+				.style(OmerWidgets.Style.PRIMARY).tip("Dein Freund bekommt die Anfrage, sobald er online ist"));
+		cy += ROW_H + GAP;
+		if (!Social.status().isEmpty()) note(Social.status());
+
+		List<Social.Request> reqs = Social.requests();
+		if (!reqs.isEmpty()) {
+			heading("Anfragen (" + reqs.size() + ")");
+			for (Social.Request r : reqs) {
+				endFlow();
+				final String shown = r.name() + " möchte dein Freund sein";
+				addContent(new OmerWidgets.Painter(cx0, cy, Math.max(60, cw - 212), ROW_H, (g, px, py, pw, ph, mx, my) -> {
+					Draw.round(g, px, py, pw, ph, 5, Theme.white(0x10));
+					Draw.text(g, Draw.fit(shown, pw - 16), px + 8, py + (ph - 8) / 2 + 1, Theme.TEXT);
+				}, null));
+				addContent(new OmerWidgets.Flat(cx0 + cw - 206, cy, 100, ROW_H, "✔ Annehmen", () -> Social.accept(r.uid(), null))
+						.style(OmerWidgets.Style.PRIMARY));
+				addContent(new OmerWidgets.Flat(cx0 + cw - 102, cy, 100, ROW_H, "✕ Ablehnen", () -> Social.decline(r.uid(), null)));
+				cy += ROW_H + GAP;
+			}
+		}
+
+		List<Social.Friend> list = Social.friends();
+		heading("Freunde (" + list.size() + ")");
+		if (list.isEmpty()) {
+			note("Noch keine Freunde – gib oben den Username deines Freundes ein.");
+		}
+		for (Social.Friend f : list) {
+			endFlow();
+			final int rowH = 48;
+			addContent(new OmerWidgets.Painter(cx0, cy, Math.max(60, cw - 226), rowH, (g, px, py, pw, ph, mx, my) -> paintFriend(g, f, px, py, pw, ph), null));
+			int bx = cx0 + cw - 220;
+			int unread = Social.unread(f.uid);
+			addContent(new OmerWidgets.Flat(bx, cy, 106, 22, unread > 0 ? "Chat (" + unread + " neu)" : "Chat", () -> {
+				chatWith = f.uid;
+				friendTab = 1;
+				scroll = 0;
+				Social.loadChat(f.uid);
+				refresh();
+			}, () -> unread > 0).tip("Mit " + f.name + " schreiben"));
+			Social.Listening l = f.listening;
+			boolean canJoin = l != null && "YouTube".equals(l.service()) && !l.id().isEmpty();
+			var join = new OmerWidgets.Flat(bx + 110, cy, 106, 22, "♪ Mitlauschen", () -> Social.listenAlong(f.uid, null)).style(OmerWidgets.Style.PRIMARY);
+			join.active = canJoin;
+			join.tip(canJoin ? "Spielt " + f.name + "s Song bei dir ab, an derselben Stelle" : "Geht, wenn " + f.name + " gerade YouTube-Musik teilt");
+			addContent(join);
+			boolean vis = Social.musicVisibleFor(f.uid);
+			addContent(new OmerWidgets.Flat(bx, cy + 25, 106, 22, vis ? "Meine Musik: an" : "Meine Musik: aus",
+					() -> Social.setMusicFor(f.uid, !vis, null)).tip("Ob " + f.name + " sehen darf, was du gerade hörst"));
+			addContent(new OmerWidgets.Flat(bx + 110, cy + 25, 106, 22, "Entfernen",
+					() -> confirmDelete(f.name + " als Freund entfernen?", () -> Social.removeFriend(f.uid, null))));
+			cy += rowH + GAP;
+		}
+		info(() -> "Freunde sehen dein Cape in der Welt und dein Totem hier in der Liste (Konto → Teilen).");
+	}
+
+	private void paintFriend(GuiGraphics g, Social.Friend f, int x, int y, int w, int h) {
+		Draw.round(g, x, y, w, h, 6, Theme.white(0x10));
+		Draw.roundBorder(g, x, y, w, h, 6, Theme.white(0x1C));
+		int tx = x + 22;
+		Draw.round(g, x + 8, y + 9, 8, 8, 4, f.online() ? 0xFF4ADE80 : 0xFF6B7280);
+		if (f.hasTotem()) {
+			final int ver = FriendSkins.totemVersion(f.uid);
+			Textures.Tex tex = Thumbs.get("friendtotem_" + f.uid + "_" + ver, () -> FriendSkins.totemImage(f.uid));
+			Draw.round(g, x + 22, y + 8, 32, 32, 4, 0x50000000);
+			if (tex != null) Textures.drawContain(g, tex, x + 23, y + 9, 30, 30);
+			tx = x + 60;
+		}
+		String head = f.name + (f.online() ? "" : "  ·  offline");
+		Draw.text(g, Draw.fit(head, w - (tx - x) - 8), tx, y + 8, f.online() ? Theme.TEXT : Theme.TEXT_DIM);
+		Social.Listening l = f.listening;
+		String line;
+		int col;
+		if (l != null && !l.title().isEmpty()) {
+			line = (l.playing() ? "♪ " : "⏸ ") + l.title() + (l.artist().isEmpty() ? "" : " – " + l.artist());
+			col = Theme.accent();
+		} else {
+			line = f.online() ? "hört gerade nichts" : "";
+			col = Theme.TEXT_FAINT;
+		}
+		Draw.text(g, Draw.fit(line, w - (tx - x) - 8), tx, y + 22, col);
+		String extra = (f.hasCape() ? "Cape" : "") + (f.hasCape() && f.hasTotem() ? " · " : "") + (f.hasTotem() ? "Totem" : "");
+		if (!extra.isEmpty()) Draw.text(g, Draw.fit("teilt: " + extra, w - (tx - x) - 8), tx, y + 34, Theme.TEXT_FAINT);
+	}
+
+	private void sendChat() {
+		EditBox b = boxes.get("chat");
+		String text = DRAFTS.getOrDefault("chat", "");
+		if (text.isBlank() || chatWith.isEmpty()) return;
+		focusName = "chat";
+		DRAFTS.remove("chat");
+		if (b != null) b.setValue("");
+		Social.send(chatWith, text, null);
+	}
+
+	private void buildChat() {
+		Social.Friend f = Social.friend(chatWith);
+		if (f == null) {
+			chatWith = "";
+			Social.setOpenChat("");
+			heading("Chats");
+			List<Social.Friend> list = Social.friends();
+			if (list.isEmpty()) note("Du hast noch keine Freunde – füge links unter „Freunde“ jemanden hinzu.");
+			flow(cw >= 440 ? 2 : 1, ROW_H + 4);
+			for (Social.Friend fr : list) {
+				int[] sl = flowSlot();
+				int unread = Social.unread(fr.uid);
+				addContent(new OmerWidgets.Flat(sl[0], sl[1], sl[2], sl[3], (fr.online() ? "● " : "○ ") + fr.name + (unread > 0 ? "  (" + unread + " neu)" : ""), () -> {
+					chatWith = fr.uid;
+					Social.loadChat(fr.uid);
+					refresh();
+				}, () -> unread > 0));
+			}
+			endFlow();
+			return;
+		}
+		Social.setOpenChat(chatWith);
+		endFlow();
+		addContent(new OmerWidgets.Flat(cx0, cy, 110, 22, "◀ Alle Chats", () -> {
+			chatWith = "";
+			Social.setOpenChat("");
+			refresh();
+		}).style(OmerWidgets.Style.GLASS));
+		final String head = "Chat mit " + f.name + (f.online() ? "  ·  online" : "  ·  offline");
+		addContent(new OmerWidgets.Painter(cx0 + 120, cy, Math.max(40, cw - 120), 22, (g, px, py, pw, ph, mx, my) ->
+				Draw.text(g, Draw.fit(head, pw), px, py + 7, Theme.TEXT), null));
+		cy += 22 + GAP;
+		int avail = panelY + panelH - 10 - cy - ROW_H - GAP;
+		final int chatH = Math.max(80, avail);
+		final String uid = chatWith;
+		addContent(new OmerWidgets.Painter(cx0, cy, cw, chatH, (g, px, py, pw, ph, mx, my) -> paintChat(g, uid, px, py, pw, ph), null));
+		cy += chatH + GAP;
+		fbox("chat", "Nachricht schreiben …", 300, cw - 108, false, this::sendChat);
+		addContent(new OmerWidgets.Flat(cx0 + cw - 100, cy, 100, ROW_H, "Senden", this::sendChat).style(OmerWidgets.Style.PRIMARY));
+		cy += ROW_H + GAP;
+	}
+
+	private void paintChat(GuiGraphics g, String uid, int x, int y, int w, int h) {
+		Draw.round(g, x, y, w, h, 8, 0x50000000);
+		Draw.roundBorder(g, x, y, w, h, 8, Theme.white(0x1C));
+		List<Social.Msg> msgs = Social.chat(uid);
+		if (msgs.isEmpty()) {
+			Draw.centered(g, "Noch keine Nachrichten – schreib die erste!", x + w / 2, y + h / 2 - 4, Theme.TEXT_DIM);
+			return;
+		}
+		String me = Social.myUid();
+		g.enableScissor(x + 2, y + 2, x + w - 2, y + h - 2);
+		int bottom = y + h - 8;
+		int maxText = Math.max(60, w * 3 / 4 - 16);
+		for (int i = msgs.size() - 1; i >= 0 && bottom > y; i--) {
+			Social.Msg m = msgs.get(i);
+			List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(m.text()), maxText);
+			int tw = 0;
+			for (var l : lines) tw = Math.max(tw, this.font.width(l));
+			int bw = tw + 14, bh = lines.size() * 10 + 8;
+			boolean mine = m.from().equals(me);
+			int bx = mine ? x + w - 10 - bw : x + 10;
+			int by = bottom - bh;
+			Draw.round(g, bx, by, bw, bh, 6, mine ? Theme.accent(0x55) : Theme.white(0x1E));
+			int ty = by + 5;
+			for (var l : lines) {
+				g.drawString(this.font, l, bx + 7, ty, 0xFFFFFFFF);
+				ty += 10;
+			}
+			bottom = by - 4;
+		}
+		g.disableScissor();
+	}
+
+	private void buildAccount() {
+		OemerConfig c = OemerConfig.get();
+		if (!Firebase.configured() || showServer) {
+			heading("Server (Firebase)");
+			note("Einmal einrichten: Web-API-Schlüssel + Datenbank-Adresse aus deinem Firebase-Projekt.");
+			if (!DRAFTS.containsKey("fbkey")) DRAFTS.put("fbkey", Firebase.apiKey());
+			if (!DRAFTS.containsKey("fburl")) DRAFTS.put("fburl", Firebase.databaseUrl());
+			fbox("fbkey", "Web-API-Schlüssel (apiKey)", 90, cw, false, null);
+			cy += ROW_H + GAP;
+			fbox("fburl", "Datenbank-Adresse (https://….firebasedatabase.app)", 140, cw, false, null);
+			cy += ROW_H + GAP;
+			button("Server speichern", () -> {
+				Firebase.setServer(DRAFTS.getOrDefault("fbkey", ""), DRAFTS.getOrDefault("fburl", ""));
+				Social.setStatus("Server gespeichert");
+				showServer = false;
+				refresh();
+			}, OmerWidgets.Style.PRIMARY);
+			endFlow();
+			if (!Firebase.configured()) return;
+		}
+		if (Social.loggedIn()) {
+			heading("Dein Konto");
+			note("Angemeldet als " + Social.username() + "   ·   " + Social.email());
+			heading("Teilen");
+			toggle("Meine Musik teilen", () -> c.shareMusic, v -> c.shareMusic = v, "Freunde sehen, was du hörst (pro Freund abschaltbar)");
+			toggle("Cape & Totem teilen", () -> c.shareSkins, v -> {
+				c.shareSkins = v;
+				Social.syncSkinsLater();
+			}, "Freunde sehen dein Cape in der Welt und dein Totem in der Liste");
+			toggle("Nachrichten im Spiel zeigen", () -> c.chatToasts, v -> c.chatToasts = v, "Neue Freunde-Nachrichten und Anfragen erscheinen kurz im Chat");
+			endFlow();
+			button("Cape & Totem jetzt hochladen", Social::syncSkinsLater, OmerWidgets.Style.GLASS);
+			button("Abmelden", Social::logout, OmerWidgets.Style.GLASS);
+			button(showServer ? "Server-Einstellungen zu" : "Server-Einstellungen", () -> {
+				showServer = !showServer;
+				refresh();
+			}, OmerWidgets.Style.GHOST);
+			endFlow();
+			if (!Social.status().isEmpty()) note(Social.status());
+			info(() -> "Dein Passwort wird nie auf dem PC gespeichert – nur eine Anmelde-Marke.");
+			return;
+		}
+		if (Social.needsName()) {
+			heading("Username festlegen");
+			note("Dein Konto ist da – such dir noch einen Namen aus (3–16 Zeichen: Buchstaben, Zahlen, _).");
+			Runnable claim = () -> Social.claimName(DRAFTS.getOrDefault("claim", ""), null);
+			fbox("claim", "Username", 16, cw, false, claim);
+			cy += ROW_H + GAP;
+			button("Username festlegen", claim, OmerWidgets.Style.PRIMARY);
+			button("Abmelden", Social::logout, OmerWidgets.Style.GLASS);
+			endFlow();
+			if (!Social.status().isEmpty()) note(Social.status());
+			return;
+		}
+		heading(registerMode ? "Konto erstellen" : "Anmelden");
+		buttonRow(new String[]{"Ich habe ein Konto", "Neu registrieren"}, new Runnable[]{
+				() -> {
+					registerMode = false;
+					refresh();
+				}, () -> {
+			registerMode = true;
+			refresh();
+		}}, () -> registerMode ? 1 : 0);
+		Runnable submit = () -> {
+			String mail = DRAFTS.getOrDefault("mail", ""), pw = DRAFTS.getOrDefault("pw", "");
+			if (registerMode) {
+				Social.register(mail, pw, DRAFTS.getOrDefault("user", ""), ok -> {
+					if (ok) {
+						DRAFTS.remove("pw");
+						friendTab = 0;
+					}
+				});
+			} else {
+				Social.login(mail, pw, ok -> {
+					if (ok) {
+						DRAFTS.remove("pw");
+						friendTab = 0;
+					}
+				});
+			}
+		};
+		fbox("mail", "E-Mail", 64, cw, false, submit);
+		cy += ROW_H + GAP;
+		if (registerMode) {
+			fbox("user", "Username (3–16 Zeichen: a–z, 0–9, _)", 16, cw, false, submit);
+			cy += ROW_H + GAP;
+		}
+		fbox("pw", "Passwort (mindestens 6 Zeichen)", 64, cw, true, submit);
+		cy += ROW_H + GAP;
+		button(registerMode ? "Konto erstellen" : "Anmelden", submit, OmerWidgets.Style.PRIMARY);
+		if (!registerMode) {
+			button("Passwort vergessen?", () -> Social.resetPassword(DRAFTS.getOrDefault("mail", ""), null), OmerWidgets.Style.GLASS,
+					"Schickt dir eine E-Mail zum Zurücksetzen");
+		}
+		endFlow();
+		if (Social.busy()) note("Bitte warten …");
+		else if (!Social.status().isEmpty()) note(Social.status());
+		button(showServer ? "Server-Einstellungen zu" : "Server-Einstellungen", () -> {
+			showServer = !showServer;
+			refresh();
+		}, OmerWidgets.Style.GHOST);
+		endFlow();
+		info(() -> "Pro Username gibt es genau 1 Konto. Dein Passwort wird nie auf dem PC gespeichert.");
+	}
+
 	private void buildSkin() {
 		// Unter-Reiter oben rechts
 		int x = panelX + panelW - 12;
@@ -1361,7 +1726,7 @@ public class OmerScreen extends Screen {
 
 	private void buildCape() {
 		OemerConfig c = OemerConfig.get();
-		toggle("Eigenes Cape", () -> c.customCape, v -> c.customCape = v, "Das Cape siehst nur du");
+		toggle("Eigenes Cape", () -> c.customCape, v -> c.customCape = v, "Du siehst es immer – Freunde sehen es, wenn du es unter Freunde → Konto teilst");
 		button("Datei wählen", () -> FilePicker.pickImage("Cape-Bild wählen", CapeManager.folder(), name -> {
 			c.capeSelection = name;
 			c.customCape = true;
@@ -1735,6 +2100,15 @@ public class OmerScreen extends Screen {
 			listening = null;
 			return true;
 		}
+		if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+			for (var en : boxes.entrySet()) {
+				Runnable r = enters.get(en.getKey());
+				if (r != null && en.getValue().isFocused()) {
+					r.run();
+					return true;
+				}
+			}
+		}
 		if ((event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) && ytBox != null && ytBox.isFocused()) {
 			YouTubeMusic.submit(ytBox.getValue());
 			focusName = "yt";
@@ -1822,6 +2196,7 @@ public class OmerScreen extends Screen {
 		return switch (section) {
 			case MUSIK -> 130;
 			case SKIN -> 220;
+			case FREUNDE -> 230;
 			case DESIGN -> 110;
 			case MODS -> openMod != null ? 90 : 0;
 			default -> 0;
@@ -1986,6 +2361,13 @@ public class OmerScreen extends Screen {
 		pickTrack = pick;
 	}
 
+	/** Für den automatischen Test: Freunde-Reiter (0 Freunde, 1 Chat, 2 Konto) und offenen Chat setzen. */
+	public static void friendsForTest(int tab, String chat, boolean register) {
+		friendTab = tab;
+		chatWith = chat == null ? "" : chat;
+		registerMode = register;
+	}
+
 	/** Für den automatischen Test: Bereich öffnen. */
 	public static void sectionForTest(String name, String mod) {
 		section = Section.valueOf(name);
@@ -1998,6 +2380,8 @@ public class OmerScreen extends Screen {
 	@Override
 	public void onClose() {
 		OemerConfig.save();
+		Social.setOpenChat("");
+		if (Social.loggedIn()) Social.syncSkinsLater();
 		if (looksChanged) {
 			looksChanged = false;
 			LooksPack.apply(this.minecraft);

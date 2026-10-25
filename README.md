@@ -1,4 +1,4 @@
-# Ömer Client – Version 6.2
+# Ömer Client – Version 7.0
 
 Fabric-Mod für **Minecraft 1.21.11** (braucht **Fabric API**).
 
@@ -51,6 +51,25 @@ einmal öffnen – dann zählt ihr Inhalt in der Liste mit, und die Kiste leucht
   Breite Bilder auf dem Rücken werden zu Flügeln (links/rechts geteilt, schlagen)
 
 Alle Ordner liegen in `.minecraft/config/oemerclient/`. Cape, Cosmetics, Totem und Sounds siehst bzw. hörst nur du.
+
+## Freunde (online) – neu in 7.0
+Im Menü gibt es links den Bereich **Freunde** (Reiter Freunde · Chat · Konto).
+
+- **Konto:** E-Mail + Passwort. Jeder Username gibt es nur 1×. Das Passwort wird nie auf dem PC gespeichert (nur eine Anmelde-Marke), „Passwort vergessen?“ schickt eine Mail.
+- **Freunde:** per Username hinzufügen → Anfrage → annehmen/ablehnen/entfernen. Grüner Punkt = online.
+- **Chat:** mit Freunden im Menü schreiben (nicht im Minecraft-Chat). Optional kommt eine kurze Meldung im Spiel.
+- **Cape & Totem teilen:** Freunde sehen dein Cape auf deinem Spieler in der Welt; dein Totem sehen sie in der Freundesliste (die Totem-Animation selbst sieht nur der Besitzer – das lässt Minecraft nicht anders zu).
+- **Musik:** Freunde sehen unter deinem Namen, was du hörst. Pro Freund ein/aus („Meine Musik: an/aus“) und global unter Konto. **♪ Mitlauschen** startet den Song deines Freundes bei dir an derselben Stelle (nur YouTube).
+
+### Einmalig einrichten (Firebase, kostenlos)
+1. https://console.firebase.google.com → Projekt erstellen.
+2. *Build → Authentication → Get started → Sign-in method → E-Mail/Passwort* einschalten.
+3. *Build → Realtime Database → Create database* (Standort egal, Start im **gesperrten Modus**), dann Reiter *Rules* → Inhalt von `firebase/database.rules.json` einfügen → Publish.
+4. *Projekteinstellungen (Zahnrad) → Allgemein → „Web-API-Schlüssel“* kopieren; die Datenbank-Adresse steht oben in der Realtime Database (`https://….firebasedatabase.app`).
+5. Im Spiel: Freunde → Konto → *Server-Einstellungen* → beides eintragen. Oder beides in `online/OnlineDefaults.java` einbauen, dann müssen Freunde nichts eintippen.
+
+Die Regeln sind im Emulator getestet (`ci/rules-test.mjs`): Fremde sehen nichts, nur Freunde sehen Skins/Musik, Chat nur zwischen Freunden.
+Wichtig: Ohne Mojang-Prüfung kann ein Username theoretisch jeder belegen, der ihn zuerst registriert – für einen Freundeskreis ist das okay.
 
 ## .jar bekommen
 1. Auf GitHub im Repository oben auf **Actions** gehen.

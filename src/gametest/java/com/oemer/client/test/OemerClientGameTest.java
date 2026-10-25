@@ -28,6 +28,12 @@ import com.oemer.client.feature.ShulkerPreview;
 import com.oemer.client.feature.SpriteCosmetics;
 import com.oemer.client.feature.YouTubeMusic;
 import com.oemer.client.feature.Zoom;
+import com.oemer.client.online.Firebase;
+import com.oemer.client.online.FriendSkins;
+import com.oemer.client.online.Social;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonNull;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -88,6 +94,268 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			throw new AssertionError("Button nicht gefunden: " + text);
 		}
 		ctx.waitTicks(3);
+	}
+
+	private interface Cond {
+		boolean ok() throws Exception;
+	}
+
+	private static boolean until(ClientGameTestContext ctx, int maxTicks, Cond c) {
+		for (int i = 0; i < maxTicks; i += 4) {
+			try {
+				if (c.ok()) return true;
+			} catch (Exception ignored) {
+			}
+			ctx.waitTicks(4);
+		}
+		try {
+			return c.ok();
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	private static byte[] solidPng(int w, int h, int argb) throws Exception {
+		BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+		for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) img.setRGB(x, y, argb);
+		return ImageTools.toPng(img);
+	}
+
+	private static boolean denied(Firebase.Session s, String path) {
+		try {
+			Firebase.get(s, path);
+			return false;
+		} catch (Firebase.FirebaseException e) {
+			return "DENIED".equals(e.code);
+		}
+	}
+
+	private Firebase.Session bob;
+	private String bobMc = "";
+
+	private Firebase.Session makeUser(String email, String name, String mc) throws Exception {
+		Firebase.Session s = Firebase.signUp(email, "geheim123");
+		Firebase.put(s, "usernames/" + name.toLowerCase(), new JsonPrimitive(s.uid));
+		JsonObject prof = new JsonObject();
+		prof.addProperty("name", name);
+		prof.addProperty("mc", mc);
+		prof.add("seen", Firebase.serverTime());
+		Firebase.put(s, "profiles/" + s.uid, prof);
+		return s;
+	}
+
+	private void onlineTest(ClientGameTestContext ctx, String page) {
+		try {
+			onlineTestInner(ctx, page);
+		} catch (Throwable t) {
+			t.printStackTrace();
+			check("online-exception", false, t.toString());
+		}
+	}
+
+	private void onlineTestInner(ClientGameTestContext ctx, String page) throws Exception {
+		if (Firebase.emulator() == null) {
+			check("online-emulator", false, "Systemeigenschaft oemer.firebase.emulator fehlt");
+			return;
+		}
+		httpGet(page + "api/state");
+
+		// Anmelde- und Registrier-Formular
+		OmerScreen.sectionForTest("FREUNDE", null);
+		OmerScreen.friendsForTest(2, null, false);
+		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+		ctx.waitTicks(10);
+		check("friends-nav", ctx.computeOnClient(mc -> mc.screen.children().stream().anyMatch(c -> c instanceof AbstractButton b && b.getMessage().getString().equals("Konto erstellen") == false && b.getMessage().getString().equals("Anmelden"))), "");
+		ctx.takeScreenshot("50-freunde-anmelden");
+		OmerScreen.friendsForTest(2, null, true);
+		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+		ctx.waitTicks(10);
+		ctx.takeScreenshot("50b-freunde-registrieren");
+
+		// Konto anlegen: 1 Username = 1 Konto
+		Social.register("omer@test.de", "geheim123", "Omer", null);
+		check("acc-register", until(ctx, 300, Social::loggedIn) && Social.username().equals("Omer"), Social.status());
+		Social.register("zweiter@test.de", "geheim123", "omer", null);
+		check("acc-username-unique", until(ctx, 300, () -> Social.status().contains("vergeben")) && Social.username().equals("Omer"), Social.status());
+		Social.register("kurz@test.de", "geheim123", "ab", null);
+		check("acc-username-invalid", until(ctx, 200, () -> Social.status().contains("3–16")), Social.status());
+		Path acc = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("oemerclient").resolve("account.json");
+		String accText = Files.isRegularFile(acc) ? Files.readString(acc) : "";
+		check("acc-saved-no-password", accText.contains("refreshToken") && !accText.contains("geheim123"), "");
+
+		// Abmelden / falsches Passwort / Anmelden
+		Social.logout();
+		check("acc-logout", until(ctx, 200, () -> !Social.loggedIn()), "");
+		Social.login("omer@test.de", "falsch!", null);
+		check("acc-wrong-password", until(ctx, 300, () -> Social.status().contains("stimmt nicht")) && !Social.loggedIn(), Social.status());
+		Social.login("omer@test.de", "geheim123", null);
+		check("acc-login", until(ctx, 300, Social::loggedIn) && Social.username().equals("Omer"), Social.status());
+
+		// Zweites Konto "Anna" (Freund) und "Carl" (Anfrage)
+		bobMc = java.util.UUID.randomUUID().toString();
+		bob = makeUser("anna@test.de", "Anna", bobMc);
+		Firebase.Session carl = makeUser("carl@test.de", "Carl", java.util.UUID.randomUUID().toString());
+		String me = Social.myUid();
+
+		Social.addFriend("gibtesnicht", null);
+		check("friend-unknown", until(ctx, 200, () -> Social.status().contains("gibt es nicht")), Social.status());
+		Social.addFriend("Omer", null);
+		check("friend-self", until(ctx, 200, () -> Social.status().contains("selbst")), Social.status());
+		Social.addFriend("anna", null);
+		check("friend-request-sent", until(ctx, 300, () -> Firebase.get(bob, "requests/" + bob.uid).getAsJsonObject().has(me)), "");
+		// Anna nimmt an (alles auf einmal, wie der Client)
+		JsonObject acceptOps = new JsonObject();
+		acceptOps.addProperty("friends/" + bob.uid + "/" + me, true);
+		acceptOps.addProperty("friends/" + me + "/" + bob.uid, true);
+		acceptOps.add("requests/" + bob.uid + "/" + me, JsonNull.INSTANCE);
+		Firebase.multi(bob, acceptOps);
+		Social.syncNow();
+		check("friend-accepted", Social.friend(bob.uid) != null && Social.friend(bob.uid).name.equals("Anna"), "");
+		check("friend-online", Social.friend(bob.uid) != null && Social.friend(bob.uid).online(), "");
+
+		// Carl schickt eine Anfrage → erscheint, wird abgelehnt
+		JsonObject req = new JsonObject();
+		req.addProperty("name", "Carl");
+		req.add("ts", Firebase.serverTime());
+		Firebase.put(carl, "requests/" + me + "/" + carl.uid, req);
+		Social.syncNow();
+		check("request-incoming", Social.requests().size() == 1 && Social.requests().get(0).name().equals("Carl"), "" + Social.requests().size());
+
+		// Cape + Totem teilen
+		ctx.runOnClient(mc -> {
+			OemerConfig c = OemerConfig.get();
+			c.customCape = true;
+			c.capeSelection = "design:3";
+			c.customTotem = true;
+			c.totemMode = 2;
+			c.totemPreset = 0;
+			c.shareSkins = true;
+		});
+		Social.syncSkinsLater();
+		check("skins-upload", until(ctx, 400, () -> {
+			var o = Firebase.get(bob, "skins/" + me).getAsJsonObject();
+			return o.has("cape") && o.has("totem");
+		}), "");
+		check("skins-stranger-denied", denied(carl, "skins/" + me), "");
+		// Anna teilt rotes Cape + grünes Totem
+		JsonObject sk = new JsonObject();
+		sk.addProperty("cape", java.util.Base64.getEncoder().encodeToString(solidPng(64, 32, 0xFFE02020)));
+		sk.addProperty("totem", java.util.Base64.getEncoder().encodeToString(solidPng(96, 96, 0xFF20C040)));
+		Firebase.put(bob, "skins/" + bob.uid, sk);
+		Social.syncNow();
+		check("skins-friend-received", FriendSkins.hasCape(bobMc) && FriendSkins.hasTotem(bob.uid), "");
+		check("skins-cape-texture", ctx.computeOnClient(mc -> FriendSkins.capeFor(java.util.UUID.fromString(bobMc)) != null), "");
+
+		// Chat
+		Social.send(bob.uid, "Hallo Anna!", null);
+		check("chat-sent", until(ctx, 300, () -> {
+			var o = Firebase.get(bob, "messages/" + bob.uid + "/" + me).getAsJsonObject();
+			return o.entrySet().stream().anyMatch(e -> e.getValue().getAsJsonObject().get("text").getAsString().equals("Hallo Anna!"));
+		}), "");
+		long ts = Social.serverNow();
+		JsonObject m = new JsonObject();
+		m.addProperty("from", bob.uid);
+		m.addProperty("text", "Hey Ömer, hörst du mit? 🎵");
+		m.addProperty("ts", ts);
+		JsonObject ops = new JsonObject();
+		ops.add("messages/" + bob.uid + "/" + me + "/mx1", m);
+		ops.add("messages/" + me + "/" + bob.uid + "/mx1", m);
+		ops.addProperty("inbox/" + me + "/" + bob.uid, ts);
+		Firebase.multi(bob, ops);
+		Social.syncNow();
+		check("chat-received", Social.chat(bob.uid).size() == 2 && Social.unread(bob.uid) == 1, Social.chat(bob.uid).size() + " Nachrichten, " + Social.unread(bob.uid) + " ungelesen");
+
+		// Musik teilen
+		ctx.runOnClient(mc -> YouTubeMusic.play(new YouTubeMusic.Track("jNQXAC9IVRw", "Me at the zoo", "jawed")));
+		httpGet(page + "api/state");
+		Social.publishNow();
+		check("music-published", until(ctx, 200, () -> Firebase.get(bob, "listening/" + me).getAsJsonObject().get("title").getAsString().equals("Me at the zoo")), "");
+		Social.setMusicFor(bob.uid, false, null);
+		check("music-hidden-for-friend", until(ctx, 300, () -> denied(bob, "listening/" + me)), "");
+		Social.setMusicFor(bob.uid, true, null);
+		check("music-visible-again", until(ctx, 300, () -> !denied(bob, "listening/" + me)), "");
+		ctx.runOnClient(mc -> OemerConfig.get().shareMusic = false);
+		Social.publishNow();
+		check("music-global-off", until(ctx, 200, () -> Firebase.get(bob, "listening/" + me).isJsonNull()), "");
+		ctx.runOnClient(mc -> OemerConfig.get().shareMusic = true);
+
+		// Anna hört Musik → Ömer sieht es und hört mit
+		JsonObject l = new JsonObject();
+		l.addProperty("id", "dQw4w9WgXcQ");
+		l.addProperty("title", "Fools (Lyrics)");
+		l.addProperty("artist", "Madison Beer");
+		l.addProperty("service", "YouTube");
+		l.addProperty("pos", 30000);
+		l.add("at", Firebase.serverTime());
+		l.addProperty("playing", true);
+		Firebase.put(bob, "listening/" + bob.uid, l);
+		Social.syncNow();
+		check("music-friend-visible", Social.friend(bob.uid).listening != null && Social.friend(bob.uid).listening.title().startsWith("Fools"), "");
+		check("music-position-advances", Social.friend(bob.uid).listening != null && Social.positionOf(Social.friend(bob.uid).listening) >= 30000, "");
+
+		// Screenshots: Liste, Chat
+		OmerScreen.friendsForTest(0, null, false);
+		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+		ctx.waitTicks(20);
+		ctx.takeScreenshot("51-freunde-liste");
+		String bobUid = bob.uid;
+		OmerScreen.friendsForTest(1, bobUid, false);
+		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+		ctx.waitTicks(20);
+		ctx.takeScreenshot("52-freunde-chat");
+		check("chat-marked-read", until(ctx, 100, () -> Social.unread(bobUid) == 0), "");
+		OmerScreen.friendsForTest(2, null, false);
+		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+		ctx.waitTicks(20);
+		ctx.takeScreenshot("53-freunde-konto");
+
+		// Mitlauschen (YouTube) und Spotify (nicht möglich)
+		Social.listenAlong(bob.uid, null);
+		check("listen-along", until(ctx, 300, () -> YouTubeMusic.current() != null && YouTubeMusic.current().id.equals("dQw4w9WgXcQ")), "");
+		httpGet(page + "api/cmd?do=clearqueue");
+		l.addProperty("service", "Spotify");
+		l.addProperty("id", "");
+		Firebase.put(bob, "listening/" + bob.uid, l);
+		Social.listenAlong(bob.uid, null);
+		check("listen-spotify-refused", until(ctx, 300, () -> Social.status().contains("nur bei YouTube")), Social.status());
+
+		// Anfrage ablehnen
+		Social.decline(carl.uid, null);
+		check("request-declined", until(ctx, 300, () -> Social.requests().isEmpty()), "");
+		ctx.setScreen(() -> new TitleScreen());
+		ctx.waitTicks(5);
+	}
+
+	/** Im Spiel: ein „Freund“ mit geteiltem Cape bekommt es auf seinen Spieler. */
+	private void onlineWorldCheck(ClientGameTestContext ctx) {
+		if (Firebase.emulator() == null || bob == null) return;
+		boolean capeOnPlayer = ctx.computeOnClient(mc -> {
+			var uuid = java.util.UUID.fromString(bobMc);
+			var rp = new net.minecraft.client.player.RemotePlayer(mc.level, new com.mojang.authlib.GameProfile(uuid, "Anna"));
+			var cape = rp.getSkin().cape();
+			return cape != null && cape.equals(FriendSkins.capeFor(uuid));
+		});
+		check("friend-cape-on-player", capeOnPlayer, "");
+		ctx.runOnClient(mc -> {
+			var uuid = java.util.UUID.fromString(bobMc);
+			var rp = new net.minecraft.client.player.RemotePlayer(mc.level, new com.mojang.authlib.GameProfile(uuid, "Anna"));
+			rp.setPos(mc.player.getX(), mc.player.getY(), mc.player.getZ() + 2.5);
+			rp.setYRot(0);
+			rp.setYHeadRot(0);
+			rp.setXRot(0);
+			mc.level.addEntity(rp);
+		});
+		ctx.waitTicks(10);
+		ctx.takeScreenshot("54-freund-cape-in-welt");
+		ctx.runOnClient(mc -> {
+			for (var e : mc.level.entitiesForRendering()) {
+				if (e instanceof net.minecraft.client.player.RemotePlayer) e.discard();
+			}
+		});
+		// Aufräumen: Freund entfernen, abmelden
+		Social.removeFriend(bob.uid, null);
+		Social.logout();
+		check("online-cleanup", until(ctx, 300, () -> !Social.loggedIn()), "");
 	}
 
 	/** Buntes Testbild (Verlauf mit Kreis). */
@@ -326,6 +594,9 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		YouTubeMusic.deletePlaylist(pls[0]);
 	});
 	check("lib-playlist-clear", ctx.computeOnClient(mc -> OemerConfig.get().ytLibrary.isEmpty() && OemerConfig.get().ytPlaylists.isEmpty()), "");
+
+	// ---------------------------------------------- Freunde (online, gegen den Firebase-Emulator)
+	onlineTest(ctx, page);
 
 	// ---------------------------------------------- Eigene Dateien löschen (Design, Cape, Totem, Cosmetic, Crosshair, Schematic, Kit)
 	ctx.runOnClient(mc -> {
@@ -956,6 +1227,8 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.waitTicks(20);
 			ctx.takeScreenshot("32b-galaxy-ingame");
 			ctx.setScreen(() -> null);
+
+			onlineWorldCheck(ctx);
 
 			ctx.setScreen(() -> new PauseScreen(true));
 			ctx.waitTicks(2);

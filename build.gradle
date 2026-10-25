@@ -80,4 +80,8 @@ tasks.matching { it.name == "runClientGameTest" }.configureEach {
 	jvmArgs("-Dfabric.client.gametest.disableNetworkSynchronizer=true")
 	// größeres Fenster, damit die Screenshots so aussehen wie auf einem echten Bildschirm
 	args("--width", "1280", "--height", "720")
+	// Freunde-Test läuft gegen den Firebase-Emulator (wird in der CI gestartet)
+	if (System.getenv("OEMER_FIREBASE_EMU")) {
+		jvmArgs("-Doemer.firebase.emulator=" + System.getenv("OEMER_FIREBASE_EMU"))
+	}
 }

@@ -259,6 +259,11 @@ public final class Firebase {
 		db("PATCH", s, path, "", value);
 	}
 
+	/** Wie patch, gibt aber zurück, was der Server wirklich gespeichert hat (mit echter Serverzeit). */
+	public static JsonElement patchResult(Session s, String path, JsonObject value) throws FirebaseException {
+		return db("PATCH", s, path, "", value);
+	}
+
 	public static void delete(Session s, String path) throws FirebaseException {
 		db("DELETE", s, path, "", null);
 	}

@@ -153,3 +153,6 @@ net.minecraft.world.level.block.NetherPortalBlock
 net.minecraft.client.renderer.ItemBlockRenderTypes
 net.minecraft.client.gui.components.ChatComponent
 net.minecraft.client.player.AbstractClientPlayer
+net.minecraft.client.gui.components.EditBox$TextFormatter
+net.minecraft.client.player.RemotePlayer
+net.minecraft.client.gui.components.EditBox

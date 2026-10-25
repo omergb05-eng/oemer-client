@@ -125,6 +125,8 @@ public class OemerClient implements ClientModInitializer {
 			}
 		});
 
+		com.oemer.client.online.Social.start();
+
 		LOGGER.info("Ömer Client {} geladen", VERSION);
 	}
 
