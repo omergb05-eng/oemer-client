@@ -114,7 +114,8 @@ public class CapeEditorScreen extends Screen {
 		// Die aktuelle eigene Datei direkt zum Bearbeiten laden
 		String sel = currentFile();
 		if (sel != null) {
-			loadFile(sel, false);
+			// Eigene Bilder (Fotos usw.) nie überschreiben – nur Dateien, die der Editor selbst gemacht hat
+			loadFile(sel, !sel.startsWith(mode.prefix));
 		}
 	}
 
@@ -255,7 +256,7 @@ public class CapeEditorScreen extends Screen {
 				case CAPE -> {
 					String sel = c.capeSelection;
 					img = sel.startsWith("design:") ? CapeManager.previewImage() : ImageTools.read(CapeManager.folder().resolve(sel));
-					editingFile = sel.startsWith("design:") ? null : sel;
+					editingFile = sel.startsWith(mode.prefix) ? sel : null;
 					name = CapeManager.displayName(sel);
 				}
 				case TOTEM -> {
@@ -265,20 +266,20 @@ public class CapeEditorScreen extends Screen {
 						editingFile = null;
 					} else if (!c.totemSelection.isEmpty()) {
 						img = ImageTools.read(LooksPack.totemFolder().resolve(c.totemSelection));
-						editingFile = c.totemSelection;
+						editingFile = c.totemSelection.startsWith(mode.prefix) ? c.totemSelection : null;
 						name = c.totemSelection;
 					}
 				}
 				case CROSSHAIR -> {
 					img = Crosshair.previewImage();
-					editingFile = c.crosshairSelection.startsWith("design:") ? null : c.crosshairSelection;
+					editingFile = c.crosshairSelection.startsWith(mode.prefix) ? c.crosshairSelection : null;
 					name = Crosshair.displayName(c.crosshairSelection);
 				}
 				case COSMETIC -> {
 					var list = CustomCosmetics.files();
 					if (!list.isEmpty()) {
 						img = ImageTools.read(CustomCosmetics.folder().resolve(list.get(0)));
-						editingFile = list.get(0);
+						editingFile = list.get(0).startsWith(mode.prefix) ? list.get(0) : null;
 						name = list.get(0);
 					}
 				}

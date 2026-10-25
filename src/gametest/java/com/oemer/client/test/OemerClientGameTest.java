@@ -238,7 +238,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		boolean cosSaved = ctx.computeOnClient(mc -> CustomCosmetics.files().stream().anyMatch(f -> f.startsWith("Mein Cosmetic"))
 				&& CustomCosmetics.anyActive());
 		check("cosmetic-editor-saves", cosSaved, "");
-		ctx.setScreen(() -> new TitleScreen());
+		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
 		ctx.waitTicks(3);
 
 		// ---------------------------------------------- Cape-Editor
