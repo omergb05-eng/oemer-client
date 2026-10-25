@@ -8,3 +8,5 @@ Tnt
 ^org/lwjgl/util/tinyfd/
 ^net/minecraft/client/renderer/[A-Z]
 ^net/minecraft/client/[A-Z]
+^net/minecraft/client/gui/screens/[A-Z]
+^net/minecraft/client/multiplayer/[A-Z]
