@@ -1,71 +1,55 @@
-# Ömer Client – Version 5
+# Ömer Client – Version 6
 
 Fabric-Mod für **Minecraft 1.21.11** (braucht **Fabric API**).
 
 ## Menü
 - Button **„Ömer Client“** im Startscreen direkt unter Multiplayer, im ESC-Menü oben links
   und im Spiel mit **Rechte Shift**
-- Neues Design: schwarzer, animierter Hintergrund mit Lichtern und Partikeln, abgerundete Glas-Karten,
-  gleitende Tab-Markierung, Tooltips beim Drüberfahren
-- Oben rechts **Settings · Skins · Layout · Graphics**, jeder Tab mit eigenen Unter-Reitern:
+- Links die Leiste **Mods · Settings · Design · Musik · Skin · Kits**, oben eine **Suche**
 
-| Tab | Unter-Reiter |
+| Bereich | Inhalt |
 |---|---|
-| Settings | Allgemein · Kits · Material List |
-| Skins | Cape · Cosmetics · Eigene · Totem · Sounds |
-| Layout | Design · HUD |
-| Graphics | Looks · Crosshair |
-| Musik | Spotify |
+| Mods | Jede Mod als Kachel mit An/Aus-Schalter – Klick öffnet ihre Einstellungen und Tasten |
+| Settings | Wetter, HUD-Orte, Menü, alle Ömer-Tasten |
+| Design | Foto-Vorlagen, **Datei wählen**, ältere Designs, Grafik Low/Mid/High/Super High, Reset Settings |
+| Musik | **YouTube** (kostenlos) oder **Spotify** – oben umschalten |
+| Skin | Cape · Totem · Cosmetics · Sounds |
+| Kits | Eigene Minecraft-Einstellungen + Tasten pro Kit, **Speichern**-Button |
 
-## Neu in Version 5
-- **Galaxy-Design** (Layout → Design → Design-Stil): dunkelblau, lila, pink, leuchtender Planet mit Ring
-  und Strahlen, schwebt sanft, auch im Startscreen. Dazu das Cape „Ömer Galaxy“.
-- **Custom Crosshair** (Graphics → Crosshair): 7 Designs, eigene PNGs aus `crosshairs/` oder selbst malen,
-  8 Farben, 3 Größen
-- **Totem**: PNG mit Transparenz („Ganzes Bild“ oder „Füllen“), selbst malen oder **„Mein Skin“**
-  (Figur aus deinem eigenen Skin)
-- **Eigene Cosmetics** (Skins → Eigene): Pixelbild malen oder PNG in `cosmetics/` legen → wird 3D,
-  Platz wählbar: über dem Kopf, Rücken, Schulter oder Begleiter
-- **Spotify** (Musik): Song + Cover sehen, Play/Pause, vor/zurück, Zufall, Lautstärke, Playlists starten,
-  Now-Playing-HUD, frei belegbare Tasten
-- Der Editor überschreibt nie deine eigenen Fotos – er legt immer eine neue Datei an
+## Mods
+Fullbright, Free Cam, **Just Zoom** (Taste C, Mausrad), Custom Crosshair, Material List, Kit-HUD,
+**AppleSkin**, **Clear Glass**, **Dark GUI**, **Distant Horizons** (Original-Mod eingebaut, an/aus),
+**Low Fire**, **Low Shield**, **No Darkness**, **No Fog**, **No Pumpkin Blur**, **Wetter aus**,
+**Note Block Tuner**, **NoBedrock**, **Shulker Box Tooltip**, **Smaller Totem**, **TNT Timer**,
+Musik-HUD, Cosmetics, Custom Totem, Custom Cape, Custom Sounds.
 
-### Spotify einrichten
-1. Auf https://developer.spotify.com/dashboard eine App erstellen (Web API).
-2. Als Redirect-URI genau `http://127.0.0.1:43821/callback` eintragen.
-3. Die Client-ID im Ömer-Menü unter **Musik** einfügen → **Mit Spotify verbinden** → im Browser erlauben.
+## Kits
+Jedes Kit (Survival, CPVP, Sword, Axe, UHC, SMP, Mace) speichert deine **kompletten Minecraft-Einstellungen**
+(Tasten, FOV, Maus, Grafik …). Beispiel: im Kit CPVP ist Hotbar 5 = Q, in Survival ist Q = Fallen lassen.
+Kit anklicken = wechseln, **Speichern** merkt sich die aktuellen Einstellungen. Tasten: K = nächstes Kit, eigene Taste pro Kit.
 
-Spotify verlangt seit Februar 2026 für eigene Apps ein **Premium**-Konto, und Songs steuern geht nur mit Premium.
+## Musik
+- **YouTube**: Link oder Playlist-Link einfügen (mit kostenlosem YouTube-API-Schlüssel auch suchen),
+  ♥ = Meine Songs, Playlists, Warteschlange. Abgespielt wird über den offiziellen YouTube-Player in einem Browser-Tab
+  (öffnet sich automatisch, einmal „Musik starten“ klicken) – gesteuert wird aus Minecraft (Tasten + HUD). Ohne Premium.
+- **Spotify** bleibt wie in v5.
 
-## Funktionen
-- **Fullbright** (Taste **G**) und **Free Cam** (Taste **F4**, fliegt nicht durch Blöcke, 4 Tempo-Stufen)
-- **Kit Select + Kit-HUD**: zeigt im Spiel, wie viele Kit-Items du hast (CPVP: Totems, Kristalle, Obsidian, Anker …;
-  Sword, Axe, UHC, SMP, Mace; Normal World zeigt Koordinaten, Richtung, FPS). Rot = leer.
-- **Material List**: `.litematic` oder `.schem` in `schematics/` legen → Liste aller Blöcke im HUD
-  (grün = genug im Inventar) und ein eigener Screen zum Abhaken, mit Stacks/Kisten-Angabe
-- **Eigenes Cape**: 4 Ömer-Designs, eigene Bilder aus `capes/` oder im **Cape-Editor** selbst malen
-  (Pinsel, Eimer, Radierer, Pipette, 18 Farben + Akzentfarbe, heller/dunkler, Spiegeln,
-  Rückgängig Strg+Z / Wiederholen Strg+Y, Speichern Strg+S, Klassisch 10x16 oder HD 20x32)
-- **Cosmetics**: Heiligenschein (leuchtet, dreht sich), Krone, Zylinder, Flügel (schlagen),
-  Hasenohren, Teufelshörner – 8 Farben, Animation an/aus, 3D-Vorschau im Menü
-- **Custom Totem**: Bild aus `totems/`
-- **Custom Sounds**: jeder Sound hat einen **eigenen Unterordner** in `sounds/`
-  (`treffer`, `kritisch`, `totem`, `schaden`, `levelup`, `xp`, `klick`) – nur echte **.ogg**-Dateien
-- **Look-Modus**: dein Lieblingsbild aus `looks/` als Hintergrund vom Menü und vom Startscreen, abdunkelbar
-- Layout: Akzentfarbe, Transparenz, Partikel, Blur im Spiel, HUD-Größe und -Ecken
-- Alles wird in `.minecraft/config/oemerclient.json` gespeichert
+## Material List
+`.litematic` oder `.schem` in `schematics/`. **Sneaken + Rechtsklick mit Spitzhacke auf eine Kiste** markiert sie,
+einmal öffnen – dann zählt ihr Inhalt in der Liste mit, und die Kiste leuchtet.
 
-Alle Ordner liegen in `.minecraft/config/oemerclient/` und lassen sich im Menü mit einem Klick öffnen.
-Cape, Cosmetics, Totem und Sounds siehst bzw. hörst nur du (Client-Mod).
+## Skin
+- **Cape** und **Totem**: Vorlagen + eigene Bilder (**Datei wählen**), Totems in 256x256 (nicht mehr verpixelt)
+- **Cosmetics**: keine eingebauten – deine eigenen PNGs (mit Transparenz) als Bild ausrüsten: Kopf, Rücken, Begleiter.
+  Breite Bilder auf dem Rücken werden zu Flügeln (links/rechts geteilt, schlagen)
+
+Alle Ordner liegen in `.minecraft/config/oemerclient/`. Cape, Cosmetics, Totem und Sounds siehst bzw. hörst nur du.
 
 ## .jar bekommen
-GitHub baut die Mod bei jedem Hochladen automatisch und testet sie in einem echten Minecraft.
 1. Auf GitHub im Repository oben auf **Actions** gehen.
 2. Den neuesten grünen Lauf öffnen → unten bei **Artifacts** `OemerClient-jar` herunterladen.
-3. Im ZIP liegt `oemer-client-5.0.0.jar` → in den `mods`-Ordner, zusammen mit **Fabric API**.
-
-Wenn der Build rot wird: auf den roten Schritt klicken, Fehlermeldung kopieren und an Claude schicken.
+3. Im ZIP liegt `oemer-client-6.0.0.jar` → in den `mods`-Ordner, zusammen mit **Fabric API**.
 
 ## Hinweis
-Die Free Cam ist angelehnt an die Freecam-Mod (MIT-Lizenz), siehe `THIRD_PARTY_NOTICES.md`.
-Auf manchen Servern ist Free Cam verboten – vorher die Regeln checken.
+Free Cam basiert auf der Freecam-Mod (MIT), Distant Horizons ist LGPL-3.0, Fotos von Unsplash – siehe `THIRD_PARTY_NOTICES.md`.
+Auf manchen Servern sind Free Cam, Zoom & Co. verboten – vorher die Regeln checken.
