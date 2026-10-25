@@ -429,7 +429,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			check("cosmetic-wings-equipped", ctx.computeOnClient(mc ->
 					SpriteCosmetics.find(SpriteCosmetics.equipped(SpriteCosmetics.Slot.BACK), SpriteCosmetics.Slot.BACK) != null), "");
 			shotFreecam(ctx, 0, 0.9, -3.0, 0, 10, "23-cosmetics-fluegel-hinten");
-			shotFreecam(ctx, 2.2, 0.9, -1.6, -55, 10, "23b-cosmetics-fluegel-seite");
+			shotFreecam(ctx, 2.6, 0.9, -1.0, 69, 8, "23b-cosmetics-fluegel-seite");
 			shotFreecam(ctx, 0, 0.9, 3.0, 180, 10, "24-cosmetics-fluegel-vorne");
 			ctx.runOnClient(mc -> {
 				OemerConfig c = OemerConfig.get();
@@ -523,7 +523,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.runOnClient(mc -> {
 				OemerConfig.get().freecam = true;
 			});
-			shotFreecam(ctx, 2.5, 1.5, -1.0, -35, 25, "29c-kiste-leuchtet");
+			shotFreecam(ctx, 2.5, 1.6, -1.0, 40, 12, "29c-kiste-leuchtet");
 			ctx.runOnClient(mc -> OemerConfig.get().freecam = false);
 			ctx.waitTicks(3);
 			sp.getServer().runCommand("setblock " + chest.getX() + " " + chest.getY() + " " + chest.getZ() + " air");
@@ -609,10 +609,12 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			check("shulker-tooltip", shulker, "");
 			// Low Fire
 			ctx.runOnClient(mc -> OemerConfig.get().lowFire = true);
+			sp.getServer().runCommand("setblock " + x + " " + (y - 1) + " " + z + " netherrack");
 			sp.getServer().runCommand("setblock " + x + " " + y + " " + z + " fire");
-			ctx.waitTicks(15);
+			ctx.waitTicks(40);
 			ctx.takeScreenshot("44-low-fire");
 			sp.getServer().runCommand("setblock " + x + " " + y + " " + z + " air");
+			sp.getServer().runCommand("setblock " + x + " " + (y - 1) + " " + z + " grass_block");
 			sp.getServer().runCommand("effect give @a fire_resistance 30 1");
 			// Grafik-Stufen
 			ctx.runOnClient(mc -> GraphicsPresets.apply(0));

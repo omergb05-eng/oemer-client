@@ -19,7 +19,8 @@ public class OemerPreLaunch implements PreLaunchEntrypoint {
 			if (Files.isRegularFile(file)) {
 				String s = Files.readString(file, StandardCharsets.UTF_8);
 				String t = s.replaceAll("(enableAutoUpdater\\s*=\\s*)true", "$1false")
-						.replaceAll("(enableSilentUpdates\\s*=\\s*)true", "$1false");
+						.replaceAll("(enableSilentUpdates\\s*=\\s*)true", "$1false")
+						.replaceAll("(show(GarbageCollector|LowMemory|ModCompatibility|HighVanillaRenderDistance|SlowWorldGen|PoolInsufficientMemory|Replay)\\w*\\s*=\\s*)true", "$1false");
 				if (!t.equals(s)) Files.writeString(file, t, StandardCharsets.UTF_8);
 			}
 		} catch (Exception ignored) {

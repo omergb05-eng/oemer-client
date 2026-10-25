@@ -80,33 +80,37 @@ public final class DistantHorizonsBridge {
 		throw new NoSuchMethodException("setValue");
 	}
 
-	/** Auto-Updater von DH ausschalten (die Version kommt mit dem Ömer Client). */
+	/** Auto-Updater und Chat-Warnungen von DH ausschalten (nach dem Spielstart aufrufen). */
 	public static void disableUpdater() {
 		if (!installed()) return;
-		String[] classes = {"com.seibel.distanthorizons.core.config.Config$Client$Advanced$AutoUpdater",
-				"com.seibel.distanthorizons.core.config.Config$Client$AutoUpdater"};
-		for (String cls : classes) {
-			try {
-				Class<?> c = Class.forName(cls);
-				for (String field : new String[]{"enableAutoUpdater", "enableSilentUpdates"}) {
-					try {
-						Object entry = c.getField(field).get(null);
-						Method set = null;
-						for (Method m : entry.getClass().getMethods()) {
-							if ((m.getName().equals("set") || m.getName().equals("setValue")) && m.getParameterCount() == 1) set = m;
-						}
-						if (set != null) {
-							set.setAccessible(true);
-							set.invoke(entry, false);
-							OemerClient.LOGGER.info("Distant Horizons: {} aus", field);
-						}
-					} catch (NoSuchFieldException ignored) {
+		setAll("com.seibel.distanthorizons.core.config.Config$Client$Advanced$AutoUpdater",
+				"enableAutoUpdater", "enableSilentUpdates");
+		setAll("com.seibel.distanthorizons.core.config.Config$Common$Logging$Warning",
+				"showGarbageCollectorWarning", "showLowMemoryWarningOnStartup", "showModCompatibilityWarningsOnStartup",
+				"showHighVanillaRenderDistanceWarning", "showSlowWorldGenSettingWarnings", "showPoolInsufficientMemoryWarning",
+				"showReplayWarningOnStartup");
+	}
+
+	private static void setAll(String cls, String... fields) {
+		try {
+			Class<?> c = Class.forName(cls);
+			for (String field : fields) {
+				try {
+					Object entry = c.getField(field).get(null);
+					Method set = null;
+					for (Method m : entry.getClass().getMethods()) {
+						if ((m.getName().equals("set") || m.getName().equals("setValue")) && m.getParameterCount() == 1) set = m;
 					}
+					if (set != null) {
+						set.setAccessible(true);
+						set.invoke(entry, false);
+					}
+				} catch (NoSuchFieldException ignored) {
 				}
-				return;
-			} catch (Throwable t) {
-				OemerClient.LOGGER.info("Distant Horizons Updater ({}) nicht gefunden: {}", cls, t.toString());
 			}
+			OemerClient.LOGGER.info("Distant Horizons: {} angepasst", cls.substring(cls.lastIndexOf('$') + 1));
+		} catch (Throwable t) {
+			OemerClient.LOGGER.info("Distant Horizons: {} nicht gefunden ({})", cls, t.toString());
 		}
 	}
 

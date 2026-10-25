@@ -32,6 +32,9 @@ public final class OmerWidgets {
 		Draw.centered(g, text, centerX, y, color);
 	}
 
+	/** Wenn ein Screen verkleinert zeichnet: Faktor für Tooltip-Positionen (echte Pixel). */
+	public static float tooltipScale = 1f;
+
 	/** Gemeinsame Basis: weiche Hover-Animation und optionaler Tooltip. */
 	public abstract static class Base extends AbstractButton {
 		protected float hover;
@@ -61,7 +64,7 @@ public final class OmerWidgets {
 			hover = Draw.approach(hover, this.isHovered() && this.active ? 1f : 0f, 14f, d);
 			draw(g, mouseX, mouseY, d);
 			if (tooltip != null && this.isHovered()) {
-				g.setTooltipForNextFrame(Component.literal(tooltip), mouseX, mouseY);
+				g.setTooltipForNextFrame(Component.literal(tooltip), Math.round(mouseX * tooltipScale), Math.round(mouseY * tooltipScale));
 			}
 		}
 

@@ -56,12 +56,12 @@ import java.util.function.Supplier;
 public class OmerScreen extends Screen {
 
 	enum Section {
-		MODS("Mods", "▦", "Alle Mods – an/aus und Einstellungen"),
+		MODS("Mods", "◆", "Alle Mods – an/aus und Einstellungen"),
 		SETTINGS("Settings", "⚙", "Allgemeine Einstellungen und Tasten"),
 		DESIGN("Design", "✎", "Hintergrund, Vorlagen, Grafik"),
 		MUSIK("Musik", "♪", "YouTube-Musik und Spotify"),
 		SKIN("Skin", "☺", "Cape, Totem, Cosmetics, Sounds"),
-		KITS("Kits", "⌨", "Eigene Einstellungen und Tasten für jedes Kit");
+		KITS("Kits", "⚔", "Eigene Einstellungen und Tasten für jedes Kit");
 
 		final String title, icon, subtitle;
 
@@ -148,8 +148,24 @@ public class OmerScreen extends Screen {
 
 	// =================================================================== Aufbau
 
+	/** Menü-Maßstab: kleiner als Minecrafts GUI-Größe, damit mehr Platz ist (immer ganze Pixel = scharf). */
+	private float uiScale = 1f;
+	private boolean scaledNow;
+
+	private float computeScale() {
+		var win = this.minecraft.getWindow();
+		double gs = win.getGuiScale();
+		int fbW = win.getWidth(), fbH = win.getHeight();
+		int target = (int) Math.max(1, Math.min(gs, Math.min(fbW / 640, fbH / 360)));
+		if (target >= gs) return 1f;
+		return (float) (target / gs);
+	}
+
 	@Override
 	protected void init() {
+		uiScale = computeScale();
+		this.width = Math.round(this.minecraft.getWindow().getGuiScaledWidth() / uiScale);
+		this.height = Math.round(this.minecraft.getWindow().getGuiScaledHeight() / uiScale);
 		infoLines.clear();
 		previewArea = null;
 		content.clear();
@@ -177,7 +193,7 @@ public class OmerScreen extends Screen {
 		}
 
 		// ---- Suche oben im Inhalt
-		int searchW = Math.min(260, panelW - 140);
+		int searchW = Math.min(240, panelW - 60 - rightHeaderWidth());
 		search = new EditBox(this.font, panelX + 30, panelY + 14, Math.max(60, searchW), 12, Component.literal("Suche"));
 		search.setBordered(false);
 		search.setMaxLength(40);
@@ -531,11 +547,13 @@ public class OmerScreen extends Screen {
 		final ModInfo mod = m;
 		// Kopf: großes Symbol, Name, Text, Schalter
 		addContent(new OmerWidgets.Painter(cx0, cy, cw, 40, (g, x, y, w, h, mx, my) -> {
-			Draw.round(g, x, y, 40, 40, 8, mod.on() != null && mod.on().getAsBoolean() ? Theme.accent(0xE0) : Theme.white(0x18));
+			boolean onNow = mod.on() != null && mod.on().getAsBoolean();
+			Draw.round(g, x, y, 40, 40, 8, onNow ? Theme.accent(0xE0) : Theme.white(0x18));
+			int ic = onNow && (Theme.accent() & 0xFFFFFF) == 0xFFFFFF ? 0xFF0B0B0F : 0xFFFFFFFF;
 			g.pose().pushMatrix();
 			g.pose().translate(x + 20, y + 13);
 			g.pose().scale(1.8f);
-			Draw.centered(g, mod.icon(), 0, 0, 0xFFFFFFFF);
+			Draw.centered(g, mod.icon(), 0, 0, ic);
 			g.pose().popMatrix();
 			g.pose().pushMatrix();
 			g.pose().translate(x + 52, y + 6);
@@ -1419,8 +1437,28 @@ public class OmerScreen extends Screen {
 		return mx >= panelX && mx <= panelX + panelW && my >= viewTop && my <= viewBottom;
 	}
 
+	private MouseButtonEvent scaled(MouseButtonEvent e) {
+		return uiScale == 1f ? e : new MouseButtonEvent(e.x() / uiScale, e.y() / uiScale, e.buttonInfo());
+	}
+
 	@Override
-	public boolean mouseScrolled(double mx, double my, double h, double v) {
+	public boolean mouseReleased(MouseButtonEvent event) {
+		return super.mouseReleased(scaled(event));
+	}
+
+	@Override
+	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+		return super.mouseDragged(scaled(event), dx / uiScale, dy / uiScale);
+	}
+
+	@Override
+	public void mouseMoved(double mx, double my) {
+		super.mouseMoved(mx / uiScale, my / uiScale);
+	}
+
+	@Override
+	public boolean mouseScrolled(double rmx, double rmy, double h, double v) {
+		double mx = rmx / uiScale, my = rmy / uiScale;
 		if (maxScroll() > 0 && inView(mx, my)) {
 			scroll = Math.max(0, Math.min(maxScroll(), scroll - v * 22));
 			return true;
@@ -1429,7 +1467,8 @@ public class OmerScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+	public boolean mouseClicked(MouseButtonEvent rawEvent, boolean doubleClick) {
+		MouseButtonEvent event = scaled(rawEvent);
 		if (listening != null) {
 			listening.setKey(InputConstants.Type.MOUSE.getOrCreate(event.button()));
 			KeyMapping.resetMapping();
@@ -1477,6 +1516,16 @@ public class OmerScreen extends Screen {
 
 	@Override
 	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		boolean own = !scaledNow && uiScale != 1f;
+		if (own) {
+			g.pose().pushMatrix();
+			g.pose().scale(uiScale);
+		}
+		drawBackground(g);
+		if (own) g.pose().popMatrix();
+	}
+
+	private void drawBackground(GuiGraphics g) {
 		boolean inWorld = this.minecraft.level != null;
 		if (inWorld && OemerConfig.get().menuBlur) this.renderBlurredBackground(g);
 		Backdrop.render(g, this.width, this.height, inWorld);
@@ -1535,9 +1584,26 @@ public class OmerScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+	public void render(GuiGraphics g, int realX, int realY, float delta) {
 		lastFrame = System.nanoTime();
-		super.render(g, mouseX, mouseY, delta);
+		int mouseX = Math.round(realX / uiScale), mouseY = Math.round(realY / uiScale);
+		if (uiScale != 1f) {
+			g.pose().pushMatrix();
+			g.pose().scale(uiScale);
+		}
+		scaledNow = true;
+		OmerWidgets.tooltipScale = uiScale;
+		try {
+			super.render(g, mouseX, mouseY, delta);
+			renderOverlay(g, mouseX, mouseY, delta);
+		} finally {
+			scaledNow = false;
+			OmerWidgets.tooltipScale = 1f;
+			if (uiScale != 1f) g.pose().popMatrix();
+		}
+	}
+
+	private void renderOverlay(GuiGraphics g, int mouseX, int mouseY, float delta) {
 
 		// ---- Inhalte (scrollen, abgeschnitten)
 		int max = maxScroll();

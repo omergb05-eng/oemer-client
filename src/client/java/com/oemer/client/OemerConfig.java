@@ -130,7 +130,7 @@ public class OemerConfig {
 
 	// ---- Graphics ----
 	public boolean lookMode = false;    // Eigene Bilder als Look/Theme
-	public String lookImage = "preset:0"; // "preset:<nr>" oder Dateiname aus looks/
+	public String lookImage = "web:0"; // "preset:<nr>" oder Dateiname aus looks/
 	public int lookDim = 1;             // Index in LOOK_DIM_NAMES
 	public boolean lookTitle = true;    // auch im Startscreen
 	public boolean menuBlur = false;
