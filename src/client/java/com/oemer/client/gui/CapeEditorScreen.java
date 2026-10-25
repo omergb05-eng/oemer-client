@@ -4,6 +4,10 @@ import com.oemer.client.OemerClient;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.feature.CapeCanvas;
 import com.oemer.client.feature.CapeManager;
+import com.oemer.client.feature.Crosshair;
+import com.oemer.client.feature.CustomCosmetics;
+import com.oemer.client.feature.LooksPack;
+import com.oemer.client.feature.SkinTotem;
 import com.oemer.client.feature.ImageTools;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -16,8 +20,56 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Cape-Editor: dein Cape Pixel für Pixel selbst malen. */
+/** Pixel-Editor: Cape, Totem, Crosshair oder eigene Cosmetics selbst malen. */
 public class CapeEditorScreen extends Screen {
+
+	/** Was gemalt wird. */
+	public enum Mode {
+		CAPE("Cape-Editor", "Mein Cape", new String[]{"10x16", "HD 20x32"}),
+		TOTEM("Totem-Editor", "Mein Totem", new String[]{"16x16", "HD 32x32"}),
+		CROSSHAIR("Crosshair-Editor", "Mein Crosshair", new String[]{"15x15", "HD 31x31"}),
+		COSMETIC("Cosmetic-Editor", "Mein Cosmetic", new String[]{"16x16", "24x24"});
+
+		final String title;
+		final String prefix;
+		final String[] sizes;
+
+		Mode(String title, String prefix, String[] sizes) {
+			this.title = title;
+			this.prefix = prefix;
+			this.sizes = sizes;
+		}
+
+		Path folder() {
+			return switch (this) {
+				case CAPE -> CapeManager.folder();
+				case TOTEM -> LooksPack.totemFolder();
+				case CROSSHAIR -> Crosshair.folder();
+				case COSMETIC -> CustomCosmetics.folder();
+			};
+		}
+
+		CapeCanvas create(int sizeIdx) {
+			return switch (this) {
+				case CAPE -> new CapeCanvas(OemerConfig.EDITOR_SCALE[Math.floorMod(sizeIdx, 2)]);
+				case TOTEM -> sizeIdx == 0 ? new CapeCanvas(16, 16, false) : new CapeCanvas(32, 32, false);
+				case CROSSHAIR -> sizeIdx == 0 ? new CapeCanvas(15, 15, false) : new CapeCanvas(31, 31, false);
+				case COSMETIC -> sizeIdx == 0 ? new CapeCanvas(16, 16, false) : new CapeCanvas(24, 24, false);
+			};
+		}
+
+		/** Beim Speichern so viel vergrößern (scharf). */
+		int upscale(CapeCanvas c) {
+			return switch (this) {
+				case CAPE, COSMETIC -> 1;
+				case TOTEM -> 64 / c.width;
+				case CROSSHAIR -> 2;
+			};
+		}
+	}
+
+	private final Mode mode;
+	private static final int[] SIZE_INDEX = new int[Mode.values().length];
 
 	public enum Tool {
 		PINSEL("Pinsel"), EIMER("Eimer"), RADIERER("Gummi"), PIPETTE("Pipette");
@@ -33,7 +85,6 @@ public class CapeEditorScreen extends Screen {
 			0xFFF4F4F4, 0xFFBFBFC6, 0xFF7A7A85, 0xFF2E2E35, 0xFF0B0B0F, 0xFFE5484D, 0xFFFF8A3D, 0xFFFFD23F, 0xFF9BE15D,
 			0xFF2FBF71, 0xFF2EC4B6, 0xFF8ED6FF, 0xFF3B82F6, 0xFF6366F1, 0xFFA855F7, 0xFFFF8FC7, 0xFF8B5A2B, 0xFFE8D3B0,
 	};
-	private static final int ERASE = 0xFFF4F4F4;
 	private static final String[] BRUSH_NAMES = {"1px", "2px", "3px"};
 
 	private final Screen parent;
@@ -51,28 +102,46 @@ public class CapeEditorScreen extends Screen {
 	private long statusUntil;
 
 	public CapeEditorScreen(Screen parent) {
-		super(Component.literal("Cape-Editor"));
+		this(parent, Mode.CAPE);
+	}
+
+	public CapeEditorScreen(Screen parent, Mode mode) {
+		super(Component.literal(mode.title));
 		this.parent = parent;
-		newCanvas(OemerConfig.EDITOR_SCALE[Math.floorMod(OemerConfig.get().editorSize, OemerConfig.EDITOR_SCALE.length)]);
-		// Das aktuelle eigene Cape direkt zum Bearbeiten laden
-		String sel = OemerConfig.get().capeSelection;
-		if (!sel.startsWith("design:")) {
+		this.mode = mode;
+		if (mode == Mode.CAPE) SIZE_INDEX[0] = OemerConfig.get().editorSize;
+		newCanvas(SIZE_INDEX[mode.ordinal()]);
+		// Die aktuelle eigene Datei direkt zum Bearbeiten laden
+		String sel = currentFile();
+		if (sel != null) {
 			loadFile(sel, false);
 		}
 	}
 
-	private void newCanvas(int scale) {
-		canvas = new CapeCanvas(scale);
+	/** Die gerade benutzte eigene Datei in diesem Modus (null = keine). */
+	private String currentFile() {
+		OemerConfig c = OemerConfig.get();
+		String f = switch (mode) {
+			case CAPE -> c.capeSelection.startsWith("design:") ? null : c.capeSelection;
+			case TOTEM -> c.totemMode == 0 && !c.totemSelection.isEmpty() ? c.totemSelection : null;
+			case CROSSHAIR -> c.crosshairSelection.startsWith("design:") ? null : c.crosshairSelection;
+			case COSMETIC -> null;
+		};
+		return f != null && Files.isRegularFile(mode.folder().resolve(f)) ? f : null;
+	}
+
+	private void newCanvas(int sizeIdx) {
+		canvas = mode.create(sizeIdx);
 		editingFile = null;
 	}
 
 	private void loadFile(String file, boolean asTemplate) {
 		try {
-			BufferedImage img = ImageTools.read(CapeManager.folder().resolve(file));
+			BufferedImage img = ImageTools.read(mode.folder().resolve(file));
 			canvas.loadFrom(img);
 			editingFile = asTemplate ? null : file;
 		} catch (Exception e) {
-			OemerClient.LOGGER.warn("Cape {} konnte nicht in den Editor geladen werden", file, e);
+			OemerClient.LOGGER.warn("{} konnte nicht in den Editor geladen werden", file, e);
 		}
 	}
 
@@ -117,11 +186,14 @@ public class CapeEditorScreen extends Screen {
 		int half = (rw - 6) / 2;
 		this.addRenderableWidget(new OmerWidgets.Cycle(rx, y, half, rowH, "Pinsel", BRUSH_NAMES, () -> brush, v -> brush = v));
 		this.addRenderableWidget(new OmerWidgets.Cycle(rx + half + 6, y, rw - half - 6, rowH, "Fläche",
-				new String[]{"10x16", "HD 20x32"}, () -> OemerConfig.get().editorSize, v -> {
-			OemerConfig.get().editorSize = v;
-			OemerConfig.save();
-			newCanvas(OemerConfig.EDITOR_SCALE[v]);
-			say("Neue leere Fläche: " + OemerConfig.EDITOR_SIZE_NAMES[v]);
+				mode.sizes, () -> SIZE_INDEX[mode.ordinal()], v -> {
+			SIZE_INDEX[mode.ordinal()] = v;
+			if (mode == Mode.CAPE) {
+				OemerConfig.get().editorSize = v;
+				OemerConfig.save();
+			}
+			newCanvas(v);
+			say("Neue leere Fläche: " + mode.sizes[v]);
 			this.rebuildWidgets();
 		}));
 		y += rowH + gap;
@@ -164,7 +236,7 @@ public class CapeEditorScreen extends Screen {
 
 		// Speichern
 		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, half, rowH + 4, "Speichern", this::save).style(OmerWidgets.Style.PRIMARY));
-		this.addRenderableWidget(new OmerWidgets.Flat(rx + half + 6, y, rw - half - 6, rowH + 4, "Als neues Cape", () -> {
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + half + 6, y, rw - half - 6, rowH + 4, "Als neue Datei", () -> {
 			editingFile = null;
 			save();
 		}));
@@ -174,38 +246,103 @@ public class CapeEditorScreen extends Screen {
 	}
 
 	private void loadCurrent() {
-		String sel = OemerConfig.get().capeSelection;
 		try {
 			canvas.snapshot();
-			BufferedImage img = sel.startsWith("design:") ? CapeManager.previewImage() : ImageTools.read(CapeManager.folder().resolve(sel));
+			BufferedImage img = null;
+			String name = "";
+			OemerConfig c = OemerConfig.get();
+			switch (mode) {
+				case CAPE -> {
+					String sel = c.capeSelection;
+					img = sel.startsWith("design:") ? CapeManager.previewImage() : ImageTools.read(CapeManager.folder().resolve(sel));
+					editingFile = sel.startsWith("design:") ? null : sel;
+					name = CapeManager.displayName(sel);
+				}
+				case TOTEM -> {
+					if (c.totemMode == 1) {
+						img = SkinTotem.image();
+						name = "Mein Skin";
+						editingFile = null;
+					} else if (!c.totemSelection.isEmpty()) {
+						img = ImageTools.read(LooksPack.totemFolder().resolve(c.totemSelection));
+						editingFile = c.totemSelection;
+						name = c.totemSelection;
+					}
+				}
+				case CROSSHAIR -> {
+					img = Crosshair.previewImage();
+					editingFile = c.crosshairSelection.startsWith("design:") ? null : c.crosshairSelection;
+					name = Crosshair.displayName(c.crosshairSelection);
+				}
+				case COSMETIC -> {
+					var list = CustomCosmetics.files();
+					if (!list.isEmpty()) {
+						img = ImageTools.read(CustomCosmetics.folder().resolve(list.get(0)));
+						editingFile = list.get(0);
+						name = list.get(0);
+					}
+				}
+			}
 			if (img != null) {
 				canvas.loadFrom(img);
-				editingFile = sel.startsWith("design:") ? null : sel;
-				say("Geladen: " + CapeManager.displayName(sel));
+				say("Geladen: " + name.replace(".png", ""));
+			} else {
+				say("Nichts zum Laden da");
 			}
 		} catch (Exception e) {
-			say("Konnte das Cape nicht laden");
+			say("Konnte nicht laden");
 		}
 	}
 
 	private void save() {
 		try {
 			String name;
-			if (editingFile != null) {
-				canvas.saveAs(CapeManager.folder().resolve(editingFile));
-				name = editingFile;
+			Path folder = mode.folder();
+			if (mode == Mode.CAPE) {
+				if (editingFile != null) {
+					canvas.saveAs(folder.resolve(editingFile));
+					name = editingFile;
+				} else {
+					name = canvas.saveNew(folder);
+				}
 			} else {
-				name = canvas.saveNew(CapeManager.folder());
-				editingFile = name;
+				int up = mode.upscale(canvas);
+				if (editingFile != null) {
+					canvas.saveImageAs(folder.resolve(editingFile), up);
+					name = editingFile;
+				} else {
+					name = canvas.saveNewImage(folder, mode.prefix, up);
+				}
 			}
+			editingFile = name;
+
+			// direkt benutzen
 			OemerConfig c = OemerConfig.get();
-			c.capeSelection = name;
-			c.customCape = true;
+			switch (mode) {
+				case CAPE -> {
+					c.capeSelection = name;
+					c.customCape = true;
+					CapeManager.invalidate();
+				}
+				case TOTEM -> {
+					c.totemSelection = name;
+					c.totemMode = 0;
+					c.customTotem = true;
+					OmerScreen.markLooksChanged();
+				}
+				case CROSSHAIR -> {
+					c.crosshairSelection = name;
+					c.customCrosshair = true;
+				}
+				case COSMETIC -> {
+					if (c.customCosmetics.getOrDefault(name, 0) == 0) c.customCosmetics.put(name, 1);
+					CustomCosmetics.invalidate();
+				}
+			}
 			OemerConfig.save();
-			CapeManager.invalidate();
-			say("Gespeichert: " + name.replace(".png", "") + " · ist jetzt dein Cape");
+			say("Gespeichert: " + name.replace(".png", "") + " · ist jetzt aktiv");
 		} catch (Exception e) {
-			OemerClient.LOGGER.warn("Cape konnte nicht gespeichert werden", e);
+			OemerClient.LOGGER.warn("Speichern fehlgeschlagen", e);
 			say("§cSpeichern fehlgeschlagen");
 		}
 	}
@@ -255,13 +392,18 @@ public class CapeEditorScreen extends Screen {
 				else canvas.brush(px, py, size, color);
 			}
 			case RADIERER -> {
-				if (lastPx >= 0 && painting) canvas.line(lastPx, lastPy, px, py, size, ERASE);
-				else canvas.brush(px, py, size, ERASE);
+				if (lastPx >= 0 && painting) canvas.line(lastPx, lastPy, px, py, size, canvas.eraseColor());
+				else canvas.brush(px, py, size, canvas.eraseColor());
 			}
 			case EIMER -> canvas.fill(px, py, color);
 			case PIPETTE -> {
-				color = canvas.get(px, py) | 0xFF000000;
-				if (!right) tool = Tool.PINSEL;
+				int picked = canvas.get(px, py);
+				if ((picked >>> 24) == 0) {
+					tool = Tool.RADIERER; // durchsichtig aufgenommen = Radierer
+				} else {
+					color = picked | 0xFF000000;
+					if (!right) tool = Tool.PINSEL;
+				}
 			}
 		}
 		lastPx = px;
@@ -327,10 +469,11 @@ public class CapeEditorScreen extends Screen {
 		g.pose().pushMatrix();
 		g.pose().translate(90, 14);
 		g.pose().scale(1.35f);
-		Draw.text(g, "Cape-Editor", 0, 0, Theme.TEXT);
+		Draw.text(g, mode.title, 0, 0, Theme.TEXT);
 		g.pose().popMatrix();
-		String sub = editingFile != null ? "bearbeitet: " + editingFile.replace(".png", "") : "neues Cape";
-		Draw.text(g, sub, 90 + Math.round(Draw.width("Cape-Editor") * 1.35f) + 10, 17, Theme.TEXT_DIM);
+		String sub = editingFile != null ? "bearbeitet: " + editingFile.replace(".png", "") : "neue Datei";
+		Draw.text(g, Draw.fit(sub, this.width - 110 - Math.round(Draw.width(mode.title) * 1.35f)),
+				90 + Math.round(Draw.width(mode.title) * 1.35f) + 10, 17, Theme.TEXT_DIM);
 
 		int leftW = (int) (this.width * 0.46f);
 		Draw.glass(g, 10, 42, leftW, this.height - 42 - 34, 8, Theme.panel(), Theme.white(0x2A));
@@ -347,7 +490,17 @@ public class CapeEditorScreen extends Screen {
 		for (int y = 0; y < canvas.height; y++) {
 			for (int x = 0; x < canvas.width; x++) {
 				int px = canvasX + x * pixel, py = canvasY + y * pixel;
-				g.fill(px, py, px + pixel, py + pixel, canvas.get(x, y) | 0xFF000000);
+				int col = canvas.get(x, y);
+				if (!canvas.opaque && (col >>> 24) == 0) {
+					// durchsichtig = Schachbrett
+					int half = Math.max(1, pixel / 2);
+					boolean dark = ((x + y) & 1) == 0;
+					g.fill(px, py, px + pixel, py + pixel, dark ? 0xFF2A2A32 : 0xFF3A3A44);
+					g.fill(px, py, px + half, py + half, dark ? 0xFF3A3A44 : 0xFF2A2A32);
+					g.fill(px + half, py + half, px + pixel, py + pixel, dark ? 0xFF3A3A44 : 0xFF2A2A32);
+				} else {
+					g.fill(px, py, px + pixel, py + pixel, col | 0xFF000000);
+				}
 			}
 		}
 		// feines Gitter
@@ -361,6 +514,11 @@ public class CapeEditorScreen extends Screen {
 			}
 		}
 		Draw.roundBorder(g, canvasX - 1, canvasY - 1, cw + 2, ch + 2, 2, Theme.white(0x50));
+		if (mode == Mode.CROSSHAIR) {
+			// Mitte markieren, damit das Crosshair zentriert wird
+			int mx = canvasX + (canvas.width / 2) * pixel, my = canvasY + (canvas.height / 2) * pixel;
+			Draw.roundBorder(g, mx, my, pixel, pixel, 0, Theme.accent(0x90));
+		}
 
 		// Pixel unter der Maus markieren
 		int[] p = pixelAt(mouseX, mouseY);

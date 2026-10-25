@@ -190,17 +190,23 @@ public final class Cosmetics {
 		@Override
 		public void submit(PoseStack pose, SubmitNodeCollector collector, int light, AvatarRenderState state, float yRot, float xRot) {
 			Minecraft mc = Minecraft.getInstance();
-			if (mc.player == null || state.id != mc.player.getId() || state.isSpectator || !anyActive()) {
+			if (mc.player == null || state.id != mc.player.getId() || state.isSpectator) {
+				return;
+			}
+			OemerConfig c = OemerConfig.get();
+			float t = c.cosAnimate ? (System.currentTimeMillis() % 100_000L) / 1000f : 0f;
+			PlayerModel model = getParentModel();
+			if (CustomCosmetics.anyActive()) {
+				CustomCosmetics.submit(pose, collector, light, model, t);
+			}
+			if (!anyActive()) {
 				return;
 			}
 			build();
-			OemerConfig c = OemerConfig.get();
 			int col = color();
 			Identifier main = texture("cos_main", col);
 			if (main == null) return;
-			float t = c.cosAnimate ? (System.currentTimeMillis() % 100_000L) / 1000f : 0f;
 			int overlay = OverlayTexture.NO_OVERLAY;
-			PlayerModel model = getParentModel();
 
 			// ---- alles am Kopf
 			if (c.cosHalo || c.cosCrown || c.cosTopHat || c.cosEars || c.cosHorns) {

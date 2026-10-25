@@ -41,7 +41,17 @@ public final class LooksPack {
 	/** true, wenn ein Totem-Bild ausgewählt ist und existiert. */
 	private static boolean totemActive() {
 		OemerConfig c = OemerConfig.get();
-		return c.customTotem && !c.totemSelection.isEmpty() && Files.isRegularFile(totemFolder().resolve(c.totemSelection));
+		if (!c.customTotem) return false;
+		if (c.totemMode == 1) return true; // Mein Skin
+		return !c.totemSelection.isEmpty() && Files.isRegularFile(totemFolder().resolve(c.totemSelection));
+	}
+
+	/** Das fertige Totem-Bild (64x64) für die aktuelle Einstellung. */
+	public static java.awt.image.BufferedImage totemImage() throws java.io.IOException {
+		OemerConfig c = OemerConfig.get();
+		if (c.totemMode == 1) return SkinTotem.image();
+		var src = ImageTools.read(totemFolder().resolve(c.totemSelection));
+		return c.totemFit == 1 ? ImageTools.squareCrop(src, 64) : ImageTools.squareContain(src, 64);
 	}
 
 	/**
@@ -60,8 +70,7 @@ public final class LooksPack {
 			Path totemFile = dir.resolve(TOTEM_PATH);
 			if (totem) {
 				Files.createDirectories(totemFile.getParent());
-				var img = ImageTools.squareCrop(ImageTools.read(totemFolder().resolve(OemerConfig.get().totemSelection)), 64);
-				Files.write(totemFile, ImageTools.toPng(img));
+				Files.write(totemFile, ImageTools.toPng(totemImage()));
 			} else {
 				Files.deleteIfExists(totemFile);
 			}

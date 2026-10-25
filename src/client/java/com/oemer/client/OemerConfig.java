@@ -37,6 +37,8 @@ public class OemerConfig {
 	public String capeSelection = "design:0"; // "design:<nr>" oder Dateiname aus capes/
 	public boolean customTotem = false;
 	public String totemSelection = "";        // Dateiname aus totems/
+	public int totemMode = 0;                 // 0 = Bild, 1 = Mein Skin
+	public int totemFit = 0;                  // 0 = ganzes Bild, 1 = füllen
 	public boolean customSounds = false;
 	public java.util.Map<String, String> soundSelection = new java.util.HashMap<>(); // Slot → Datei
 
@@ -49,11 +51,25 @@ public class OemerConfig {
 	public boolean cosHorns = false;
 	public int cosColor = 0;            // Index in COSMETIC_COLOR_NAMES
 	public boolean cosAnimate = true;
+	public java.util.Map<String, Integer> customCosmetics = new java.util.HashMap<>(); // Datei → Platz (0 = aus)
+	public int customCosSize = 1;       // Index in CUSTOM_COS_SIZE_NAMES
+
+	// ---- Crosshair ----
+	public boolean customCrosshair = false;
+	public String crosshairSelection = "design:1"; // "design:<nr>" oder Datei aus crosshairs/
+	public int crosshairColor = 0;      // Index in CROSSHAIR_COLOR_NAMES
+	public int crosshairSize = 1;       // Index in CROSSHAIR_SIZE_NAMES
+
+	// ---- Spotify ----
+	public String spotifyClientId = "";
+	public boolean spotifyHud = true;
+	public int spotifyHudCorner = 2;    // Index in CORNERS
 
 	// ---- Cape-Editor ----
 	public int editorSize = 0;          // Index in EDITOR_SIZES
 
 	// ---- Layout ----
+	public int designStyle = 0;         // Index in DESIGN_STYLES
 	public int menuOpacity = 1;         // Index in OPACITY_NAMES
 	public int accent = 0;              // Index in ACCENT_NAMES
 	public boolean showVersion = true;
@@ -80,6 +96,15 @@ public class OemerConfig {
 	public static final int[] COSMETIC_COLORS = {0xFFF4F4F4, 0xFFF2C14E, 0xFF1A1A1A, 0xFFFF8FC7, 0xFF8ED6FF, 0xFFB98CFF, 0xFFE5484D, 0};
 	public static final String[] EDITOR_SIZE_NAMES = {"Klassisch 10x16", "HD 20x32"};
 	public static final int[] EDITOR_SCALE = {1, 2};
+	public static final String[] DESIGN_STYLES = {"Clean", "Galaxy"};
+	public static final String[] TOTEM_MODES = {"Bild", "Mein Skin"};
+	public static final String[] TOTEM_FITS = {"Ganzes Bild", "Füllen"};
+	public static final String[] COSMETIC_PLACES = {"Aus", "Über dem Kopf", "Rücken", "Schulter", "Begleiter"};
+	public static final String[] CUSTOM_COS_SIZE_NAMES = {"Klein", "Normal", "Groß"};
+	public static final float[] CUSTOM_COS_SIZES = {0.35f, 0.55f, 0.8f};
+	public static final String[] CROSSHAIR_COLOR_NAMES = {"Weiß", "Akzent", "Rosa", "Lila", "Cyan", "Grün", "Rot", "Gelb"};
+	public static final int[] CROSSHAIR_COLORS = {0xFFFFFFFF, 0, 0xFFFF8FC7, 0xFFC3A2FF, 0xFF6FE7FF, 0xFF7BE3A3, 0xFFFF5A5F, 0xFFFFE066};
+	public static final String[] CROSSHAIR_SIZE_NAMES = {"Klein", "Normal", "Groß"};
 	public static final String[] ACCENT_NAMES = {"Weiß", "Eisblau", "Rosa", "Lila", "Mint"};
 
 	public static OemerConfig get() {
@@ -137,5 +162,15 @@ public class OemerConfig {
 		if (totemSelection == null) totemSelection = "";
 		if (materialDone == null) materialDone = new java.util.ArrayList<>();
 		if (soundSelection == null) soundSelection = new java.util.HashMap<>();
+		if (customCosmetics == null) customCosmetics = new java.util.HashMap<>();
+		if (crosshairSelection == null) crosshairSelection = "design:1";
+		if (spotifyClientId == null) spotifyClientId = "";
+		designStyle = Math.floorMod(designStyle, DESIGN_STYLES.length);
+		totemMode = Math.floorMod(totemMode, TOTEM_MODES.length);
+		totemFit = Math.floorMod(totemFit, TOTEM_FITS.length);
+		customCosSize = Math.floorMod(customCosSize, CUSTOM_COS_SIZES.length);
+		crosshairColor = Math.floorMod(crosshairColor, CROSSHAIR_COLORS.length);
+		crosshairSize = Math.floorMod(crosshairSize, CROSSHAIR_SIZE_NAMES.length);
+		spotifyHudCorner = Math.floorMod(spotifyHudCorner, CORNERS.length);
 	}
 }

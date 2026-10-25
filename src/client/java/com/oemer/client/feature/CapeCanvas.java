@@ -15,6 +15,8 @@ public class CapeCanvas {
 	public final int width;
 	public final int height;
 	public final int scale; // 1 = klassisch, 2 = HD
+	/** false = durchsichtige Pixel erlaubt (Totem, Crosshair, Cosmetics). */
+	public final boolean opaque;
 	private int[] pixels;
 	private final Deque<int[]> undo = new ArrayDeque<>();
 	private final Deque<int[]> redo = new ArrayDeque<>();
@@ -23,8 +25,50 @@ public class CapeCanvas {
 		this.scale = scale;
 		this.width = 10 * scale;
 		this.height = 16 * scale;
+		this.opaque = true;
 		this.pixels = new int[width * height];
 		Arrays.fill(pixels, 0xFFF4F4F4);
+	}
+
+	/** Freie Malfläche, z. B. 16x16 mit Transparenz. */
+	public CapeCanvas(int width, int height, boolean opaque) {
+		this.scale = 1;
+		this.width = width;
+		this.height = height;
+		this.opaque = opaque;
+		this.pixels = new int[width * height];
+		Arrays.fill(pixels, opaque ? 0xFFF4F4F4 : 0x00000000);
+	}
+
+	/** Farbe, die der Radierer malt. */
+	public int eraseColor() {
+		return opaque ? 0xFFF4F4F4 : 0x00000000;
+	}
+
+	/** Als normales Bild speichern, jeder Pixel wird zu upscale x upscale (scharf, ohne Weichzeichnen). */
+	public BufferedImage toImage(int upscale) {
+		BufferedImage out = new BufferedImage(width * upscale, height * upscale, BufferedImage.TYPE_INT_ARGB);
+		for (int y = 0; y < height * upscale; y++) {
+			for (int x = 0; x < width * upscale; x++) {
+				out.setRGB(x, y, get(x / upscale, y / upscale));
+			}
+		}
+		return out;
+	}
+
+	/** Speichert als "&lt;prefix&gt; N.png" und gibt den Dateinamen zurück. */
+	public String saveNewImage(Path folder, String prefix, int upscale) throws java.io.IOException {
+		Files.createDirectories(folder);
+		int n = 1;
+		while (Files.exists(folder.resolve(prefix + " " + n + ".png"))) n++;
+		String name = prefix + " " + n + ".png";
+		Files.write(folder.resolve(name), ImageTools.toPng(toImage(upscale)));
+		return name;
+	}
+
+	public void saveImageAs(Path file, int upscale) throws java.io.IOException {
+		Files.createDirectories(file.getParent());
+		Files.write(file, ImageTools.toPng(toImage(upscale)));
 	}
 
 	public int get(int x, int y) {
@@ -129,6 +173,20 @@ public class CapeCanvas {
 	/** Nimmt ein Bild als Vorlage: Cape-Dateien (2:1) → die Rückseite, sonst das ganze Bild. */
 	public void loadFrom(BufferedImage src) {
 		int sx = 0, sy = 0, sw = src.getWidth(), sh = src.getHeight();
+		if (!opaque) {
+			// ganzes Bild, zentriert, Rest durchsichtig
+			Arrays.fill(pixels, 0);
+			double s = Math.min((double) width / sw, (double) height / sh);
+			int dw = Math.max(1, (int) Math.round(sw * s)), dh = Math.max(1, (int) Math.round(sh * s));
+			int ox = (width - dw) / 2, oy = (height - dh) / 2;
+			for (int y = 0; y < dh; y++) {
+				for (int x = 0; x < dw; x++) {
+					pixels[(oy + y) * width + ox + x] = average(src, x * sw / dw, y * sh / dh,
+							Math.max(1, sw / dw), Math.max(1, sh / dh));
+				}
+			}
+			return;
+		}
 		if (src.getWidth() == src.getHeight() * 2 && src.getWidth() >= 64) {
 			int u = src.getWidth() / 64; // Pixel pro Cape-Pixel
 			sx = u;

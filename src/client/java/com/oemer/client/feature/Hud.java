@@ -66,6 +66,44 @@ public final class Hud {
 		OemerConfig c = OemerConfig.get();
 		if (c.kitHud) renderKit(g, mc, c);
 		if (c.materialList) renderMaterials(g, mc, c);
+		if (c.spotifyHud) renderSpotify(g, c);
+	}
+
+	// ------------------------------------------------------------- Spotify
+
+	private static void renderSpotify(GuiGraphics g, OemerConfig c) {
+		if (Spotify.status() != Spotify.Status.CONNECTED) return;
+		Spotify.Track t = Spotify.track();
+		if (t == null) return;
+		float scale = OemerConfig.HUD_SCALES[Math.floorMod(c.hudScale, OemerConfig.HUD_SCALES.length)];
+		int w = 150, h = 38, cs = 28;
+		int corner = c.spotifyHudCorner;
+		int sw = g.guiWidth(), sh = g.guiHeight(), m = 6;
+		float bx = (corner % 2 == 0) ? m : sw - m - w * scale;
+		float by = (corner < 2) ? m : sh - m - h * scale;
+		// nicht über die anderen HUDs in derselben Ecke legen
+		if (c.kitHud && c.kitHudCorner == corner || c.materialList && c.materialListCorner == corner) {
+			by = corner < 2 ? by + lastHeight + 6 : by - lastHeight - 6;
+		}
+		g.pose().pushMatrix();
+		g.pose().translate(bx, by);
+		g.pose().scale(scale);
+		Draw.round(g, 0, 0, w, h, 6, 0xB00B0B0F);
+		Draw.roundBorder(g, 0, 0, w, h, 6, Theme.white(0x30));
+		java.awt.image.BufferedImage cover = Spotify.cover(t.imageUrl());
+		Draw.round(g, 5, 5, cs, cs, 3, Theme.white(0x18));
+		if (cover != null) {
+			Textures.Tex tex = Textures.image("spotify_cover", t.imageUrl(), cover);
+			if (tex != null) Textures.drawCover(g, tex, 5, 5, cs, cs);
+		}
+		int tx = 5 + cs + 7, tw = w - tx - 6;
+		Draw.text(g, Draw.fit(t.title(), tw), tx, 7, Theme.TEXT);
+		Draw.text(g, Draw.fit(t.artist(), tw), tx, 17, Theme.TEXT_DIM);
+		float f = t.durationMs() <= 0 ? 0 : (float) t.progressNow() / t.durationMs();
+		Draw.round(g, tx, 29, tw, 2, 1, Theme.white(0x26));
+		Draw.round(g, tx, 29, Math.max(2, Math.round(tw * f)), 2, 1, Theme.accent());
+		if (!t.playing()) Draw.text(g, "❚❚", w - 14, 7, Theme.TEXT_DIM);
+		g.pose().popMatrix();
 	}
 
 	// ------------------------------------------------------------ Kit-HUD

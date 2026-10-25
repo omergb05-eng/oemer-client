@@ -27,13 +27,27 @@ public final class Theme {
 	public static final int GOOD = 0xFF7BE3A3;
 	public static final int BAD = 0xFFFF7A7A;
 
-	public static int accent() {
-		return ACCENTS[Math.floorMod(OemerConfig.get().accent, ACCENTS.length)];
+	/** Galaxy-Design aktiv? */
+	public static boolean galaxy() {
+		return OemerConfig.get().designStyle == 1;
 	}
 
-	/** Weiß mit gewünschter Transparenz (0-255). */
+	public static int accent() {
+		int idx = Math.floorMod(OemerConfig.get().accent, ACCENTS.length);
+		// Im Galaxy-Design wird "Weiß" zu einem hellen Pink-Lila
+		if (galaxy() && idx == 0) return 0xFFF0A8FF;
+		return ACCENTS[idx];
+	}
+
+	/** Zweite Farbe für Verläufe (Galaxy: Blau-Lila). */
+	public static int accent2() {
+		return galaxy() ? 0xFF8F7BFF : accent();
+	}
+
+	/** "Weiß" mit Transparenz – im Galaxy-Design ganz leicht lila getönt. */
 	public static int white(int alpha) {
-		return (Math.max(0, Math.min(255, alpha)) << 24) | 0xFFFFFF;
+		int rgb = galaxy() ? 0xF1E6FF : 0xFFFFFF;
+		return (Math.max(0, Math.min(255, alpha)) << 24) | rgb;
 	}
 
 	/** Akzentfarbe mit gewünschter Transparenz (0-255). */

@@ -2,5 +2,8 @@
 	"key.category.oemerclient.main": "Ömer Client",
 	"key.oemerclient.menu": "Open Ömer Client menu",
 	"key.oemerclient.freecam": "Toggle Free Cam",
-	"key.oemerclient.fullbright": "Toggle Fullbright"
+	"key.oemerclient.fullbright": "Toggle Fullbright",
+	"key.oemerclient.spotify_play": "Spotify play/pause",
+	"key.oemerclient.spotify_next": "Spotify next track",
+	"key.oemerclient.spotify_prev": "Spotify previous track"
 }

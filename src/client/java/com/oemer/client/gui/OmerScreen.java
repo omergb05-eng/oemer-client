@@ -4,6 +4,9 @@ import com.oemer.client.OemerClient;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.feature.CapeManager;
 import com.oemer.client.feature.Cosmetics;
+import com.oemer.client.feature.Crosshair;
+import com.oemer.client.feature.CustomCosmetics;
+import com.oemer.client.feature.Spotify;
 import com.oemer.client.feature.Hud;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
@@ -36,7 +39,7 @@ import java.util.function.Supplier;
 public class OmerScreen extends Screen {
 
 	enum Tab {
-		SETTINGS("Settings"), SKINS("Skins"), LAYOUT("Layout"), GRAPHICS("Graphics");
+		SETTINGS("Settings"), SKINS("Skins"), LAYOUT("Layout"), GRAPHICS("Graphics"), MUSIK("Musik");
 
 		final String title;
 
@@ -51,11 +54,14 @@ public class OmerScreen extends Screen {
 		MATERIAL(Tab.SETTINGS, "Material List", "Blöcke für deine Schematic"),
 		CAPE(Tab.SKINS, "Cape", "Dein eigenes Cape"),
 		COSMETICS(Tab.SKINS, "Cosmetics", "Hüte, Flügel und mehr"),
+		EIGENE(Tab.SKINS, "Eigene", "Eigene 3D-Cosmetics aus Pixelbildern"),
 		TOTEM(Tab.SKINS, "Totem", "Dein eigenes Totem"),
 		SOUNDS(Tab.SKINS, "Sounds", "Eigene Sounds, jeder mit eigenem Ordner"),
 		DESIGN(Tab.LAYOUT, "Design", "So sieht dein Client aus"),
 		HUD(Tab.LAYOUT, "HUD", "Anzeigen im Spiel"),
-		LOOKS(Tab.GRAPHICS, "Looks", "Eigene Bilder als Hintergrund");
+		LOOKS(Tab.GRAPHICS, "Looks", "Eigene Bilder als Hintergrund"),
+		CROSSHAIR(Tab.GRAPHICS, "Crosshair", "Dein eigenes Fadenkreuz"),
+		SPOTIFY(Tab.MUSIK, "Spotify", "Musik hören und steuern, ohne das Spiel zu verlassen");
 
 		final Tab tab;
 		final String title;
@@ -192,6 +198,9 @@ public class OmerScreen extends Screen {
 			case DESIGN -> buildDesign();
 			case HUD -> buildHud();
 			case LOOKS -> buildLooks();
+			case EIGENE -> buildCustomCosmetics();
+			case CROSSHAIR -> buildCrosshair();
+			case SPOTIFY -> buildSpotify();
 		}
 
 		// ---- Sichtbarer Bereich für die Inhalte (darunter stehen die Infos)
@@ -355,7 +364,11 @@ public class OmerScreen extends Screen {
 		toggle("Custom Totem", () -> c.customTotem, v -> {
 			c.customTotem = v;
 			looksChanged = true;
-		}, false, "Dein Bild wird zum Totem (lädt beim Schließen neu)");
+		}, false, "Dein Totem (lädt beim Schließen neu)");
+		cycle("Quelle", OemerConfig.TOTEM_MODES, () -> c.totemMode, v -> {
+			c.totemMode = v;
+			looksChanged = true;
+		});
 		cycleDynamic("Totem-Bild", () -> {
 			List<String> t = LooksPack.totemChoices();
 			return t.isEmpty() ? new String[]{"(kein Bild)"} : t.stream().map(LooksPack::displayName).toArray(String[]::new);
@@ -363,12 +376,110 @@ public class OmerScreen extends Screen {
 			List<String> t = LooksPack.totemChoices();
 			if (!t.isEmpty()) {
 				c.totemSelection = t.get(Math.min(v, t.size() - 1));
+				c.totemMode = 0;
 				looksChanged = true;
 			}
 		});
+		cycle("Zuschnitt", OemerConfig.TOTEM_FITS, () -> c.totemFit, v -> {
+			c.totemFit = v;
+			looksChanged = true;
+		});
+		button("Totem selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.TOTEM)), OmerWidgets.Style.PRIMARY);
 		button("Totem-Ordner öffnen", () -> open(LooksPack.totemFolder()), OmerWidgets.Style.GLASS);
 
-		info(() -> "Bilder (PNG/JPG) in den Ordner totems/ legen.");
+		info(() -> "PNGs mit Transparenz bleiben durchsichtig. \"Mein Skin\" baut eine Figur aus deinem Skin.");
+	}
+
+	private void buildCustomCosmetics() {
+		OemerConfig c = OemerConfig.get();
+		if (this.minecraft.player != null) usePreview(this::drawPlayerPreview);
+		button("Cosmetic selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.COSMETIC)), OmerWidgets.Style.PRIMARY);
+		cycle("Größe", OemerConfig.CUSTOM_COS_SIZE_NAMES, () -> c.customCosSize, v -> c.customCosSize = v);
+		for (String file : CustomCosmetics.files()) {
+			cycle(CapeManager.shortName(file), OemerConfig.COSMETIC_PLACES, () -> CustomCosmetics.place(file), v -> {
+				if (v == 0) c.customCosmetics.remove(file);
+				else c.customCosmetics.put(file, v);
+			});
+		}
+		button("Cosmetics-Ordner öffnen", () -> open(CustomCosmetics.folder()), OmerWidgets.Style.GLASS);
+
+		info(() -> CustomCosmetics.files().isEmpty()
+				? "Mal ein Pixelbild oder leg PNGs (am besten 16x16) in cosmetics/."
+				: "Jedes Bild wird 3D – wähle, wo es sitzen soll.");
+	}
+
+	private void buildCrosshair() {
+		OemerConfig c = OemerConfig.get();
+		usePreview(this::drawCrosshairPreview);
+		toggle("Eigenes Crosshair", () -> c.customCrosshair, v -> c.customCrosshair = v, false, "Ersetzt das Fadenkreuz in der Mitte");
+		cycleDynamic("Crosshair", () -> Crosshair.choices().stream().map(Crosshair::displayName).toArray(String[]::new),
+				() -> Math.max(0, Crosshair.choices().indexOf(c.crosshairSelection)), v -> {
+					List<String> list = Crosshair.choices();
+					c.crosshairSelection = list.get(Math.min(v, list.size() - 1));
+				});
+		cycle("Farbe", OemerConfig.CROSSHAIR_COLOR_NAMES, () -> c.crosshairColor, v -> c.crosshairColor = v);
+		cycle("Größe", OemerConfig.CROSSHAIR_SIZE_NAMES, () -> c.crosshairSize, v -> c.crosshairSize = v);
+		button("Crosshair selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.CROSSHAIR)), OmerWidgets.Style.PRIMARY);
+		button("Crosshair-Ordner öffnen", () -> open(Crosshair.folder()), OmerWidgets.Style.GLASS);
+
+		info(() -> "PNGs (z. B. 15x15) in crosshairs/ legen. Farbe gilt für die Designs.");
+	}
+
+	private void buildSpotify() {
+		OemerConfig c = OemerConfig.get();
+		usePreview(this::drawSpotifyPreview);
+		boolean connected = Spotify.status() == Spotify.Status.CONNECTED;
+		if (!connected) {
+			int[] p = nextSlot();
+			var box = new net.minecraft.client.gui.components.EditBox(this.font, p[0] + 8, p[1] + 7, colW - 16, 12,
+					Component.literal("Client-ID"));
+			box.setBordered(false);
+			box.setMaxLength(64);
+			box.setTextColor(0xFFFFFFFF);
+			box.setHint(Component.literal("Spotify Client-ID hier einfügen"));
+			box.setValue(c.spotifyClientId);
+			box.setResponder(v -> {
+				c.spotifyClientId = v.trim();
+				OemerConfig.save();
+			});
+			addContent(box);
+			editBox = box;
+			button("Mit Spotify verbinden", Spotify::connect, OmerWidgets.Style.PRIMARY);
+			button("Anleitung: App erstellen", () -> Util.getPlatform().openUri(Spotify.DASHBOARD), OmerWidgets.Style.GLASS);
+		} else {
+			if (previewArea != null) {
+				int bw = Math.max(18, (previewW - 16 - 5 * 4 - 10) / 6);
+				SpotifyScreen.addControls(this, previewX + 8, previewY + 84, bw, 18);
+			}
+			button("Playlists öffnen", () -> this.minecraft.setScreen(new SpotifyScreen(this)), OmerWidgets.Style.PRIMARY);
+			toggle("Now-Playing-HUD", () -> c.spotifyHud, v -> c.spotifyHud = v, false, "Zeigt im Spiel, welcher Song läuft");
+			cycle("HUD Ort", OemerConfig.CORNERS, () -> c.spotifyHudCorner, v -> c.spotifyHudCorner = v);
+			button("Abmelden", () -> {
+				Spotify.disconnect();
+				skipFade = true;
+				this.minecraft.setScreen(new OmerScreen(parent));
+			}, OmerWidgets.Style.GLASS);
+		}
+
+		if (!connected) {
+			info(() -> "1. Auf developer.spotify.com eine App erstellen (Web API).");
+			info(() -> "2. Redirect-URI eintragen: " + Spotify.REDIRECT);
+			info(() -> "3. Client-ID hier einfügen → Verbinden. Steuern braucht Premium.");
+		} else {
+			info(() -> "Tasten für Play/Pause, Weiter, Zurück: Optionen → Steuerung → Ömer Client.");
+		}
+	}
+
+	private net.minecraft.client.gui.components.EditBox editBox;
+
+	/** Für Buttons, die nicht mitscrollen (z. B. Spotify-Steuerung in der Vorschau). */
+	void addExtra(net.minecraft.client.gui.components.AbstractWidget w) {
+		this.addRenderableWidget(w);
+	}
+
+	/** Totem/Sounds haben sich geändert → beim Schließen Ressourcen neu laden. */
+	public static void markLooksChanged() {
+		looksChanged = true;
 	}
 
 	private void buildSounds() {
@@ -400,6 +511,13 @@ public class OmerScreen extends Screen {
 
 	private void buildDesign() {
 		OemerConfig c = OemerConfig.get();
+		cycle("Design-Stil", OemerConfig.DESIGN_STYLES, () -> c.designStyle, v -> {
+			c.designStyle = v;
+			CapeManager.invalidate();
+			// sofort neu aufbauen, damit alle Farben passen
+			skipFade = true;
+			this.minecraft.setScreen(new OmerScreen(parent));
+		});
 		cycle("Akzentfarbe", OemerConfig.ACCENT_NAMES, () -> c.accent, v -> {
 			c.accent = v;
 			CapeManager.invalidate();
@@ -408,8 +526,9 @@ public class OmerScreen extends Screen {
 		toggle("Menü-Partikel", () -> c.menuParticles, v -> c.menuParticles = v, false, "Funkelnde Punkte im Hintergrund");
 		toggle("Menü-Blur im Spiel", () -> c.menuBlur, v -> c.menuBlur = v, false, "Welt hinter dem Menü verschwommen");
 		toggle("Version anzeigen", () -> c.showVersion, v -> c.showVersion = v, false, "");
+		toggle("Design im Startscreen", () -> c.lookTitle, v -> c.lookTitle = v, false, "Galaxy oder dein Look-Bild statt Panorama");
 
-		info(() -> "Änderungen siehst du sofort.");
+		info(() -> c.designStyle == 1 ? "Galaxy: dunkelblau, lila und pink mit leuchtendem Planeten." : "Clean: schwarz und weiß.");
 	}
 
 	private void buildHud() {
@@ -597,7 +716,14 @@ public class OmerScreen extends Screen {
 		boolean mouseIn = inView(mouseX, mouseY);
 		g.enableScissor(contentX - 6, viewTop, contentX + contentW + 6, viewBottom);
 		for (var w : content) {
-			if (w.visible) w.render(g, mouseIn ? mouseX : -1000, mouseIn ? mouseY : -1000, delta);
+			if (!w.visible) continue;
+			if (w instanceof net.minecraft.client.gui.components.EditBox eb) {
+				boolean focus = eb.isFocused();
+				Draw.round(g, eb.getX() - 8, eb.getY() - 7, eb.getWidth() + 16, ROW_H, 4, Theme.white(focus ? 0x26 : 0x16));
+				Draw.roundBorder(g, eb.getX() - 8, eb.getY() - 7, eb.getWidth() + 16, ROW_H, 4,
+						focus ? Theme.accent(0xC0) : Theme.white(0x30));
+			}
+			w.render(g, mouseIn ? mouseX : -1000, mouseIn ? mouseY : -1000, delta);
 		}
 		g.disableScissor();
 		if (max > 0) {
@@ -690,17 +816,61 @@ public class OmerScreen extends Screen {
 
 	private void drawTotemPreview(GuiGraphics g) {
 		OemerConfig c = OemerConfig.get();
-		Textures.Tex t = c.totemSelection.isEmpty() ? null
-				: Textures.file("totem_preview", LooksPack.totemFolder().resolve(c.totemSelection), 256);
+		Textures.Tex t = null;
+		try {
+			if (c.totemMode == 1 || !c.totemSelection.isEmpty()) {
+				String stamp = c.totemMode + "|" + c.totemFit + "|" + c.totemSelection + "|"
+						+ (c.totemMode == 0 ? Files.getLastModifiedTime(LooksPack.totemFolder().resolve(c.totemSelection)).toMillis() : 0);
+				if (!stamp.equals(totemStamp)) {
+					totemStamp = stamp;
+					totemImg = LooksPack.totemImage();
+				}
+				if (totemImg != null) t = Textures.image("totem_preview", stamp, totemImg);
+			}
+		} catch (Exception e) {
+			t = null;
+		}
 		if (t == null) {
 			Draw.centered(g, "Kein Bild im Ordner totems/", previewX + previewW / 2, previewY + previewH / 2 - 4, Theme.TEXT_DIM);
 			return;
 		}
 		int s = Math.min(previewW - 30, previewH - 40);
 		int x = previewX + (previewW - s) / 2, y = previewY + 10;
-		Draw.shadow(g, x, y, s, s, 6, 110);
-		Textures.drawCover(g, t, x, y, s, s);
-		previewLabel(g, LooksPack.displayName(c.totemSelection) + (c.customTotem ? "" : "  (aus)"));
+		// Schachbrett, damit man Transparenz sieht
+		int cell = Math.max(4, s / 8);
+		for (int yy = 0; yy < s; yy += cell) {
+			for (int xx = 0; xx < s; xx += cell) {
+				boolean dark = ((xx / cell + yy / cell) & 1) == 0;
+				g.fill(x + xx, y + yy, x + Math.min(s, xx + cell), y + Math.min(s, yy + cell), dark ? 0x30FFFFFF : 0x18FFFFFF);
+			}
+		}
+		Textures.draw(g, t, x, y, s, s);
+		String name = c.totemMode == 1 ? "Mein Skin" : LooksPack.displayName(c.totemSelection);
+		previewLabel(g, name + (c.customTotem ? "" : "  (aus)"));
+	}
+
+	private String totemStamp = "";
+	private BufferedImage totemImg;
+
+	private void drawCrosshairPreview(GuiGraphics g) {
+		// kleine Spielszene: Himmel, Boden
+		int x = previewX + 10, y = previewY + 10, w = previewW - 20, h = previewH - 34;
+		Draw.vGradient(g, x, y, w, h * 2 / 3, 0xFF6FA8FF, 0xFFB9D7FF);
+		Draw.vGradient(g, x, y + h * 2 / 3, w, h - h * 2 / 3, 0xFF5E9E3A, 0xFF3E6E26);
+		Draw.roundBorder(g, x, y, w, h, 3, Theme.white(0x40));
+		if (OemerConfig.get().customCrosshair && Crosshair.active()) {
+			Crosshair.draw(g, x + w / 2f, y + h / 2f, Crosshair.scale() * 1.5f);
+		} else {
+			// Minecraft-Standard grob nachgemalt
+			int cx = x + w / 2, cy = y + h / 2;
+			g.fill(cx - 7, cy, cx + 8, cy + 1, 0xFFFFFFFF);
+			g.fill(cx, cy - 7, cx + 1, cy + 8, 0xFFFFFFFF);
+		}
+		previewLabel(g, Crosshair.displayName(OemerConfig.get().crosshairSelection) + (OemerConfig.get().customCrosshair ? "" : "  (aus)"));
+	}
+
+	private void drawSpotifyPreview(GuiGraphics g) {
+		SpotifyScreen.drawNowPlaying(g, previewX, previewY, previewW, 78, true);
 	}
 
 	private void drawLookPreview(GuiGraphics g) {

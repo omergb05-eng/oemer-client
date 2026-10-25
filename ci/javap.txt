@@ -69,3 +69,9 @@ net.minecraft.client.renderer.LightTexture
 net.minecraft.client.gui.screens.TitleScreen
 net.minecraft.client.renderer.PanoramaRenderer
 net.minecraft.client.gui.Font
+net.minecraft.client.CameraType
+net.minecraft.client.User
+net.minecraft.server.packs.resources.ResourceManager
+net.minecraft.server.packs.resources.ResourceProvider
+net.minecraft.server.packs.resources.Resource
+net.minecraft.client.gui.Gui

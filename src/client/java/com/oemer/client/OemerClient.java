@@ -2,6 +2,12 @@ package com.oemer.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.oemer.client.feature.Cosmetics;
+import com.oemer.client.feature.Crosshair;
+import com.oemer.client.feature.GalaxyArt;
+import com.oemer.client.feature.SkinTotem;
+import com.oemer.client.feature.Spotify;
+import com.oemer.client.gui.Backdrop;
+import com.oemer.client.gui.SpotifyScreen;
 import com.oemer.client.feature.Freecam;
 import com.oemer.client.feature.Hud;
 import com.oemer.client.feature.Looks;
@@ -9,6 +15,7 @@ import com.oemer.client.feature.Sounds;
 import com.oemer.client.gui.OmerScreen;
 import com.oemer.client.gui.OmerWidgets;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
@@ -39,11 +46,14 @@ public class OemerClient implements ClientModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger("Ömer Client");
 	public static final String VERSION = FabricLoader.getInstance().getModContainer(MOD_ID)
 			.map(c -> c.getMetadata().getVersion().getFriendlyString())
-			.orElse("4.0.0");
+			.orElse("5.0.0");
 
 	private static KeyMapping menuKey;
 	private static KeyMapping freecamKey;
 	private static KeyMapping fullbrightKey;
+	private static KeyMapping spotifyPlayKey;
+	private static KeyMapping spotifyNextKey;
+	private static KeyMapping spotifyPrevKey;
 
 	@Override
 	public void onInitializeClient() {
@@ -51,6 +61,24 @@ public class OemerClient implements ClientModInitializer {
 		createFolders();
 		Sounds.createFolders();
 		registerKeys();
+
+		// Galaxy-Bild und Skin schon im Hintergrund vorbereiten
+		GalaxyArt.prepare();
+		ClientLifecycleEvents.CLIENT_STARTED.register(mc -> SkinTotem.prepare());
+
+		// Spotify: nur abfragen, wenn man es sieht
+		Spotify.init(() -> {
+			Minecraft mc = Minecraft.getInstance();
+			return (OemerConfig.get().spotifyHud && mc.level != null)
+					|| mc.screen instanceof OmerScreen || mc.screen instanceof SpotifyScreen;
+		});
+
+		// Eigenes Crosshair statt dem normalen
+		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, tracker) -> {
+			if (!Crosshair.render(graphics, tracker)) {
+				original.render(graphics, tracker);
+			}
+		});
 
 		// Kit-HUD + Material List im Spiel
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(MOD_ID, "hud"), Hud::render);
@@ -71,7 +99,9 @@ public class OemerClient implements ClientModInitializer {
 				// Look-Modus: dein Bild statt Panorama
 				ScreenEvents.afterBackground(screen).register((s, g, mx, my, d) -> {
 					if (OemerConfig.get().lookTitle) {
-						Looks.drawFullscreen(g, s.width, s.height);
+						if (!Looks.drawFullscreen(g, s.width, s.height) && OemerConfig.get().designStyle == 1) {
+							Backdrop.drawGalaxy(g, s.width, s.height, (System.currentTimeMillis() % 1_000_000L) / 1000f, 0x20);
+						}
 					}
 				});
 			} else if (screen instanceof PauseScreen) {
@@ -93,6 +123,13 @@ public class OemerClient implements ClientModInitializer {
 				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F4, category));
 		fullbrightKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.fullbright",
 				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, category));
+		// Spotify-Tasten: frei belegbar (Optionen → Steuerung)
+		spotifyPlayKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.spotify_play",
+				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
+		spotifyNextKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.spotify_next",
+				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
+		spotifyPrevKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient.spotify_prev",
+				InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
 	}
 
 	private static void handleKeys(Minecraft mc) {
@@ -109,6 +146,10 @@ public class OemerClient implements ClientModInitializer {
 				c.freecam = !c.freecam;
 			}
 		}
+
+		while (spotifyPlayKey.consumeClick()) Spotify.playPause();
+		while (spotifyNextKey.consumeClick()) Spotify.next();
+		while (spotifyPrevKey.consumeClick()) Spotify.previous();
 
 		while (fullbrightKey.consumeClick()) {
 			c.fullbright = !c.fullbright;

@@ -83,6 +83,31 @@ public final class ImageTools {
 		return out;
 	}
 
+	/**
+	 * Ganzes Bild in ein Quadrat (Rest bleibt durchsichtig). Kleine Pixel-Art wird scharf vergrößert,
+	 * große Bilder weich verkleinert. Perfekt für PNGs mit Transparenz als Totem.
+	 */
+	public static BufferedImage squareContain(BufferedImage src, int size) {
+		BufferedImage out = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+		double s = Math.min((double) size / src.getWidth(), (double) size / src.getHeight());
+		int dw = Math.max(1, (int) Math.round(src.getWidth() * s));
+		int dh = Math.max(1, (int) Math.round(src.getHeight() * s));
+		int ox = (size - dw) / 2, oy = (size - dh) / 2;
+		if (src.getWidth() <= size && src.getHeight() <= size) {
+			for (int y = 0; y < dh; y++) {
+				for (int x = 0; x < dw; x++) {
+					out.setRGB(ox + x, oy + y, src.getRGB(Math.min(src.getWidth() - 1, x * src.getWidth() / dw),
+							Math.min(src.getHeight() - 1, y * src.getHeight() / dh)));
+				}
+			}
+		} else {
+			Graphics2D g = smooth(out);
+			g.drawImage(src, ox, oy, dw, dh, null);
+			g.dispose();
+		}
+		return out;
+	}
+
 	/** Schneidet so aus, dass das Seitenverhältnis w:h passt (Mitte bleibt). */
 	private static void drawCover(Graphics2D g, BufferedImage src, int dx, int dy, int dw, int dh) {
 		double target = (double) dw / dh;
@@ -152,7 +177,7 @@ public final class ImageTools {
 	// ----------------------------------------------------- eigene Designs
 
 	/** Die eingebauten Ömer-Designs. */
-	public static final String[] DESIGNS = {"Ömer Weiß", "Ömer Schwarz", "Ömer Glas", "Ömer Verlauf"};
+	public static final String[] DESIGNS = {"Ömer Weiß", "Ömer Schwarz", "Ömer Glas", "Ömer Verlauf", "Ömer Galaxy"};
 
 	public static BufferedImage design(int index, int accentRgb) {
 		int w = 10 * CAPE_SCALE, h = 16 * CAPE_SCALE;
@@ -177,6 +202,15 @@ public final class ImageTools {
 				g.setColor(new Color(255, 255, 255, 160));
 				g.fillRect(w / 10, h / 14, w - w / 5, h - h / 7);
 				drawLogo(g, w, h, new Color(0x202020), accent);
+			}
+			case 4 -> { // Galaxy: Ausschnitt mit dem Planeten
+				BufferedImage gal = GalaxyArt.paint(480, 270, 7);
+				int ch = 270, cw = Math.round(270f * w / h);
+				int sx = Math.max(0, Math.min(480 - cw, Math.round(480 * GalaxyArt.PLANET_X) - cw / 2));
+				g.drawImage(gal, 0, 0, w, h, sx, 0, sx + cw, ch, null);
+				g.setColor(new Color(255, 255, 255, 40));
+				g.fillRect(0, h * 3 / 4 - 2, w, Math.max(2, h / 40) + 4);
+				drawLogo(g, w, h, new Color(0xFFFFFF), new Color(0xFFB3E6));
 			}
 			default -> { // Verlauf in der Akzentfarbe
 				g.setPaint(new GradientPaint(0, 0, accent, 0, h, new Color(0x0B0B0B)));

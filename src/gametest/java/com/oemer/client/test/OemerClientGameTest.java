@@ -12,6 +12,10 @@ import com.oemer.client.feature.Sounds;
 import com.oemer.client.gui.CapeEditorScreen;
 import com.oemer.client.gui.MaterialListScreen;
 import com.oemer.client.gui.OmerScreen;
+import com.oemer.client.gui.SpotifyScreen;
+import com.oemer.client.feature.Crosshair;
+import com.oemer.client.feature.CustomCosmetics;
+import com.oemer.client.feature.Spotify;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -157,6 +161,85 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.takeScreenshot("10-layout-hud");
 		click(ctx, "Graphics");
 		ctx.takeScreenshot("11-graphics-looks");
+		click(ctx, "Crosshair");
+		ctx.takeScreenshot("11b-graphics-crosshair");
+		click(ctx, "Musik");
+		ctx.takeScreenshot("11c-musik-spotify");
+		click(ctx, "Skins");
+		click(ctx, "Eigene");
+		ctx.takeScreenshot("11d-skins-eigene");
+
+		// ---------------------------------------------- Spotify (ohne Konto: nur prüfen, was offline geht)
+		check("spotify-pkce", ctx.computeOnClient(mc -> {
+			try {
+				return Spotify.challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk").equals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
+			} catch (Exception e) {
+				return false;
+			}
+		}), "");
+		check("spotify-status", ctx.computeOnClient(mc -> Spotify.status() == Spotify.Status.NO_CLIENT_ID), "");
+		ctx.setScreen(() -> new SpotifyScreen(new OmerScreen(null)));
+		ctx.waitTicks(3);
+		ctx.takeScreenshot("11e-spotify-screen");
+		click(ctx, "‹ Zurück");
+
+		// ---------------------------------------------- Totem-, Crosshair- und Cosmetic-Editor
+		ctx.setScreen(() -> new CapeEditorScreen(new OmerScreen(null), CapeEditorScreen.Mode.TOTEM));
+		ctx.waitTicks(3);
+		ctx.runOnClient(mc -> {
+			if (mc.screen instanceof CapeEditorScreen ed) {
+				// kleines Herz
+				int[][] heart = {{4,4},{5,3},{6,3},{7,4},{8,4},{9,3},{10,3},{11,4},{3,5},{12,5},{3,6},{12,6},{4,7},{11,7},{5,8},{10,8},{6,9},{9,9},{7,10},{8,10}};
+				for (int[] p : heart) ed.paintForTest(p[0], p[1], 0xFFFF4F9A, CapeEditorScreen.Tool.PINSEL);
+				ed.paintForTest(7, 6, 0xFFFF8FC7, CapeEditorScreen.Tool.EIMER);
+			}
+		});
+		ctx.waitTicks(2);
+		ctx.takeScreenshot("12b-totem-editor");
+		ctx.runOnClient(mc -> {
+			if (mc.screen instanceof CapeEditorScreen ed) ed.saveForTest();
+		});
+		String tsel = ctx.computeOnClient(mc -> OemerConfig.get().totemSelection);
+		check("totem-editor-saves", tsel.startsWith("Mein Totem") && ctx.computeOnClient(mc -> OemerConfig.get().totemMode == 0), tsel);
+
+		ctx.setScreen(() -> new CapeEditorScreen(new OmerScreen(null), CapeEditorScreen.Mode.CROSSHAIR));
+		ctx.waitTicks(3);
+		ctx.runOnClient(mc -> {
+			if (mc.screen instanceof CapeEditorScreen ed) {
+				for (int i = 2; i <= 12; i++) {
+					if (i < 6 || i > 8) {
+						ed.paintForTest(i, 7, 0xFFFFFFFF, CapeEditorScreen.Tool.PINSEL);
+						ed.paintForTest(7, i, 0xFFFFFFFF, CapeEditorScreen.Tool.PINSEL);
+					}
+				}
+				ed.paintForTest(7, 7, 0xFFFF4F9A, CapeEditorScreen.Tool.PINSEL);
+				ed.saveForTest();
+			}
+		});
+		ctx.waitTicks(2);
+		ctx.takeScreenshot("12c-crosshair-editor");
+		String csel = ctx.computeOnClient(mc -> OemerConfig.get().crosshairSelection);
+		check("crosshair-editor-saves", csel.startsWith("Mein Crosshair") && ctx.computeOnClient(mc -> Crosshair.active()), csel);
+
+		ctx.setScreen(() -> new CapeEditorScreen(new OmerScreen(null), CapeEditorScreen.Mode.COSMETIC));
+		ctx.waitTicks(3);
+		ctx.runOnClient(mc -> {
+			if (mc.screen instanceof CapeEditorScreen ed) {
+				// kleiner Stern
+				int[][] star = {{7,1},{8,1},{7,2},{8,2},{6,3},{9,3},{1,5},{2,5},{3,5},{4,5},{5,5},{6,5},{9,5},{10,5},{11,5},{12,5},{13,5},{14,5},
+						{3,6},{12,6},{4,7},{11,7},{5,8},{10,8},{4,9},{11,9},{3,10},{7,10},{8,10},{12,10},{2,11},{6,11},{9,11},{13,11},{2,12},{5,12},{10,12},{13,12}};
+				for (int[] p : star) ed.paintForTest(p[0], p[1], 0xFFFFD23F, CapeEditorScreen.Tool.PINSEL);
+				ed.paintForTest(7, 6, 0xFFFFE066, CapeEditorScreen.Tool.EIMER);
+				ed.saveForTest();
+			}
+		});
+		ctx.waitTicks(2);
+		ctx.takeScreenshot("12d-cosmetic-editor");
+		boolean cosSaved = ctx.computeOnClient(mc -> CustomCosmetics.files().stream().anyMatch(f -> f.startsWith("Mein Cosmetic"))
+				&& CustomCosmetics.anyActive());
+		check("cosmetic-editor-saves", cosSaved, "");
+		ctx.setScreen(() -> new TitleScreen());
+		ctx.waitTicks(3);
 
 		// ---------------------------------------------- Cape-Editor
 		click(ctx, "Skins");
@@ -285,6 +368,40 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.runOnClient(mc -> OemerConfig.get().freecam = false);
 			ctx.waitTicks(3);
 
+			// ------------------------------------------ Crosshair im Spiel
+			ctx.runOnClient(mc -> {
+				OemerConfig c = OemerConfig.get();
+				c.cosCrown = false;
+				c.cosHorns = false;
+				c.cosTopHat = false;
+			});
+			ctx.waitTicks(3);
+			ctx.takeScreenshot("27b-crosshair-eigenes");
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().crosshairSelection = "design:3";
+				OemerConfig.get().crosshairColor = 2;
+				OemerConfig.get().crosshairSize = 2;
+			});
+			ctx.waitTicks(3);
+			ctx.takeScreenshot("27c-crosshair-design");
+
+			// ------------------------------------------ Eigene Cosmetics an allen Plätzen
+			String cosFile = ctx.computeOnClient(mc -> CustomCosmetics.files().stream().filter(f -> f.startsWith("Mein Cosmetic")).findFirst().orElse(""));
+			int[] places = {1, 4};
+			String[] names = {"27d-eigenes-cosmetic-kopf", "27e-eigenes-cosmetic-begleiter"};
+			for (int i = 0; i < places.length; i++) {
+				int pl = places[i];
+				ctx.runOnClient(mc -> OemerConfig.get().customCosmetics.put(cosFile, pl));
+				shotFreecam(ctx, 0, 1.0, 3.2, 180, 10, names[i]);
+			}
+			ctx.runOnClient(mc -> OemerConfig.get().customCosmetics.put(cosFile, 2));
+			shotFreecam(ctx, 0, 1.0, -3.0, 0, 10, "27f-eigenes-cosmetic-ruecken");
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().customCosmetics.put(cosFile, 0);
+				OemerConfig.get().freecam = false;
+			});
+			ctx.waitTicks(3);
+
 			// ------------------------------------------ Kit-HUD + Material List
 			sp.getServer().runCommand("give @a totem_of_undying 3");
 			sp.getServer().runCommand("give @a end_crystal 32");
@@ -351,6 +468,13 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			sp.getServer().runCommand("give @a totem_of_undying");
 			ctx.waitTicks(10);
 			ctx.takeScreenshot("30-totem");
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().totemMode = 1;
+				LooksPack.apply(mc);
+			});
+			ctx.waitFor(mc -> mc.getOverlay() == null, 1200);
+			ctx.waitTicks(10);
+			ctx.takeScreenshot("30b-totem-skin");
 
 			// ------------------------------------------ Menü im Spiel + Look-Modus
 			ctx.runOnClient(mc -> {
@@ -365,7 +489,13 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			click(ctx, "Cosmetics");
 			ctx.waitTicks(5);
 			ctx.takeScreenshot("32-menu-ingame-cosmetics-vorschau");
-			ctx.runOnClient(mc -> OemerConfig.get().lookMode = false);
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().lookMode = false;
+				OemerConfig.get().designStyle = 1;
+			});
+			ctx.setScreen(() -> new OmerScreen(null));
+			ctx.waitTicks(20);
+			ctx.takeScreenshot("32b-galaxy-ingame");
 			ctx.setScreen(() -> null);
 
 			ctx.setScreen(() -> new PauseScreen(true));
@@ -377,12 +507,23 @@ public class OemerClientGameTest implements FabricClientGameTest {
 
 		// ---------------------------------------------- Startscreen mit Look
 		ctx.runOnClient(mc -> {
-			OemerConfig.get().lookMode = true;
+			OemerConfig.get().lookMode = false;
 			OemerConfig.get().lookTitle = true;
+			OemerConfig.get().designStyle = 1;
 		});
 		ctx.waitForScreen(TitleScreen.class);
+		ctx.waitTicks(30);
+		ctx.takeScreenshot("34-startscreen-galaxy");
+		click(ctx, "Ömer Client");
+		ctx.waitTicks(15);
+		ctx.takeScreenshot("35-galaxy-menu");
+		click(ctx, "Skins");
+		click(ctx, "Cape");
+		ctx.takeScreenshot("36-galaxy-skins");
+		ctx.setScreen(() -> new TitleScreen());
+		ctx.runOnClient(mc -> OemerConfig.get().lookMode = true);
 		ctx.waitTicks(10);
-		ctx.takeScreenshot("34-startscreen-look");
+		ctx.takeScreenshot("37-startscreen-look");
 
 		System.out.println("[OEMER-TEST] fertig, Fehler: " + failures.size());
 		if (!failures.isEmpty()) {
