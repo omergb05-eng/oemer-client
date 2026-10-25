@@ -2,6 +2,9 @@ package com.oemer.client.gui;
 
 import com.oemer.client.OemerClient;
 import com.oemer.client.OemerConfig;
+import com.oemer.client.feature.CapeManager;
+import com.oemer.client.feature.LooksPack;
+import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -32,6 +35,9 @@ public class OmerScreen extends Screen {
 
 	/** Bleibt gemerkt, solange das Spiel läuft. */
 	private static Tab current = Tab.SETTINGS;
+
+	/** Totem geändert → beim Schließen Ressourcen neu laden. Gilt über Tab-Wechsel hinweg. */
+	private static boolean looksChanged;
 
 	private static final int PAD = 16;
 	private static final int TOP = 38;
@@ -114,12 +120,40 @@ public class OmerScreen extends Screen {
 
 	private void buildSkins() {
 		OemerConfig c = OemerConfig.get();
-		toggle("Eigenes Cape", () -> c.customCape, v -> c.customCape = v, true);
-		toggle("Custom Totem", () -> c.customTotem, v -> c.customTotem = v, true);
-		toggle("Custom Sounds", () -> c.customSounds, v -> c.customSounds = v, true);
 
-		infoLines.add("Deine Bilder kommen später in diesen Ordner:");
-		infoLines.add(".minecraft/config/oemerclient/  (capes, totems, sounds)");
+		// Cape: Designs + eigene Bilder
+		List<String> capes = CapeManager.choices();
+		String[] capeNames = capes.stream().map(CapeManager::displayName).toArray(String[]::new);
+		toggle("Eigenes Cape", () -> c.customCape, v -> c.customCape = v, false);
+		cycle("Cape", capeNames, () -> Math.max(0, capes.indexOf(c.capeSelection)), v -> {
+			c.capeSelection = capes.get(v);
+			CapeManager.invalidate();
+		});
+
+		// Totem: eigene Bilder
+		List<String> totems = LooksPack.totemChoices();
+		if (!totems.contains(c.totemSelection)) {
+			c.totemSelection = totems.isEmpty() ? "" : totems.get(0);
+		}
+		String[] totemNames = totems.isEmpty()
+				? new String[]{"(kein Bild)"}
+				: totems.stream().map(LooksPack::displayName).toArray(String[]::new);
+		toggle("Custom Totem", () -> c.customTotem, v -> {
+			c.customTotem = v;
+			looksChanged = true;
+		}, false);
+		cycle("Totem-Bild", totemNames, () -> Math.max(0, totems.indexOf(c.totemSelection)), v -> {
+			if (!totems.isEmpty()) {
+				c.totemSelection = totems.get(v);
+				looksChanged = true;
+			}
+		});
+
+		toggle("Custom Sounds", () -> c.customSounds, v -> c.customSounds = v, true);
+		button("Bilder-Ordner öffnen", () -> Util.getPlatform().openPath(CapeManager.folder().getParent()));
+
+		infoLines.add("Bilder (PNG/JPG) in die Ordner capes/ und totems/ legen.");
+		infoLines.add("Das Cape siehst nur du. Totem lädt beim Schließen neu.");
 	}
 
 	private void buildLayout() {
@@ -168,6 +202,11 @@ public class OmerScreen extends Screen {
 					set.accept(v);
 					OemerConfig.save();
 				}));
+	}
+
+	private void button(String label, Runnable action) {
+		int[] p = nextSlot();
+		this.addRenderableWidget(new OmerWidgets.Flat(p[0], p[1], colW, ROW_H, label, action));
 	}
 
 	private void switchTab(Tab tab) {
@@ -225,6 +264,10 @@ public class OmerScreen extends Screen {
 	@Override
 	public void onClose() {
 		OemerConfig.save();
+		if (looksChanged && this.minecraft != null) {
+			looksChanged = false;
+			LooksPack.apply(this.minecraft);
+		}
 		if (this.minecraft != null) {
 			this.minecraft.setScreen(parent);
 		}

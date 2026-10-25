@@ -30,7 +30,9 @@ public class OemerConfig {
 
 	// ---- Skins ----
 	public boolean customCape = false;
+	public String capeSelection = "design:0"; // "design:<nr>" oder Dateiname aus capes/
 	public boolean customTotem = false;
+	public String totemSelection = "";        // Dateiname aus totems/
 	public boolean customSounds = false;
 
 	// ---- Layout ----

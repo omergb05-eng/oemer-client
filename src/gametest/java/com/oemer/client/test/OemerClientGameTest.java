@@ -1,6 +1,9 @@
 package com.oemer.client.test;
 
 import com.oemer.client.OemerConfig;
+import com.oemer.client.feature.CapeManager;
+import com.oemer.client.feature.ImageTools;
+import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.FreeCamera;
 import com.oemer.client.feature.Freecam;
 import com.oemer.client.gui.OmerScreen;
@@ -9,7 +12,9 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.gui.screens.TitleScreen;
 import org.lwjgl.glfw.GLFW;
 
@@ -32,6 +37,38 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		}
 	}
 
+	/** Klickt einen Ömer-Button (eigene Buttons kennt der Fabric-Klick nicht). */
+	private static void click(ClientGameTestContext ctx, String text) {
+		boolean found = ctx.computeOnClient(mc -> {
+			if (mc.screen == null) {
+				return false;
+			}
+			for (var child : mc.screen.children()) {
+				if (child instanceof AbstractButton b && b.getMessage().getString().equals(text)) {
+					b.onPress(new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0));
+					return true;
+				}
+			}
+			return false;
+		});
+		if (!found) {
+			throw new AssertionError("Button nicht gefunden: " + text);
+		}
+		ctx.waitTicks(2);
+	}
+
+	/** Buntes Testbild (Verlauf mit Kreis). */
+	private static java.awt.image.BufferedImage testImage() {
+		var img = new java.awt.image.BufferedImage(400, 300, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+		var g = img.createGraphics();
+		g.setPaint(new java.awt.GradientPaint(0, 0, java.awt.Color.PINK, 400, 300, java.awt.Color.MAGENTA));
+		g.fillRect(0, 0, 400, 300);
+		g.setColor(java.awt.Color.WHITE);
+		g.fillOval(120, 70, 160, 160);
+		g.dispose();
+		return img;
+	}
+
 	private static boolean hasButton(Minecraft mc, String text) {
 		return mc.screen != null && Screens.getButtons(mc.screen).stream()
 				.anyMatch(w -> w.getMessage().getString().equals(text));
@@ -45,16 +82,16 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.takeScreenshot("01-startscreen");
 
 		// ---------------------------------------------- Menü + Tabs
-		ctx.clickScreenButton("Ömer Client");
+		click(ctx, "Ömer Client");
 		check("menu-opens", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
 		ctx.takeScreenshot("02-menu-settings");
-		ctx.clickScreenButton("Skins");
+		click(ctx, "Skins");
 		ctx.takeScreenshot("03-menu-skins");
-		ctx.clickScreenButton("Layout");
+		click(ctx, "Layout");
 		ctx.takeScreenshot("04-menu-layout");
-		ctx.clickScreenButton("Graphics");
+		click(ctx, "Graphics");
 		ctx.takeScreenshot("05-menu-graphics");
-		ctx.clickScreenButton("Fertig");
+		click(ctx, "Fertig");
 		check("menu-closes", ctx.computeOnClient(mc -> mc.screen instanceof TitleScreen), "");
 
 		// ---------------------------------------------- Welt
@@ -120,17 +157,85 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.waitTicks(3);
 			check("freecam-off", ctx.computeOnClient(mc -> !Freecam.isEnabled() && mc.getCameraEntity() == mc.player), "");
 
+			// ------------------------------------------ Cape
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().fullbright = true; // damit man nachts das Cape sieht
+				OemerConfig.get().customCape = true;
+				OemerConfig.get().capeSelection = "design:1";
+				CapeManager.invalidate();
+			});
+			ctx.waitTicks(3);
+			String capePath = ctx.computeOnClient(mc -> {
+				var cape = mc.player.getSkin().cape();
+				return cape == null ? "null" : cape.texturePath().toString();
+			});
+			check("cape-design", capePath.startsWith("oemerclient:cape/"), capePath);
+
+			// eigenes Bild als Cape
+			ctx.runOnClient(mc -> {
+				try {
+					java.nio.file.Files.createDirectories(CapeManager.folder());
+					java.nio.file.Files.write(CapeManager.folder().resolve("test-bild.png"), ImageTools.toPng(testImage()));
+					java.nio.file.Files.createDirectories(LooksPack.totemFolder());
+					java.nio.file.Files.write(LooksPack.totemFolder().resolve("test-totem.png"), ImageTools.toPng(testImage()));
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+				OemerConfig.get().capeSelection = "test-bild.png";
+				CapeManager.invalidate();
+			});
+			ctx.waitTicks(3);
+			capePath = ctx.computeOnClient(mc -> {
+				var cape = mc.player.getSkin().cape();
+				return cape == null ? "null" : cape.texturePath().toString();
+			});
+			check("cape-image", capePath.startsWith("oemerclient:cape/"), capePath);
+
+			// Kamera hinter den Spieler, damit man das Cape sieht
+			ctx.getInput().pressKey(GLFW.GLFW_KEY_F4);
+			ctx.waitTicks(3);
+			ctx.runOnClient(mc -> {
+				if (Freecam.isEnabled()) {
+					Freecam.camera().snapTo(mc.player.getX(), mc.player.getY() + 0.6, mc.player.getZ() - 2.6, 0, 15);
+				}
+			});
+			ctx.waitTicks(5);
+			ctx.takeScreenshot("10-cape-bild");
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().capeSelection = "design:3";
+				CapeManager.invalidate();
+			});
+			ctx.waitTicks(3);
+			ctx.takeScreenshot("11-cape-design");
+			ctx.getInput().pressKey(GLFW.GLFW_KEY_F4);
+			ctx.waitTicks(3);
+
+			// ------------------------------------------ Totem
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().customTotem = true;
+				OemerConfig.get().totemSelection = "test-totem.png";
+				LooksPack.apply(mc);
+			});
+			ctx.waitFor(mc -> mc.getOverlay() == null, 1200);
+			ctx.waitTicks(10);
+			boolean packOn = ctx.computeOnClient(mc -> mc.getResourcePackRepository().getSelectedIds().contains(LooksPack.PACK_ID));
+			check("totem-pack-active", packOn, "");
+			sp.getServer().runCommand("give @a totem_of_undying");
+			ctx.waitTicks(10);
+			ctx.takeScreenshot("12-totem");
+
 			// ------------------------------------------ Menü im Spiel
 			ctx.getInput().pressKey(GLFW.GLFW_KEY_RIGHT_SHIFT);
 			ctx.waitTicks(3);
 			check("menu-key-ingame", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
-			ctx.takeScreenshot("10-menu-ingame");
+			click(ctx, "Skins");
+			ctx.takeScreenshot("13-menu-ingame-skins");
 			ctx.setScreen(() -> null);
 
 			ctx.setScreen(() -> new PauseScreen(true));
 			ctx.waitTicks(2);
 			check("pause-button", ctx.computeOnClient(mc -> hasButton(mc, "Ömer Client")), "");
-			ctx.takeScreenshot("11-pause");
+			ctx.takeScreenshot("14-pause");
 			ctx.setScreen(() -> null);
 		}
 
