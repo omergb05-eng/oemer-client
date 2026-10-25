@@ -59,12 +59,12 @@ public final class CapeManager {
 		return shortName(choice);
 	}
 
-	static String shortName(String file) {
+	public static String shortName(String file) {
 		String name = file.contains(".") ? file.substring(0, file.lastIndexOf('.')) : file;
 		return name.length() > 14 ? name.substring(0, 13) + "…" : name;
 	}
 
-	static List<String> imageFiles(Path dir) {
+	public static List<String> imageFiles(Path dir) {
 		List<String> files = new ArrayList<>();
 		try {
 			Files.createDirectories(dir);
