@@ -8,6 +8,6 @@ final class OnlineDefaults {
 	private OnlineDefaults() {
 	}
 
-	static final String API_KEY = "";
-	static final String DATABASE_URL = "";
+	static final String API_KEY = "AIzaSyA-1cBMg9DbgGm-_qxOnu9qfHbzbh-6u3A";
+	static final String DATABASE_URL = "https://omerclient-91ae5-default-rtdb.europe-west1.firebasedatabase.app";
 }
