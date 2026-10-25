@@ -377,7 +377,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			mc.level.addEntity(rp);
 		});
 		ctx.waitTicks(10);
-		check("badge-friend", OmerBadge.isOmer(java.util.UUID.fromString(bobMc)), "");
+		check("badge-friend", ctx.computeOnClient(mc -> OmerBadge.isOmer(java.util.UUID.fromString(bobMc))), "");
 		ctx.waitTicks(10);
 		check("badge-nametag-drawn", OmerBadge.drawn > 0, "drawn=" + OmerBadge.drawn);
 		ctx.takeScreenshot("54-freund-cape-in-welt");
@@ -1364,7 +1364,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 
 		// ------------------------------------------------ Ömer-Symbol
 		check("badge-self", ctx.computeOnClient(mc -> OmerBadge.isOmer(mc.getUser().getProfileId())), "");
-		check("badge-stranger", !OmerBadge.isOmer(java.util.UUID.randomUUID()), "");
+		check("badge-stranger", !ctx.computeOnClient(mc -> OmerBadge.isOmer(java.util.UUID.randomUUID())), "");
 		String tabName = ctx.computeOnClient(mc -> {
 			try {
 				var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
