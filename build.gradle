@@ -42,3 +42,21 @@ java {
 	sourceCompatibility = JavaVersion.VERSION_21
 	targetCompatibility = JavaVersion.VERSION_21
 }
+
+// ---------------------------------------------------------------------
+// Automatischer Test: startet Minecraft in GitHub und prüft die Mod.
+// (Der Testcode landet NICHT in der fertigen .jar.)
+// ---------------------------------------------------------------------
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "oemerclient-test"
+		enableGameTests = false
+		enableClientGameTests = true
+		eula = true // Minecraft-EULA für den Testlauf
+	}
+}
+
+tasks.matching { it.name == "runClientGameTest" }.configureEach {
+	jvmArgs("-Dfabric.client.gametest.disableNetworkSynchronizer=true")
+}

@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "oemerclient-test",
+	"version": "1.0.0",
+	"name": "Ömer Client Test",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"com.oemer.client.test.OemerClientGameTest"
+		]
+	},
+	"depends": {
+		"oemerclient": "*"
+	}
+}
