@@ -96,6 +96,16 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(3);
 	}
 
+	/** Läuft in einem normalen Thread (der Test-Thread darf Minecraft nicht direkt anfassen). */
+	private static void off(Runnable r) {
+		Thread t = new Thread(r, "Ömer Test Hintergrund");
+		t.start();
+		try {
+			t.join(30000);
+		} catch (InterruptedException ignored) {
+		}
+	}
+
 	private interface Cond {
 		boolean ok() throws Exception;
 	}
@@ -209,7 +219,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		acceptOps.addProperty("friends/" + me + "/" + bob.uid, true);
 		acceptOps.add("requests/" + bob.uid + "/" + me, JsonNull.INSTANCE);
 		Firebase.multi(bob, acceptOps);
-		Social.syncNow();
+		off(Social::syncNow);
 		check("friend-accepted", Social.friend(bob.uid) != null && Social.friend(bob.uid).name.equals("Anna"), "");
 		check("friend-online", Social.friend(bob.uid) != null && Social.friend(bob.uid).online(), "");
 
@@ -218,7 +228,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		req.addProperty("name", "Carl");
 		req.add("ts", Firebase.serverTime());
 		Firebase.put(carl, "requests/" + me + "/" + carl.uid, req);
-		Social.syncNow();
+		off(Social::syncNow);
 		check("request-incoming", Social.requests().size() == 1 && Social.requests().get(0).name().equals("Carl"), "" + Social.requests().size());
 
 		// Cape + Totem teilen
@@ -231,7 +241,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			c.totemPreset = 0;
 			c.shareSkins = true;
 		});
-		Social.syncSkinsLater();
+		off(Social::syncSkinsLater);
 		check("skins-upload", until(ctx, 400, () -> {
 			var o = Firebase.get(bob, "skins/" + me).getAsJsonObject();
 			return o.has("cape") && o.has("totem");
@@ -242,7 +252,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		sk.addProperty("cape", java.util.Base64.getEncoder().encodeToString(solidPng(64, 32, 0xFFE02020)));
 		sk.addProperty("totem", java.util.Base64.getEncoder().encodeToString(solidPng(96, 96, 0xFF20C040)));
 		Firebase.put(bob, "skins/" + bob.uid, sk);
-		Social.syncNow();
+		off(Social::syncNow);
 		check("skins-friend-received", FriendSkins.hasCape(bobMc) && FriendSkins.hasTotem(bob.uid), "");
 		check("skins-cape-texture", ctx.computeOnClient(mc -> FriendSkins.capeFor(java.util.UUID.fromString(bobMc)) != null), "");
 
@@ -262,20 +272,20 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ops.add("messages/" + me + "/" + bob.uid + "/mx1", m);
 		ops.addProperty("inbox/" + me + "/" + bob.uid, ts);
 		Firebase.multi(bob, ops);
-		Social.syncNow();
+		off(Social::syncNow);
 		check("chat-received", Social.chat(bob.uid).size() == 2 && Social.unread(bob.uid) == 1, Social.chat(bob.uid).size() + " Nachrichten, " + Social.unread(bob.uid) + " ungelesen");
 
 		// Musik teilen
 		ctx.runOnClient(mc -> YouTubeMusic.play(new YouTubeMusic.Track("jNQXAC9IVRw", "Me at the zoo", "jawed")));
 		httpGet(page + "api/state");
-		Social.publishNow();
+		off(Social::publishNow);
 		check("music-published", until(ctx, 200, () -> Firebase.get(bob, "listening/" + me).getAsJsonObject().get("title").getAsString().equals("Me at the zoo")), "");
 		Social.setMusicFor(bob.uid, false, null);
 		check("music-hidden-for-friend", until(ctx, 300, () -> denied(bob, "listening/" + me)), "");
 		Social.setMusicFor(bob.uid, true, null);
 		check("music-visible-again", until(ctx, 300, () -> !denied(bob, "listening/" + me)), "");
 		ctx.runOnClient(mc -> OemerConfig.get().shareMusic = false);
-		Social.publishNow();
+		off(Social::publishNow);
 		check("music-global-off", until(ctx, 200, () -> Firebase.get(bob, "listening/" + me).isJsonNull()), "");
 		ctx.runOnClient(mc -> OemerConfig.get().shareMusic = true);
 
@@ -289,7 +299,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		l.add("at", Firebase.serverTime());
 		l.addProperty("playing", true);
 		Firebase.put(bob, "listening/" + bob.uid, l);
-		Social.syncNow();
+		off(Social::syncNow);
 		check("music-friend-visible", Social.friend(bob.uid).listening != null && Social.friend(bob.uid).listening.title().startsWith("Fools"), "");
 		check("music-position-advances", Social.friend(bob.uid).listening != null && Social.positionOf(Social.friend(bob.uid).listening) >= 30000, "");
 
