@@ -34,7 +34,7 @@ for jar in $(grep -E 'minecraft-(clientonly|common)-deobf' ci-out/jars.txt) $(ca
   unzip -Z1 "$jar" 2>/dev/null | grep '\.class$' | grep -v -e module-info -e '/mixin/' | grep -E '^(com/mojang/blaze3d|net/minecraft/client|net/minecraft/world/entity/player|net/minecraft/world/item|net/minecraft/network/chat|net/minecraft/core|net/minecraft/resources|net/minecraft/util|net/minecraft/server/packs|net/minecraft/world/phys|net/fabricmc/fabric/api)' | sed 's/\.class$//' >> ci-out/all-classes.list
 done
 sort -u ci-out/all-classes.list -o ci-out/all-classes.list
-javap -p -J-Xmx3g -cp "$ALLCP" @ci-out/all-classes.list 2>/dev/null | gzip -9 > ci-out/javap-all.txt.gz
+tr '/' '.' < ci-out/all-classes.list | xargs -n 300 javap -p -J-Xmx3g -cp "$ALLCP" 2>ci-out/javap-all.err | gzip -9 > ci-out/javap-all.txt.gz
 cp ci-out/all-classes.list ci-out/classes-all.txt
 rm -f ci-out/all-classes.list
 for f in $(find ~/.gradle/caches/modules-2 -path '*net.fabricmc.fabric-api*' -name '*.jar'); do :; done
