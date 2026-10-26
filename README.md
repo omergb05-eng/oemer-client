@@ -52,6 +52,13 @@ einmal öffnen – dann zählt ihr Inhalt in der Liste mit, und die Kiste leucht
 
 Alle Ordner liegen in `.minecraft/config/oemerclient/`. Cape, Cosmetics, Totem und Sounds siehst bzw. hörst nur du.
 
+## Neu in 8.1
+
+- **Schematic**: Ghost-Blöcke mit der echten Textur (und Drehung/Zustand), durchsichtig und leicht pulsierend. Blau = fehlt, rot = falsch, grün = passt. Reichweite „Unbegrenzt“ (Standard) – auch riesige Bilder (z. B. 256×256) laden. Nahe Blöcke mit Textur, ferne als Farbflächen.
+- **Musik**: Fehler beim Abspielen (Video nicht einbettbar) überspringen nicht mehr heimlich auf einen anderen Song. Taste Hoch/Runter = Musik lauter/leiser (auch im Spiel).
+- **Armor HUD** (Mods): Rüstung mit Haltbarkeit am Bildschirmrand.
+- **Tasten**: Änderungen unter Einstellungen → Tasten gelten jetzt in allen Kits.
+
 ## Neu in 8.0
 - **Schematic-Platzierung** (Mods → Schematic-Platzierung): `.litematic` oder `.schem` wählen, per „Dort setzen“ in die Welt stellen, verschieben, drehen (90°), spiegeln. Fehlende Blöcke erscheinen als durchsichtiger Geist, falsche Blöcke rot, richtige grün. **Ebene für Ebene:** nur eine Ebene / bis zu / ab einer Ebene zeigen, mit Bild ↑ / Bild ↓ (frei belegbar) hoch und runter. Es werden nur Blockarten verglichen (nicht die Ausrichtung von Treppen o. ä.).
 - **Clipper** (Mods → Clipper): nimmt im Hintergrund auf. **F9** = die letzten 30 s / 1 min / 2 min als Video speichern, in einen Ordner, den du selbst wählst. MP4 (läuft überall) oder AVI (sofort fertig). Ohne Ton.

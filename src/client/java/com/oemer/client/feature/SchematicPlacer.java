@@ -633,7 +633,7 @@ public final class SchematicPlacer {
 		// ---- Pass 2: ferne Blöcke / Blöcke ohne Modell als einfache, farbige Flächen
 		VertexConsumer vc = ctx.consumers().getBuffer(RenderTypes.debugQuads());
 		Matrix4f m = pose.last().pose();
-		float e = 0.04f;
+		float e = 0.012f;
 		float flatSq = flatDist * flatDist;
 		int flatQuads = 0;
 		for (int i = 0; i < n && flatQuads < 450_000; i++) {
