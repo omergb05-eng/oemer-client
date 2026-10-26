@@ -59,7 +59,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected final void renderContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partial) {
+		protected final void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partial) {
 			float d = delta();
 			hover = Draw.approach(hover, this.isHovered() && this.active ? 1f : 0f, 14f, d);
 			draw(g, mouseX, mouseY, d);

@@ -149,7 +149,7 @@ public class OmerScreen extends Screen {
 	public static void openMusic() {
 		section = Section.MUSIK;
 		openMod = null;
-		net.minecraft.client.Minecraft.getInstance().setScreen(new OmerScreen(null));
+		net.minecraft.client.Minecraft.getInstance().gui.setScreen(new OmerScreen(null));
 	}
 
 	/** Totem/Sounds/Texturen haben sich geändert → beim Schließen Ressourcen neu laden. */
@@ -496,7 +496,7 @@ public class OmerScreen extends Screen {
 			Files.createDirectories(dir);
 		} catch (Exception ignored) {
 		}
-		Util.getPlatform().openPath(dir);
+		com.mojang.blaze3d.Blaze3D.openUri(dir.toUri());
 	}
 
 	private void go(Section s) {
@@ -1294,7 +1294,7 @@ public class OmerScreen extends Screen {
 			button("Schlüssel holen", () -> com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(YouTubeMusic.GUIDE)), OmerWidgets.Style.GLASS);
 			endFlow();
 		} else if (name.equals("Jedes Lied")) {
-			button("Erweiterung „Ömer Bridge“ installieren", () -> Util.getPlatform().openPath(YouTubeMusic.installExtension()), OmerWidgets.Style.GLASS);
+			button("Erweiterung „Ömer Bridge“ installieren", () -> com.mojang.blaze3d.Blaze3D.openUri(YouTubeMusic.installExtension().toUri()), OmerWidgets.Style.GLASS);
 			button("Wiedergabe: YouTube-Seite", () -> {
 				OemerConfig.get().ytMode = 1;
 				OemerConfig.save();
@@ -1473,7 +1473,7 @@ public class OmerScreen extends Screen {
 		});
 		button("Erweiterung „Ömer Bridge“ installieren", () -> {
 			java.nio.file.Path dir = YouTubeMusic.installExtension();
-			Util.getPlatform().openPath(dir);
+			com.mojang.blaze3d.Blaze3D.openUri(dir.toUri());
 		}, OmerWidgets.Style.GLASS,
 				"Für „YouTube-Seite“: Ordner öffnet sich. In Chrome/Edge/Brave: chrome://extensions → Entwicklermodus an → „Entpackte Erweiterung laden“ → diesen Ordner wählen");
 		endFlow();
@@ -2494,7 +2494,7 @@ public class OmerScreen extends Screen {
 
 	private void drawBackground(GuiGraphicsExtractor g) {
 		boolean inWorld = this.minecraft.level != null;
-		if (inWorld && OemerConfig.get().menuBlur) this.renderBlurredBackground(g);
+		if (inWorld && OemerConfig.get().menuBlur) this.extractBlurredBackground(g);
 		Backdrop.render(g, this.width, this.height, inWorld);
 
 		// ---- Logo oben links
@@ -2645,7 +2645,7 @@ public class OmerScreen extends Screen {
 		float s = uiScale;
 		g.pose().pushMatrix();
 		g.pose().identity();
-		InventoryScreen.renderEntityInInventoryFollowsMouse(g, Math.round((previewX + 4) * s), Math.round((previewY + 4) * s),
+		InventoryScreen.extractEntityInInventoryFollowsMouse(g, Math.round((previewX + 4) * s), Math.round((previewY + 4) * s),
 				Math.round((previewX + previewW - 4) * s), Math.round((previewY + previewH - 20) * s), Math.round(size * s), 0.0625f,
 				mouseXNow * s, mouseYNow * s, this.minecraft.player);
 		g.pose().popMatrix();

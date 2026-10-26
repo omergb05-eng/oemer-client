@@ -65,7 +65,7 @@ public final class PackTweaks {
 			}
 			if (c.darkGui) {
 				for (String folder : DARK_FOLDERS) {
-					vanilla.listResources(PackType.CLIENT_RESOURCES, "minecraft", folder, (id, supplier) -> {
+					vanilla.fullResources().listResources(PackType.CLIENT_RESOURCES, "minecraft", folder, (id, supplier) -> {
 						if (!id.getPath().endsWith(".png")) return;
 						try (InputStream in = supplier.get()) {
 							BufferedImage img = ImageIO.read(in);
@@ -96,7 +96,7 @@ public final class PackTweaks {
 	}
 
 	private static BufferedImage read(VanillaPackResources vanilla, String path) {
-		IoSupplier<InputStream> s = vanilla.getResource(PackType.CLIENT_RESOURCES, Identifier.withDefaultNamespace(path));
+		IoSupplier<InputStream> s = vanilla.fullResources().getResource(PackType.CLIENT_RESOURCES, Identifier.withDefaultNamespace(path));
 		if (s == null) return null;
 		try (InputStream in = s.get()) {
 			return ImageIO.read(in);
@@ -200,7 +200,7 @@ public final class PackTweaks {
 	public static long countDark(Minecraft mc) {
 		long[] n = {0};
 		for (String folder : DARK_FOLDERS) {
-			mc.getVanillaPackResources().listResources(PackType.CLIENT_RESOURCES, "minecraft", folder, (id, s) -> {
+			mc.getVanillaPackResources().fullResources().listResources(PackType.CLIENT_RESOURCES, "minecraft", folder, (id, s) -> {
 				if (id.getPath().endsWith(".png")) n[0]++;
 			});
 		}
