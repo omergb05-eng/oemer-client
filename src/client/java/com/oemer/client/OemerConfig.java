@@ -116,6 +116,9 @@ public class OemerConfig {
 	public boolean customName = false;
 	public String customNameText = "";   // leer = dein echter Name
 	public int nameMode = 1;              // 0 Farbe, 1 Verlauf, 2 Rainbow
+	public boolean shareName = true;      // Namensstil + Logo für Freunde sichtbar
+	public String nameLogo = "";          // Datei in namelogo/ (ein kleines Logo neben dem Namen)
+	public boolean nameLogoOn = false;
 	public int nameColor1 = 8;            // Index in NAME_COLORS
 	public int nameColor2 = 9;
 	public boolean nameBold = false;
@@ -162,6 +165,7 @@ public class OemerConfig {
 	public int armorHudPos = 0;             // Index in ARMOR_POS
 	public int armorHudValue = 0;           // Index in ARMOR_VALUE
 	public boolean armorHudHands = false;   // Hände mitzeigen
+	public boolean armorHudGear = false;    // Schwert, Axt, Schild aus der Hotbar mitzeigen
 	public boolean sharedKeys = true;      // Minecraft-Tasten gelten für alle Kits
 	public boolean customLoading = true;
 	public boolean nameIcon = true;
@@ -220,7 +224,7 @@ public class OemerConfig {
 	public static final String[] SMALL_NAMES = {"75 %", "50 %", "30 %"};
 	public static final float[] SMALL_SCALES = {0.75f, 0.5f, 0.3f};
 	public static final String[] ARMOR_POS = {"Links in der Mitte", "Rechts in der Mitte", "Links neben der Hotbar", "Rechts neben der Hotbar"};
-	public static final String[] ARMOR_VALUE = {"Prozent", "Haltbarkeit (Zahl)", "Nur Balken"};
+	public static final String[] ARMOR_VALUE = {"Prozent", "Haltbarkeit (Zahl)", "Nur Balken", "Beides (Prozent + Zahl)"};
 	public static final String[] YT_MODES = {"Eingebetteter Player (Standard)", "YouTube-Seite (Erweiterung, jedes Lied)"};
 	public static final String[] PLACE_MODES = {"Alle Ebenen", "Nur diese Ebene", "Bis zu dieser Ebene", "Ab dieser Ebene"};
 	public static final String[] PLACE_MIRRORS = {"Aus", "Links ↔ rechts", "Vorne ↔ hinten"};
@@ -328,6 +332,7 @@ public class OemerConfig {
 	nameColor1 = Math.floorMod(nameColor1, com.oemer.client.feature.NameStyle.COLORS.length);
 	nameColor2 = Math.floorMod(nameColor2, com.oemer.client.feature.NameStyle.COLORS.length);
 	if (customNameText == null) customNameText = "";
+	if (nameLogo == null) nameLogo = "";
 	if (customNameText.length() > 32) customNameText = customNameText.substring(0, 32);
 		lowShieldLevel = Math.floorMod(lowShieldLevel, LOW_NAMES.length);
 		smallerTotemLevel = Math.floorMod(smallerTotemLevel, SMALL_NAMES.length);

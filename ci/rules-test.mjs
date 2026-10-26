@@ -66,6 +66,22 @@ check('Ben sieht Skins weiterhin', (await db(b, 'GET', 'skins/' + a.uid)).ok);
 check('Ben kann Sharing nicht umstellen', !(await db(b, 'PUT', `sharing/${a.uid}/${b.uid}`, true)).ok);
 check('Musik wieder an', (await db(a, 'PUT', `sharing/${a.uid}/${b.uid}`, true)).ok && (await db(b, 'GET', 'listening/' + a.uid)).ok);
 
+// Namensstil + Logo
+check('Namensstil speichern', (await db(a, 'PATCH', 'skins/' + a.uid, { name: '{"t":"","m":1,"a":2,"b":7,"f":true}', logo: 'iVBORw0KGgo=' })).ok);
+check('Freund liest Namensstil', (await db(b, 'GET', 'skins/' + a.uid)).data?.name?.includes('"m":1'));
+check('Zu langer Name abgelehnt', !(await db(a, 'PATCH', 'skins/' + a.uid, { name: 'x'.repeat(201) })).ok);
+check('Zu grosses Logo abgelehnt', !(await db(a, 'PATCH', 'skins/' + a.uid, { logo: 'x'.repeat(9001) })).ok);
+check('Dritte sehen Namensstil nicht', !(await db(c, 'GET', 'skins/' + a.uid)).ok);
+
+// Mithoeren nur mit Erlaubnis
+check('Ben darf sich nicht selbst erlauben', !(await db(b, 'PUT', `listenAllow/${a.uid}/${b.uid}`, true)).ok);
+check('Anna erlaubt Ben', (await db(a, 'PUT', `listenAllow/${a.uid}/${b.uid}`, true)).ok);
+check('Ben sieht seine Erlaubnis', (await db(b, 'GET', `listenAllow/${a.uid}/${b.uid}`)).data === true);
+check('Cora sieht die Erlaubnis nicht', !(await db(c, 'GET', `listenAllow/${a.uid}/${b.uid}`)).ok);
+check('Ben sieht die Liste nicht', !(await db(b, 'GET', `listenAllow/${a.uid}`)).ok);
+check('Anna darf Nicht-Freunden nichts erlauben', !(await db(a, 'PUT', `listenAllow/${a.uid}/${c.uid}`, true)).ok);
+check('Anna widerruft', (await db(a, 'PUT', `listenAllow/${a.uid}/${b.uid}`, false)).ok && (await db(b, 'GET', `listenAllow/${a.uid}/${b.uid}`)).data === false);
+
 // Chat
 const t = Date.now();
 const send = await db(a, 'PATCH', '', {

@@ -19,6 +19,7 @@ import com.oemer.client.feature.Clipper;
 import com.oemer.client.feature.MaterialList;
 import com.oemer.client.feature.SchematicGrid;
 import com.oemer.client.feature.SchematicPlacer;
+import com.oemer.client.feature.NameShare;
 import com.oemer.client.feature.NameStyle;
 import com.oemer.client.feature.OwnFiles;
 import com.oemer.client.feature.Music;
@@ -661,6 +662,7 @@ public class OmerScreen extends Screen {
 				cycle("Ort", OemerConfig.ARMOR_POS, () -> c.armorHudPos, v -> c.armorHudPos = v);
 				cycle("Anzeige", OemerConfig.ARMOR_VALUE, () -> c.armorHudValue, v -> c.armorHudValue = v);
 				toggle("Hände mitzeigen", () -> c.armorHudHands, v -> c.armorHudHands = v, "Zeigt auch Item in der Haupt- und Zweithand");
+				toggle("Schwert, Axt, Schild", () -> c.armorHudGear, v -> c.armorHudGear = v, "Zeigt die Haltbarkeit von Schwert, Axt und Schild aus der Hotbar");
 				endFlow();
 				info(() -> "Helm, Brustplatte, Hose und Schuhe mit Haltbarkeit (grün = heil, rot = fast kaputt). Größe: Settings → HUD-Größe.");
 			}
@@ -812,8 +814,44 @@ public class OmerScreen extends Screen {
 		toggle("Fett", () -> c.nameBold, v -> c.nameBold = v, "");
 		toggle("Im Chat ersetzen", () -> c.nameInChat, v -> c.nameInChat = v, "Dein Name erscheint im Chat in deiner Farbe");
 		toggle("Namensschild bei mir", () -> c.nameShowSelf, v -> c.nameShowSelf = v, "In F5 und mit Free Cam siehst du dein Schild");
+		toggle("Für Freunde sichtbar", () -> c.shareName, v -> c.shareName = v, "Freunde mit dem Ömer Client sehen deinen Namensstil und dein Logo (Konto nötig)");
 		endFlow();
-		info(() -> "Nur du siehst den Namen (Tab-Liste, Chat, Schild). Andere sehen weiter deinen echten Namen.");
+		heading("Logo neben dem Namen");
+		note("Ein einzelnes kleines Logo (z. B. dein Clan-Zeichen) – du malst es selbst oder lädst deine eigene Datei hoch.");
+		toggle("Logo anzeigen", () -> c.nameLogoOn, v -> {
+			c.nameLogoOn = v;
+			NameShare.invalidate();
+		}, "Erscheint links neben deinem Namensschild – auch bei Freunden");
+		endFlow();
+		button("Logo malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.LOGO)), OmerWidgets.Style.PRIMARY);
+		button("Datei hochladen", () -> FilePicker.pickImage("Logo wählen (PNG, am besten quadratisch)", NameShare.folder(), name -> {
+			c.nameLogo = name;
+			c.nameLogoOn = true;
+			NameShare.invalidate();
+			OemerConfig.save();
+			refresh();
+		}), OmerWidgets.Style.GLASS);
+		button("Logo entfernen", () -> {
+			c.nameLogo = "";
+			c.nameLogoOn = false;
+			NameShare.invalidate();
+			OemerConfig.save();
+			refresh();
+		}, OmerWidgets.Style.GLASS);
+		endFlow();
+		addContent(new OmerWidgets.Painter(cx0, cy, cw, 44, (g, x, y, w, h, mx, my) -> {
+			Draw.round(g, x, y, w, h, 8, 0x50000000);
+			Draw.roundBorder(g, x, y, w, h, 8, Theme.white(0x22));
+			Textures.Tex t = Thumbs.get("namelogo_" + NameShare.stamp(), () -> NameShare.ownImage());
+			int tx = x + 14;
+			if (t != null && !c.nameLogo.isEmpty()) {
+				Textures.drawContain(g, t, tx, y + 8, 28, 28);
+				tx += 38;
+			}
+			Draw.text(g, c.nameLogo.isEmpty() ? "Noch kein Logo" : "Logo: " + c.nameLogo.replace(".png", ""), tx, y + 18, Theme.TEXT_DIM);
+		}, null));
+		cy += 44 + GAP;
+		info(() -> "Du und deine Freunde mit dem Ömer Client sehen Namensstil und Logo (Namensschild, Tab-Liste und Chat; das Logo am Namensschild). Alle anderen sehen den normalen Namen.");
 	}
 
 	private void buildMaterial() {
@@ -1735,7 +1773,7 @@ public class OmerScreen extends Screen {
 			boolean canJoin = l != null && "YouTube".equals(l.service()) && !l.id().isEmpty();
 			var join = new OmerWidgets.Flat(bx + 110, cy, 106, 22, "♪ Mitlauschen", () -> Social.listenAlong(f.uid, null)).style(OmerWidgets.Style.PRIMARY);
 			join.active = canJoin;
-			join.tip(canJoin ? "Spielt " + f.name + "s Song bei dir ab, an derselben Stelle" : "Geht, wenn " + f.name + " gerade YouTube-Musik teilt");
+			join.tip(canJoin ? "Fragt " + f.name + " per Chat; nach der Erlaubnis läuft sein Song bei dir, an derselben Stelle" : "Geht, wenn " + f.name + " gerade YouTube-Musik teilt");
 			addContent(join);
 			boolean vis = Social.musicVisibleFor(f.uid);
 			addContent(new OmerWidgets.Flat(bx, cy + 25, 106, 22, vis ? "Meine Musik: an" : "Meine Musik: aus",
@@ -1815,9 +1853,25 @@ public class OmerScreen extends Screen {
 			refresh();
 		}).style(OmerWidgets.Style.GLASS));
 		final String head = "Chat mit " + f.name + (f.online() ? "  ·  online" : "  ·  offline");
-		addContent(new OmerWidgets.Painter(cx0 + 120, cy, Math.max(40, cw - 120), 22, (g, px, py, pw, ph, mx, my) ->
+		final boolean may = Social.mayListen(f.uid);
+		final boolean incoming = Social.incomingListenRequest(f.uid);
+		final int lw = 150;
+		addContent(new OmerWidgets.Painter(cx0 + 120, cy, Math.max(40, cw - 120 - lw - 6), 22, (g, px, py, pw, ph, mx, my) ->
 				Draw.text(g, Draw.fit(head, pw), px, py + 7, Theme.TEXT), null));
+		addContent(new OmerWidgets.Flat(cx0 + cw - lw, cy, lw, 22, may ? "Mithören: erlaubt ✔" : "Mithören: nicht erlaubt",
+				() -> Social.allowListen(f.uid, !may, null)).tip(may ? "Klick = " + f.name + " darf nicht mehr bei dir mithören"
+				: "Klick = " + f.name + " darf bei dir mithören"));
 		cy += 22 + GAP;
+		if (incoming) {
+			addContent(new OmerWidgets.Painter(cx0, cy, Math.max(60, cw - 212), 22, (g, px, py, pw, ph, mx, my) -> {
+				Draw.round(g, px, py, pw, ph, 5, Theme.accent(0x40));
+				Draw.text(g, Draw.fit("♪ " + f.name + " möchte bei dir mithören", pw - 16), px + 8, py + 7, Theme.TEXT);
+			}, null));
+			addContent(new OmerWidgets.Flat(cx0 + cw - 206, cy, 100, 22, "✔ Erlauben", () -> Social.allowListen(f.uid, true, null))
+					.style(OmerWidgets.Style.PRIMARY));
+			addContent(new OmerWidgets.Flat(cx0 + cw - 102, cy, 100, 22, "✕ Ablehnen", () -> Social.allowListen(f.uid, false, null)));
+			cy += 22 + GAP;
+		}
 		int avail = panelY + panelH - 18 - cy - ROW_H - GAP;
 		final int chatH = Math.max(80, avail);
 		final String uid = chatWith;
@@ -1842,7 +1896,17 @@ public class OmerScreen extends Screen {
 		int maxText = Math.max(60, w * 3 / 4 - 16);
 		for (int i = msgs.size() - 1; i >= 0 && bottom > y; i--) {
 			Social.Msg m = msgs.get(i);
-			List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(m.text()), maxText);
+			Social.Friend fr = Social.friend(uid);
+			String shownText = Social.shown(m, fr == null ? "Freund" : fr.name);
+			if (Social.isControl(m.text())) {
+				int cw2 = this.font.width(shownText) + 16;
+				int by2 = bottom - 16;
+				Draw.round(g, x + (w - cw2) / 2, by2, cw2, 14, 7, Theme.white(0x14));
+				Draw.centered(g, shownText, x + w / 2, by2 + 3, Theme.TEXT_DIM);
+				bottom = by2 - 4;
+				continue;
+			}
+			List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(shownText), maxText);
 			int tw = 0;
 			for (var l : lines) tw = Math.max(tw, this.font.width(l));
 			int bw = tw + 14, bh = lines.size() * 10 + 8;

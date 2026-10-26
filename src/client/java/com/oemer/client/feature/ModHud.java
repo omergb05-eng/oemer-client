@@ -3,7 +3,11 @@ package com.oemer.client.feature;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.gui.Draw;
 import com.oemer.client.gui.Theme;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.component.DataComponents;
@@ -38,16 +42,13 @@ public final class ModHud {
 		int food = p.getFoodData().getFoodLevel();
 		float sat = p.getFoodData().getSaturationLevel();
 
-		// Sättigung: goldener Rahmen um die Keulen
+		loadGold();
+		// Sättigung: goldene Keulen genau in der Form der echten Hunger-Symbole
 		for (int i = 0; i < 10; i++) {
 			float part = Math.max(0f, Math.min(2f, sat - i * 2));
 			if (part <= 0f) break;
 			int x = right - i * 8 - 9;
-			int col = part >= 2f ? 0xD0FFC23A : 0x80FFC23A;
-			g.fill(x, top, x + 9, top + 1, col);
-			g.fill(x, top + 8, x + 9, top + 9, col);
-			g.fill(x, top, x + 1, top + 9, col);
-			g.fill(x + 8, top, x + 9, top + 9, col);
+			drawGold(g, part >= 2f ? goldFull : goldHalf, x, top, 0xFFFFFFFF);
 		}
 
 		// Vorschau: so viel Hunger bringt das Essen in deiner Hand (blinkt)
@@ -55,17 +56,109 @@ public final class ModHud {
 		if (f != null) {
 			int to = Math.min(20, food + f.nutrition());
 			float pulse = (float) (0.5 + 0.5 * Math.sin(System.currentTimeMillis() / 160.0));
-			int a = Math.round(0x30 + 0x60 * pulse);
-			for (int point = food + 1; point <= to; point++) {
-				int i = (point - 1) / 2;
+			int a = Math.round(0x50 + 0x80 * pulse);
+			for (int i = food / 2; i < (to + 1) / 2; i++) {
 				int x = right - i * 8 - 9;
-				boolean half = point % 2 == 1;
-				// Keulen werden von rechts gefüllt: erst rechte, dann linke Hälfte
-				int x0 = half ? x + 4 : x;
-				int x1 = half ? x + 9 : x + 5;
-				g.fill(x0 + (half ? 0 : 1), top + 1, x1 - (half ? 1 : 0), top + 8, (a << 24) | 0xFFFFFF);
+				int from = Math.max(food, i * 2), upTo = Math.min(to, i * 2 + 2);
+				boolean full = upTo - from >= 2;
+				drawGold(g, full ? goldFull : goldHalf, x, top, (a << 24) | 0xFFFFFF);
 			}
 		}
+	}
+
+	// ---- goldene Hunger-Symbole: aus den echten Minecraft-Symbolen umgefärbt, damit die Form identisch ist
+	private static Textures.Tex goldFull, goldHalf;
+	private static boolean goldTried;
+
+	/** Zum Testen: true, wenn die goldenen Symbole fertig sind. */
+	public static boolean goldReady() {
+		return goldFull != null && goldHalf != null;
+	}
+
+	private static void drawGold(GuiGraphics g, Textures.Tex t, int x, int y, int color) {
+		if (t == null) return;
+		g.blit(RenderPipelines.GUI_TEXTURED, t.id(), x, y, 0f, 0f, 9, 9, t.width(), t.height(), t.width(), t.height(), color);
+	}
+
+	private static BufferedImage sprite(String name) {
+		try {
+			var res = Minecraft.getInstance().getResourceManager().getResource(Identifier.withDefaultNamespace("textures/gui/sprites/hud/" + name + ".png"));
+			if (res.isEmpty()) return null;
+			try (var in = res.get().open()) {
+				return ImageIO.read(in);
+			}
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private static int gold(int argb) {
+		int a = argb >>> 24;
+		if (a == 0) return 0;
+		int r = argb >> 16 & 255, gr = argb >> 8 & 255, b = argb & 255;
+		float lum = (0.3f * r + 0.59f * gr + 0.11f * b) / 255f;
+		int min = Math.min(r, Math.min(gr, b)), max = Math.max(r, Math.max(gr, b));
+		boolean bone = min > 150 && max - min < 60;
+		int rr, gg, bb;
+		if (bone) { // Knochen: helles Gelbweiß
+			rr = 255; gg = 244; bb = 196;
+		} else if (lum < 0.16f) { // Umriss: dunkles Goldbraun
+			rr = 112; gg = 74; bb = 0;
+		} else { // Fleisch: Gold, Schattierung bleibt wie im Original
+			float k = Math.min(1.25f, 0.55f + 1.15f * lum);
+			rr = Math.min(255, Math.round(255 * k));
+			gg = Math.min(255, Math.round(196 * k));
+			bb = Math.min(255, Math.round(48 * k));
+		}
+		return (a << 24) | (rr << 16) | (gg << 8) | bb;
+	}
+
+	private static void loadGold() {
+		if (goldTried) return;
+		goldTried = true;
+		BufferedImage full = sprite("food_full"), half = sprite("food_half"), empty = sprite("food_empty");
+		if (full == null || full.getWidth() != 9 || full.getHeight() != 9) {
+			full = fallbackFood();
+			half = null;
+		}
+		BufferedImage gf = new BufferedImage(9, 9, BufferedImage.TYPE_INT_ARGB);
+		BufferedImage gh = new BufferedImage(9, 9, BufferedImage.TYPE_INT_ARGB);
+		for (int y = 0; y < 9; y++) {
+			for (int x = 0; x < 9; x++) {
+				int c = gold(full.getRGB(x, y));
+				gf.setRGB(x, y, c);
+				boolean filled;
+				if (half != null && empty != null && half.getWidth() == 9 && empty.getWidth() == 9) {
+					filled = half.getRGB(x, y) != empty.getRGB(x, y);
+				} else {
+					filled = x >= 4;
+				}
+				gh.setRGB(x, y, filled ? c : 0);
+			}
+		}
+		goldFull = Textures.image("food_gold_full", "v1", gf);
+		goldHalf = Textures.image("food_gold_half", "v1", gh);
+	}
+
+	private static BufferedImage fallbackFood() {
+		String[] rows = {
+				"......ooo", "....ooHMo", "...oHMMMo", "..oHMMMMo", ".oMMMMMo.",
+				"oBoMMMMo.", "BBBoooo..", "oBo......", "........."};
+		BufferedImage img = new BufferedImage(9, 9, BufferedImage.TYPE_INT_ARGB);
+		for (int y = 0; y < 9; y++) {
+			for (int x = 0; x < 9; x++) {
+				char c = rows[y].charAt(x);
+				int col = switch (c) {
+					case 'o' -> 0xFF301800;
+					case 'H' -> 0xFFD07040;
+					case 'M' -> 0xFF9A4A28;
+					case 'B' -> 0xFFF0F0F0;
+					default -> 0;
+				};
+				img.setRGB(x, y, col);
+			}
+		}
+		return img;
 	}
 
 	private static FoodProperties heldFood(Player p) {

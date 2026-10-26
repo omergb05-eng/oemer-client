@@ -13,6 +13,8 @@ import com.oemer.client.feature.Hud;
 import com.oemer.client.feature.SchematicPlacer;
 import com.oemer.client.feature.SchematicGrid;
 import com.oemer.client.feature.Clipper;
+import com.oemer.client.feature.ModHud;
+import com.oemer.client.feature.NameShare;
 import com.oemer.client.feature.NameStyle;
 import com.oemer.client.feature.OwnFiles;
 import com.oemer.client.feature.Sounds;
@@ -160,6 +162,21 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		return s;
 	}
 
+	/** Anna schreibt Omer eine Nachricht (wie der Client es tut). */
+	private static void bobSays(Firebase.Session from, String toUid, String text) throws Exception {
+		long ts = Social.serverNow();
+		JsonObject m = new JsonObject();
+		m.addProperty("from", from.uid);
+		m.addProperty("text", text);
+		m.addProperty("ts", ts);
+		String id = "mt" + ts + (int) (Math.random() * 1000);
+		JsonObject ops = new JsonObject();
+		ops.add("messages/" + from.uid + "/" + toUid + "/" + id, m);
+		ops.add("messages/" + toUid + "/" + from.uid + "/" + id, m);
+		ops.addProperty("inbox/" + toUid + "/" + from.uid, ts);
+		Firebase.multi(from, ops);
+	}
+
 	private void onlineTest(ClientGameTestContext ctx, String page) {
 		try {
 			onlineTestInner(ctx, page);
@@ -257,8 +274,13 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		JsonObject sk = new JsonObject();
 		sk.addProperty("cape", java.util.Base64.getEncoder().encodeToString(solidPng(64, 32, 0xFFE02020)));
 		sk.addProperty("totem", java.util.Base64.getEncoder().encodeToString(solidPng(96, 96, 0xFF20C040)));
+		sk.addProperty("name", "{\"t\":\"AnnaStar\",\"m\":0,\"a\":9,\"b\":9,\"f\":true}");
+		sk.addProperty("logo", java.util.Base64.getEncoder().encodeToString(solidPng(16, 16, 0xFF1DB954)));
 		Firebase.put(bob, "skins/" + bob.uid, sk);
 		off(Social::syncNow);
+		var annaId = java.util.UUID.fromString(bobMc);
+		check("friend-name-style", NameShare.styleOf(annaId) != null && NameShare.styleOf(annaId).text().equals("AnnaStar") && NameShare.styleOf(annaId).mode() == 0, "" + NameShare.styleOf(annaId));
+		check("friend-logo-texture", ctx.computeOnClient(mc -> NameShare.logoOf(annaId) != null), "");
 		check("skins-friend-received", FriendSkins.hasCape(bobMc) && FriendSkins.hasTotem(bob.uid), "");
 		check("skins-cape-texture", ctx.computeOnClient(mc -> FriendSkins.capeFor(java.util.UUID.fromString(bobMc)) != null), "");
 
@@ -325,9 +347,37 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(20);
 		ctx.takeScreenshot("53-freunde-konto");
 
-		// Mitlauschen (YouTube) und Spotify (nicht möglich)
+		// Mithören nur mit Erlaubnis: Omer fragt an, Anna muss erlauben
 		Social.listenAlong(bob.uid, null);
-		check("listen-along", until(ctx, 300, () -> YouTubeMusic.current() != null && YouTubeMusic.current().id.equals("dQw4w9WgXcQ")), "");
+		check("listen-asks-first", until(ctx, 300, () -> Social.status().contains("Anfrage")), Social.status());
+		check("listen-request-in-chat", until(ctx, 300, () -> {
+			var o = Firebase.get(bob, "messages/" + bob.uid + "/" + me).getAsJsonObject();
+			return o.entrySet().stream().anyMatch(e -> e.getValue().getAsJsonObject().get("text").getAsString().equals(Social.LA_REQ));
+		}), "");
+		check("listen-blocked-without-permission", YouTubeMusic.current() == null || !YouTubeMusic.current().id.equals("dQw4w9WgXcQ"), "");
+		// Anna fragt ihrerseits an: Omer sieht die Anfrage im Chat und kann erlauben
+		bobSays(bob, me, Social.LA_REQ);
+		off(Social::syncNow);
+		check("listen-incoming-request", Social.incomingListenRequest(bob.uid) && !Social.mayListen(bob.uid), "");
+		OmerScreen.friendsForTest(1, bob.uid, false);
+		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
+		ctx.waitTicks(20);
+		ctx.takeScreenshot("54-mithoeren-anfrage");
+		Social.allowListen(bob.uid, true, null);
+		check("listen-allow-saved", until(ctx, 300, () -> Firebase.get(bob, "listenAllow/" + me + "/" + bob.uid).isJsonPrimitive()
+				&& Firebase.get(bob, "listenAllow/" + me + "/" + bob.uid).getAsBoolean()), "");
+		check("listen-allow-state", Social.mayListen(bob.uid) && !Social.incomingListenRequest(bob.uid), "");
+		Social.allowListen(bob.uid, false, null);
+		check("listen-revoked", until(ctx, 300, () -> !Social.mayListen(bob.uid)
+				&& !Firebase.get(bob, "listenAllow/" + me + "/" + bob.uid).getAsBoolean()), "");
+		ctx.setScreen(() -> new TitleScreen());
+		ctx.waitTicks(5);
+		// Anna erlaubt Omer das Mithören
+		Firebase.put(bob, "listenAllow/" + bob.uid + "/" + me, new com.google.gson.JsonPrimitive(true));
+		bobSays(bob, me, Social.LA_OK);
+		off(Social::syncNow);
+		Social.listenAlong(bob.uid, null);
+		check("listen-along", until(ctx, 300, () -> YouTubeMusic.current() != null && YouTubeMusic.current().id.equals("dQw4w9WgXcQ")), Social.status());
 		httpGet(page + "api/cmd?do=clearqueue");
 		l.addProperty("service", "Spotify");
 		l.addProperty("id", "");
@@ -352,6 +402,11 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			return cape != null && cape.equals(FriendSkins.capeFor(uuid));
 		});
 		check("friend-cape-on-player", capeOnPlayer, "");
+		check("friend-name-on-player", ctx.computeOnClient(mc -> {
+			var rp0 = new net.minecraft.client.player.RemotePlayer(mc.level, new com.mojang.authlib.GameProfile(java.util.UUID.fromString(bobMc), "Anna"));
+			return rp0.getDisplayName().getString().equals("AnnaStar");
+		}), "");
+		NameShare.drawn = 0;
 		ctx.runOnClient(mc -> {
 			var uuid = java.util.UUID.fromString(bobMc);
 			var rp = new net.minecraft.client.player.RemotePlayer(mc.level, new com.mojang.authlib.GameProfile(uuid, "Anna"));
@@ -381,6 +436,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		check("badge-friend", ctx.computeOnClient(mc -> OmerBadge.isOmer(java.util.UUID.fromString(bobMc))), "");
 		ctx.waitTicks(10);
 		check("badge-nametag-drawn", OmerBadge.drawn > 0, "drawn=" + OmerBadge.drawn);
+		check("friend-logo-drawn", NameShare.drawn > 0, "drawn=" + NameShare.drawn);
 		ctx.takeScreenshot("54-freund-cape-in-welt");
 		ctx.runOnClient(mc -> {
 			for (var e : mc.level.entitiesForRendering()) {
@@ -1356,10 +1412,42 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.runOnClient(mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT));
 			ctx.waitTicks(10);
 			ctx.takeScreenshot("49-eigener-name-schild");
+			// 8.2: eigenes Logo neben dem Namen
+			var logoImg = new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+			var lg = logoImg.createGraphics();
+			lg.setColor(new java.awt.Color(0x1DB954));
+			lg.fillOval(0, 0, 16, 16);
+			lg.setColor(java.awt.Color.BLACK);
+			lg.setStroke(new java.awt.BasicStroke(2f));
+			lg.drawArc(3, 4, 10, 8, 20, 140);
+			lg.drawArc(4, 7, 8, 5, 20, 140);
+			lg.dispose();
+			Files.createDirectories(NameShare.folder());
+			javax.imageio.ImageIO.write(logoImg, "png", NameShare.folder().resolve("Mein Logo test.png").toFile());
+			ctx.runOnClient(mc -> {
+				OemerConfig c = OemerConfig.get();
+				c.nameLogo = "Mein Logo test.png";
+				c.nameLogoOn = true;
+				NameShare.invalidate();
+				NameShare.drawn = 0;
+			});
+			ctx.waitTicks(15);
+			check("logo-own-texture", ctx.computeOnClient(mc -> NameShare.logoOf(mc.getUser().getProfileId()) != null), "");
+			check("logo-own-png", NameShare.ownPng() != null && NameShare.ownPng().length > 20 && NameShare.ownPng().length < 5500, "");
+			check("logo-own-drawn", NameShare.drawn > 0, "drawn=" + NameShare.drawn);
+			check("name-share-json", NameShare.ownJson() != null && NameShare.ownJson().contains("\"m\":1"), "" + NameShare.ownJson());
+			ctx.takeScreenshot("49b-eigenes-logo-schild");
+			ctx.runOnClient(mc -> {
+				OemerConfig c = OemerConfig.get();
+				c.shareName = false;
+			});
+			check("name-share-off", NameShare.ownJson() == null, "");
+			ctx.runOnClient(mc -> OemerConfig.get().shareName = true);
 			ctx.runOnClient(mc -> {
 				mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
 				OemerConfig.get().customName = false;
 			});
+			check("logo-needs-custom-name", ctx.computeOnClient(mc -> NameShare.ownPng() == null), "");
 
 			// ------------------------------------------ Sounds + Totem (Ressourcenpaket)
 			ctx.runOnClient(mc -> {
@@ -1734,6 +1822,42 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(5);
 		ctx.takeScreenshot("60-armor-hud-zahl");
 		ctx.runOnClient(mc -> OemerConfig.get().armorHud = false);
+
+		// ------------------------------------------------ 8.2: goldene Hunger-Keulen
+		sp.getServer().runCommand("item replace entity @a weapon.mainhand with cooked_beef 5");
+		ctx.runOnClient(mc -> OemerConfig.get().appleSkin = true);
+		ctx.waitTicks(3);
+		ctx.runOnClient(mc -> {
+			mc.player.getFoodData().setFoodLevel(13);
+			mc.player.getFoodData().setSaturation(7f);
+		});
+		ctx.waitTicks(2);
+		check("hunger-gold-ready", until(ctx, 60, ModHud::goldReady), "");
+		ctx.takeScreenshot("61-hunger-gold");
+		ctx.runOnClient(mc -> OemerConfig.get().appleSkin = false);
+
+		// ------------------------------------------------ 8.2: Armor-HUD: Beides + Schwert, Axt, Schild
+		sp.getServer().runCommand("item replace entity @a hotbar.0 with netherite_sword[damage=300]");
+		sp.getServer().runCommand("item replace entity @a hotbar.1 with iron_axe[damage=50]");
+		sp.getServer().runCommand("item replace entity @a weapon.offhand with shield[damage=100]");
+		ctx.runOnClient(mc -> {
+			OemerConfig c = OemerConfig.get();
+			c.armorHud = true;
+			c.armorHudPos = 0;
+			c.armorHudValue = 3;
+			c.armorHudHands = false;
+			c.armorHudGear = true;
+		});
+		ctx.waitTicks(10);
+		int gearCount = ctx.computeOnClient(mc -> (int) Hud.armorStacks(mc.player, false, true).stream().filter(st -> !st.isEmpty()).count());
+		check("armor-hud-gear", gearCount == 6, "" + gearCount);
+		check("armor-hud-text-both", Hud.armorText(3, 40, 100, 0.4f).equals("40 % · 40/100") && Hud.armorText(0, 40, 100, 0.4f).equals("40 %")
+				&& Hud.armorText(1, 40, 100, 0.4f).equals("40/100"), Hud.armorText(3, 40, 100, 0.4f));
+		ctx.takeScreenshot("62-armor-hud-beides-waffen");
+		ctx.runOnClient(mc -> {
+			OemerConfig.get().armorHud = false;
+			OemerConfig.get().armorHudGear = false;
+		});
 
 		// Menü-Seite
 		OmerScreen.sectionForTest("MODS", "schematic");

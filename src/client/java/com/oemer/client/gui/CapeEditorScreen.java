@@ -28,7 +28,8 @@ public class CapeEditorScreen extends Screen {
 		CAPE("Cape-Editor", "Mein Cape", new String[]{"10x16", "HD 20x32"}),
 		TOTEM("Totem-Editor", "Mein Totem", new String[]{"16x16", "HD 32x32"}),
 		CROSSHAIR("Crosshair-Editor", "Mein Crosshair", new String[]{"15x15", "HD 31x31"}),
-		COSMETIC("Cosmetic-Editor", "Mein Cosmetic", new String[]{"16x16", "24x24"});
+		COSMETIC("Cosmetic-Editor", "Mein Cosmetic", new String[]{"16x16", "24x24"}),
+		LOGO("Logo-Editor", "Mein Logo", new String[]{"16x16", "24x24"});
 
 		final String title;
 		final String prefix;
@@ -46,6 +47,7 @@ public class CapeEditorScreen extends Screen {
 				case TOTEM -> LooksPack.totemFolder();
 				case CROSSHAIR -> Crosshair.folder();
 				case COSMETIC -> CustomCosmetics.folder();
+				case LOGO -> com.oemer.client.feature.NameShare.folder();
 			};
 		}
 
@@ -54,14 +56,14 @@ public class CapeEditorScreen extends Screen {
 				case CAPE -> new CapeCanvas(OemerConfig.EDITOR_SCALE[Math.floorMod(sizeIdx, 2)]);
 				case TOTEM -> sizeIdx == 0 ? new CapeCanvas(16, 16, false) : new CapeCanvas(32, 32, false);
 				case CROSSHAIR -> sizeIdx == 0 ? new CapeCanvas(15, 15, false) : new CapeCanvas(31, 31, false);
-				case COSMETIC -> sizeIdx == 0 ? new CapeCanvas(16, 16, false) : new CapeCanvas(24, 24, false);
+				case COSMETIC, LOGO -> sizeIdx == 0 ? new CapeCanvas(16, 16, false) : new CapeCanvas(24, 24, false);
 			};
 		}
 
 		/** Beim Speichern so viel vergrößern (scharf). */
 		int upscale(CapeCanvas c) {
 			return switch (this) {
-				case CAPE, COSMETIC -> 1;
+				case CAPE, COSMETIC, LOGO -> 1;
 				case TOTEM -> 64 / c.width;
 				case CROSSHAIR -> 2;
 			};
@@ -127,6 +129,7 @@ public class CapeEditorScreen extends Screen {
 			case TOTEM -> c.totemMode == 0 && !c.totemSelection.isEmpty() ? c.totemSelection : null;
 			case CROSSHAIR -> c.crosshairSelection.startsWith("design:") ? null : c.crosshairSelection;
 			case COSMETIC -> null;
+			case LOGO -> c.nameLogo.isEmpty() ? null : c.nameLogo;
 		};
 		return f != null && Files.isRegularFile(mode.folder().resolve(f)) ? f : null;
 	}
@@ -275,6 +278,11 @@ public class CapeEditorScreen extends Screen {
 					editingFile = c.crosshairSelection.startsWith(mode.prefix) ? c.crosshairSelection : null;
 					name = Crosshair.displayName(c.crosshairSelection);
 				}
+				case LOGO -> {
+					img = com.oemer.client.feature.NameShare.ownImage();
+					editingFile = c.nameLogo.startsWith(mode.prefix) ? c.nameLogo : null;
+					name = c.nameLogo;
+				}
 				case COSMETIC -> {
 					var list = CustomCosmetics.files();
 					if (!list.isEmpty()) {
@@ -334,6 +342,11 @@ public class CapeEditorScreen extends Screen {
 				case CROSSHAIR -> {
 					c.crosshairSelection = name;
 					c.customCrosshair = true;
+				}
+				case LOGO -> {
+					c.nameLogo = name;
+					c.nameLogoOn = true;
+					com.oemer.client.feature.NameShare.invalidate();
 				}
 				case COSMETIC -> {
 					// neues Cosmetic gleich auf den Kopf setzen

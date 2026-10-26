@@ -170,6 +170,15 @@ Im Browser Fehler bei der Anmeldung („User not registered“): Du bist nicht d
 Jeder braucht seinen eigenen YouTube-Schlüssel und seine eigene Spotify-App. Schlüssel und Client-ID nicht weitergeben.  
 Der Ordner „oemer-extension“ gehört zu deinem Minecraft-Ordner. Jeder installiert ihn bei sich selbst.  
 
+## Neu in 8.2
+
+- **Eigener Name + Logo für Freunde sichtbar** (Mods → Custom Name): Farbe/Verlauf/Rainbow siehst nicht nur du, sondern auch Freunde mit dem Ömer Client (Namensschild, Tab-Liste, Chat). Dazu ein einzelnes kleines **Logo links neben dem Namensschild** – selbst malen oder eigene Datei hochladen (am besten quadratisch, wird auf höchstens 32×32 verkleinert). „Für Freunde sichtbar“ schaltet das Teilen aus. Braucht ein Konto (Freunde).
+- **Hunger-Anzeige** (AppleSkin): Sättigung und Essens-Vorschau als goldene Keulen in genau der Form der echten Hunger-Symbole.
+- **Armor HUD**: Anzeige „Prozent“, „Haltbarkeit (Zahl)“, „Nur Balken“ oder **„Beides“**; neu **Schwert, Axt, Schild** (aus der Hotbar) mit Haltbarkeit.
+- **Mithören nur mit Erlaubnis**: „♪ Mitlauschen“ schickt deinem Freund eine Anfrage im Chat. Erst wenn er im Chat auf „Erlauben“ klickt, startet sein Song bei dir. Er kann es jederzeit mit „Mithören: erlaubt ✔“ wieder entziehen.
+
+**Wichtig nach dem Update:** Die Datenbank-Regeln haben sich geändert (neu: Namensstil/Logo und Mithör-Erlaubnis). In Firebase unter *Realtime Database → Rules* den Inhalt von `firebase/database.rules.json` neu einfügen und *Publish* drücken – sonst bleiben Namens-Teilen und Mithör-Erlaubnis aus.
+
 ## Neu in 8.1
 
 - **Schematic**: Ghost-Blöcke mit der echten Textur (und Drehung/Zustand), durchsichtig und leicht pulsierend. Blau = fehlt, rot = falsch, grün = passt. Reichweite „Unbegrenzt“ (Standard) – auch riesige Bilder (z. B. 256×256) laden. Nahe Blöcke mit Textur, ferne als Farbflächen.

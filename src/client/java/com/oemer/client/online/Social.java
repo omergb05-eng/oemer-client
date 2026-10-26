@@ -9,6 +9,7 @@ import com.oemer.client.OemerClient;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.feature.CapeManager;
 import com.oemer.client.feature.ImageTools;
+import com.oemer.client.feature.NameShare;
 import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.Music;
 import com.oemer.client.feature.YouTubeMusic;
@@ -105,6 +106,10 @@ public final class Social {
 	private static final Map<String, List<Msg>> CHATS = new ConcurrentHashMap<>();
 	private static final Map<String, Long> INBOX_SEEN = new ConcurrentHashMap<>();
 	private static final Map<String, Boolean> SHARING = new ConcurrentHashMap<>();
+	/** Wer darf bei mir mithören? (uid → erlaubt) */
+	private static final Map<String, Boolean> LISTEN_OK = new ConcurrentHashMap<>();
+	/** Bei wem habe ich angefragt und warte auf die Erlaubnis? (uid → Zeitpunkt) */
+	private static final Map<String, Long> LISTEN_PENDING = new ConcurrentHashMap<>();
 	private static volatile String publishedSig = "";
 	private static volatile boolean published = true; // es könnte noch ein alter Eintrag auf dem Server liegen
 	private static volatile String skinSig = "";
@@ -410,11 +415,14 @@ public final class Social {
 				CHATS.clear();
 				INBOX_SEEN.clear();
 				SHARING.clear();
+				LISTEN_OK.clear();
+				LISTEN_PENDING.clear();
 				requests = List.of();
 				publishedSig = "";
 				skinSig = "";
 				firstSync = true;
 				FriendSkins.clear();
+				NameShare.clear();
 				saveAccount();
 				say("Abgemeldet");
 			}
@@ -539,6 +547,64 @@ public final class Social {
 				if (en.getValue().isJsonPrimitive()) SHARING.put(en.getKey(), en.getValue().getAsBoolean());
 			}
 		}
+		JsonElement la = Firebase.get(s, "listenAllow/" + s.uid);
+		if (la.isJsonObject()) {
+			for (var en : la.getAsJsonObject().entrySet()) {
+				if (en.getValue().isJsonPrimitive()) LISTEN_OK.put(en.getKey(), en.getValue().getAsBoolean());
+			}
+		}
+	}
+
+	// ---------------------------------------------------------- Mithören nur mit Erlaubnis
+
+	/** Steuer-Nachrichten im Chat (werden im Chat als Hinweis gezeigt, nicht als Text). */
+	public static final String LA_REQ = "~LA:REQ~", LA_OK = "~LA:OK~", LA_NO = "~LA:NO~";
+
+	public static boolean isControl(String text) {
+		return LA_REQ.equals(text) || LA_OK.equals(text) || LA_NO.equals(text);
+	}
+
+	/** Lesbarer Text für eine Chat-Nachricht (Steuer-Nachrichten werden übersetzt). */
+	public static String shown(Msg m, String friendName) {
+		boolean mine = m.from.equals(myUid());
+		return switch (m.text) {
+			case LA_REQ -> mine ? "♪ Du hast angefragt, bei " + friendName + " mitzuhören" : "♪ " + friendName + " möchte bei dir mithören";
+			case LA_OK -> mine ? "✔ Du erlaubst " + friendName + " das Mithören" : "✔ " + friendName + " erlaubt dir das Mithören";
+			case LA_NO -> mine ? "✕ Du hast das Mithören bei dir beendet" : "✕ " + friendName + " erlaubt dir das Mithören nicht";
+			default -> m.text;
+		};
+	}
+
+	/** Darf dieser Freund bei mir mithören? */
+	public static boolean mayListen(String uid) {
+		return LISTEN_OK.getOrDefault(uid, false);
+	}
+
+	/** Offene Anfrage dieses Freundes an mich (letzte Steuer-Nachricht ist von ihm eine Anfrage)? */
+	public static boolean incomingListenRequest(String uid) {
+		if (mayListen(uid)) return false;
+		List<Msg> l = chat(uid);
+		String me = myUid();
+		synchronized (l) {
+			for (int i = l.size() - 1; i >= 0; i--) {
+				Msg m = l.get(i);
+				if (!isControl(m.text)) continue;
+				return LA_REQ.equals(m.text) && !m.from.equals(me);
+			}
+		}
+		return false;
+	}
+
+	/** Erlauben (true) oder Widerrufen/Ablehnen (false). Der Freund bekommt eine Nachricht. */
+	public static void allowListen(String uid, boolean allow, Done done) {
+		LISTEN_OK.put(uid, allow);
+		bump();
+		run(done, () -> {
+			Firebase.Session s = sess();
+			Firebase.put(s, "listenAllow/" + s.uid + "/" + uid, new com.google.gson.JsonPrimitive(allow));
+			sendRaw(s, uid, allow ? LA_OK : LA_NO);
+			say(allow ? "Mithören erlaubt" : "Mithören beendet");
+		});
 	}
 
 	private static void refreshFriends() throws Firebase.FirebaseException {
@@ -682,6 +748,19 @@ public final class Social {
 	public static void listenAlong(String uid, Done done) {
 		run(done, () -> {
 			Firebase.Session s = sess();
+			Friend fr = FRIENDS.get(uid);
+			String who = fr == null ? "Dein Freund" : fr.name;
+			JsonElement ok = Firebase.get(s, "listenAllow/" + uid + "/" + s.uid);
+			if (!(ok.isJsonPrimitive() && ok.getAsBoolean())) {
+				long last = LISTEN_PENDING.getOrDefault(uid, 0L);
+				if (serverNow() - last > 120_000) {
+					sendRaw(s, uid, LA_REQ);
+					LISTEN_PENDING.put(uid, serverNow());
+					throw new Firebase.FirebaseException("ASK", "Anfrage an " + who + " geschickt – er muss das Mithören erst erlauben");
+				}
+				throw new Firebase.FirebaseException("WAIT", who + " hat noch nicht geantwortet (Anfrage ist schon raus)");
+			}
+			LISTEN_PENDING.remove(uid);
 			JsonElement e = Firebase.get(s, "listening/" + uid);
 			if (!e.isJsonObject()) throw new Firebase.FirebaseException("NONE", "Dein Freund hört gerade nichts (oder teilt es nicht)");
 			JsonObject o = e.getAsJsonObject();
@@ -718,27 +797,30 @@ public final class Social {
 
 	public static void send(String uid, String text, Done done) {
 		String t = text.strip();
-		if (t.isEmpty()) return;
+		if (t.isEmpty() || isControl(t)) return;
 		if (t.length() > 300) t = t.substring(0, 300);
 		final String msg = t;
 		run(done, () -> {
-			Firebase.Session s = sess();
-			long ts = serverNow();
-			String id = "m" + ts + Integer.toString((int) (Math.random() * 36 * 36 * 36), 36);
-			JsonObject m = new JsonObject();
-			m.addProperty("from", s.uid);
-			m.addProperty("text", msg);
-			m.addProperty("ts", ts);
-			JsonObject u = new JsonObject();
-			u.add("messages/" + s.uid + "/" + uid + "/" + id, m);
-			u.add("messages/" + uid + "/" + s.uid + "/" + id, m);
-			u.addProperty("inbox/" + uid + "/" + s.uid, ts);
-			Firebase.multi(s, u);
-			List<Msg> l = CHATS.computeIfAbsent(uid, k -> Collections.synchronizedList(new ArrayList<>()));
-			l.add(new Msg(id, s.uid, msg, ts));
-			bump();
+			sendRaw(sess(), uid, msg);
 			status = "";
 		});
+	}
+
+	private static void sendRaw(Firebase.Session s, String uid, String msg) throws Firebase.FirebaseException {
+		long ts = serverNow();
+		String id = "m" + ts + Integer.toString((int) (Math.random() * 36 * 36 * 36), 36);
+		JsonObject m = new JsonObject();
+		m.addProperty("from", s.uid);
+		m.addProperty("text", msg);
+		m.addProperty("ts", ts);
+		JsonObject u = new JsonObject();
+		u.add("messages/" + s.uid + "/" + uid + "/" + id, m);
+		u.add("messages/" + uid + "/" + s.uid + "/" + id, m);
+		u.addProperty("inbox/" + uid + "/" + s.uid, ts);
+		Firebase.multi(s, u);
+		List<Msg> l = CHATS.computeIfAbsent(uid, k -> Collections.synchronizedList(new ArrayList<>()));
+		l.add(new Msg(id, s.uid, msg, ts));
+		bump();
 	}
 
 	/** Chat mit diesem Freund ist offen: alles als gelesen markieren und frisch laden. */
@@ -782,10 +864,19 @@ public final class Social {
 		}
 		CHATS.put(uid, Collections.synchronizedList(list));
 		bump();
-		if (!firstSync && OemerConfig.get().chatToasts && !uid.equals(openChat)) {
+		if (!firstSync) {
 			Friend f = FRIENDS.get(uid);
 			for (Msg m : list) {
-				if (!known.contains(m.id) && !m.from.equals(s.uid) && f != null) {
+				if (known.contains(m.id) || m.from.equals(s.uid) || f == null) continue;
+				if (LA_REQ.equals(m.text) && !mayListen(uid)) {
+					notice("§e" + f.name + "§r möchte bei dir mithören – Ömer Client → Freunde → Chat, dort erlauben oder ablehnen");
+				} else if (LA_OK.equals(m.text) && LISTEN_PENDING.containsKey(uid)) {
+					notice("§a" + f.name + "§r hat das Mithören erlaubt");
+					listenAlong(uid, null);
+				} else if (LA_NO.equals(m.text)) {
+					LISTEN_PENDING.remove(uid);
+					notice("§c" + f.name + "§r erlaubt das Mithören nicht");
+				} else if (OemerConfig.get().chatToasts && !uid.equals(openChat) && !isControl(m.text)) {
 					notice("§b" + f.name + "§r: " + m.text);
 				}
 			}
@@ -838,17 +929,23 @@ public final class Social {
 					}
 				}
 				final String fc = cape, ft = totem;
-				String sig = (fc == null ? "-" : Integer.toHexString(fc.hashCode()) + fc.length()) + "/" + (ft == null ? "-" : Integer.toHexString(ft.hashCode()) + ft.length());
+				final String fn = NameShare.ownJson();
+				byte[] lp = fn == null ? null : NameShare.ownPng();
+				final String fl = lp == null ? null : Base64.getEncoder().encodeToString(lp);
+				String sig = (fc == null ? "-" : Integer.toHexString(fc.hashCode()) + fc.length()) + "/" + (ft == null ? "-" : Integer.toHexString(ft.hashCode()) + ft.length())
+						+ "/" + (fn == null ? "-" : Integer.toHexString(fn.hashCode())) + "/" + (fl == null ? "-" : Integer.toHexString(fl.hashCode()) + fl.length());
 				if (sig.equals(skinSig)) return;
 				ACTIONS.execute(() -> {
 					try {
 						Firebase.Session s = sess();
-						if (fc == null && ft == null) {
+						if (fc == null && ft == null && fn == null && fl == null) {
 							Firebase.delete(s, "skins/" + s.uid);
 						} else {
 							JsonObject o = new JsonObject();
 							if (fc != null) o.addProperty("cape", fc);
 							if (ft != null) o.addProperty("totem", ft);
+							if (fn != null) o.addProperty("name", fn);
+							if (fl != null) o.addProperty("logo", fl);
 							Firebase.put(s, "skins/" + s.uid, o);
 						}
 						skinSig = sig;
@@ -875,13 +972,17 @@ public final class Social {
 			f.skinsAt = now;
 			try {
 				JsonElement e = Firebase.get(s, "skins/" + f.uid);
-				byte[] cape = null, totem = null;
+				byte[] cape = null, totem = null, logo = null;
+				String nameJson = null;
 				if (e.isJsonObject()) {
 					JsonObject o = e.getAsJsonObject();
 					if (o.has("cape")) cape = Base64.getDecoder().decode(o.get("cape").getAsString());
 					if (o.has("totem")) totem = Base64.getDecoder().decode(o.get("totem").getAsString());
+					if (o.has("name")) nameJson = o.get("name").getAsString();
+					if (o.has("logo")) logo = Base64.getDecoder().decode(o.get("logo").getAsString());
 				}
 				FriendSkins.update(f.uid, f.mc, cape, totem);
+				NameShare.setFriend(f.mc, nameJson, logo);
 				bump();
 			} catch (Exception ignored) {
 			}

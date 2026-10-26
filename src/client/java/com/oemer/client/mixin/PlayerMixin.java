@@ -1,5 +1,6 @@
 package com.oemer.client.mixin;
 
+import com.oemer.client.feature.NameShare;
 import com.oemer.client.feature.NameStyle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -14,8 +15,13 @@ public class PlayerMixin {
 	// Own Custom Name: dein Name (Namensschild) in deiner Farbe / Verlauf / Rainbow
 	@Inject(method = "getDisplayName", at = @At("RETURN"), cancellable = true, require = 0)
 	private void oemer$name(CallbackInfoReturnable<Component> cir) {
-		if (NameStyle.active() && (Object) this == Minecraft.getInstance().player) {
+		Player self = (Player) (Object) this;
+		if (NameStyle.active() && self == Minecraft.getInstance().player) {
 			cir.setReturnValue(NameStyle.display());
+		} else if (self != Minecraft.getInstance().player) {
+			// Freunde mit dem Ömer Client: ihr Namensstil
+			NameShare.Style st = NameShare.styleOf(self.getUUID());
+			if (st != null) cir.setReturnValue(NameShare.styled(st, self.getGameProfile().name()));
 		}
 	}
 }

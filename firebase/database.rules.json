@@ -29,6 +29,8 @@
         ".write": "auth != null && auth.uid === $uid",
         "cape": { ".validate": "newData.isString() && newData.val().length <= 60000" },
         "totem": { ".validate": "newData.isString() && newData.val().length <= 120000" },
+        "name": { ".validate": "newData.isString() && newData.val().length <= 200" },
+        "logo": { ".validate": "newData.isString() && newData.val().length <= 9000" },
         "$other": { ".validate": false }
       }
     },
@@ -61,6 +63,17 @@
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
         "$friend": { ".validate": "newData.isBoolean()" }
+      }
+    },
+
+    "listenAllow": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$friend": {
+          ".read": "auth != null && auth.uid === $friend",
+          ".write": "auth != null && auth.uid === $uid && root.child('friends').child($uid).child($friend).val() === true",
+          ".validate": "newData.isBoolean()"
+        }
       }
     },
 

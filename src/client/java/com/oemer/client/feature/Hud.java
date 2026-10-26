@@ -78,23 +78,54 @@ public final class Hud {
 
 	/** Was die Rüstungs-Anzeige gerade zeigt (auch für Tests). */
 	public static List<ItemStack> armorStacks(net.minecraft.world.entity.player.Player p, boolean hands) {
+		return armorStacks(p, hands, false);
+	}
+
+	/** gear = Schwert, Axt und Schild aus der Hotbar (auch wenn sie gerade nicht in der Hand sind). */
+	public static List<ItemStack> armorStacks(net.minecraft.world.entity.player.Player p, boolean hands, boolean gear) {
 		List<ItemStack> list = new ArrayList<>();
 		for (var slot : ARMOR_SLOTS) list.add(p.getItemBySlot(slot));
 		if (hands) {
 			list.add(p.getMainHandItem());
 			list.add(p.getOffhandItem());
 		}
+		if (gear) {
+			List<ItemStack> src = new ArrayList<>();
+			for (int i = 0; i < 9; i++) src.add(p.getInventory().getItem(i));
+			src.add(p.getOffhandItem());
+			boolean sword = false, axe = false, shield = false;
+			for (ItemStack s : src) {
+				if (s.isEmpty() || !s.isDamageableItem()) continue;
+				boolean already = false;
+				for (ItemStack o : list) if (o == s) already = true;
+				if (already) continue;
+				if (!sword && s.is(net.minecraft.tags.ItemTags.SWORDS)) { list.add(s); sword = true; }
+				else if (!axe && s.is(net.minecraft.tags.ItemTags.AXES)) { list.add(s); axe = true; }
+				else if (!shield && s.is(net.minecraft.world.item.Items.SHIELD)) { list.add(s); shield = true; }
+			}
+		}
 		return list;
 	}
 
+	/** Text neben dem Symbol: je nach Einstellung Prozent, Zahl oder beides. */
+	public static String armorText(int mode, int left, int max, float f) {
+		String pct = Math.round(f * 100) + " %";
+		String num = left + "/" + max;
+		return switch (mode) {
+			case 1 -> num;
+			case 3 -> pct + " · " + num;
+			default -> pct;
+		};
+	}
+
 	private static void renderArmor(GuiGraphics g, Minecraft mc, OemerConfig c) {
-		List<ItemStack> stacks = armorStacks(mc.player, c.armorHudHands);
+		List<ItemStack> stacks = armorStacks(mc.player, c.armorHudHands, c.armorHudGear);
 		List<ItemStack> shown = new ArrayList<>();
 		for (ItemStack s : stacks) if (!s.isEmpty()) shown.add(s);
 		if (shown.isEmpty()) return;
 		float scale = OemerConfig.HUD_SCALES[Math.floorMod(c.hudScale, OemerConfig.HUD_SCALES.length)];
 		int rowH = 20;
-		int w = c.armorHudValue == 1 ? 86 : c.armorHudValue == 0 ? 60 : 30;
+		int w = c.armorHudValue == 3 ? 128 : c.armorHudValue == 1 ? 86 : c.armorHudValue == 0 ? 60 : 30;
 		int h = shown.size() * rowH + 6;
 		int sw = g.guiWidth(), sh = g.guiHeight();
 		float bx, by;
@@ -128,7 +159,7 @@ public final class Hud {
 				int max = s.getMaxDamage(), left = max - s.getDamageValue();
 				float f = max <= 0 ? 1f : Math.max(0f, Math.min(1f, left / (float) max));
 				int col = java.awt.Color.HSBtoRGB(f * 0.33f, 0.75f, 1f) | 0xFF000000;
-				String text = c.armorHudValue == 0 ? Math.round(f * 100) + " %" : left + "/" + max;
+				String text = armorText(c.armorHudValue, left, max, f);
 				Draw.text(g, text, 24, y + 6, col);
 			} else if (c.armorHudValue != 2 && s.getCount() > 1) {
 				Draw.text(g, "x" + s.getCount(), 24, y + 6, Theme.TEXT_SOFT);
