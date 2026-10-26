@@ -23,5 +23,5 @@ while read -r pat; do
 done < ci/packages.txt
 rm -f ci-out/all-classes.tmp
 # Versionen von Mods auf Modrinth (für eingebaute Mods)
-curl -s 'https://api.modrinth.com/v2/project/distanthorizons/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%221.21.11%22%5D' \
+curl -s 'https://api.modrinth.com/v2/project/distanthorizons/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%2226.3%22%5D' \
   | python3 -c 'import json,sys; [print(v["id"], v["version_number"], v["date_published"], [f["filename"] for f in v["files"]]) for v in json.load(sys.stdin)[:5]]' > ci-out/modrinth.txt 2>&1
