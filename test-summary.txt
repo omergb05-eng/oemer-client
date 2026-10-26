@@ -1,0 +1,204 @@
+[19:14:26] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   first-screen-title  (net.minecraft.client.gui.screens.TitleScreen)
+[19:14:26] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   loading-overlay-drawn  (Bilder=50)
+[19:14:26] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   loading-overlay-screenshot
+[19:14:32] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   startscreen-button
+[19:14:32] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   menu-opens
+[19:14:40] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   background-download
+[19:14:44] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   help-tabs  (4)
+[19:14:44] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   help-content  (76)
+[19:14:50] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-page  (21089 Zeichen)
+[19:14:50] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-state  ({"play":false,"seekSeq":0,"hasKey":false,"seekMs":0,"artist":"","playlists":[],")
+[19:14:50] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-oembed  (Me at the zoo)
+[19:14:50] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-embeddable-yes
+[19:14:51] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-embeddable-info  (bad enough (VEVO)=true rickroll=true)
+[19:14:51] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-alt-query  (Madison Beer - bad enough lyrics)
+[19:14:51] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-alt-query-topic  (Madison Beer Bad Enough lyrics)
+[19:14:51] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   lib-add
+[19:14:51] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   lib-remove
+[19:14:51] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   playlist-create  (Test Liste 3)
+[19:14:51] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   playlist-unique-name  (Test Liste 2)
+[19:14:51] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   playlist-track-remove
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   playlist-open-menu
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   queue-add
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   queue-remove  (size=2)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   queue-remove-current
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   queue-clear
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-error-picked-stays  (index=3 „Song 3“ darf nicht eingebettet werden (der Besitzer hat es verboten) – such eine andere Version)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-blocked-link  (ok)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-next-index  (1)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-error-auto-skips  (index=2 „Song 1“ darf nicht eingebettet werden (der Besitzer hat es verboten) – such eine andere Version – übersprungen)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-error-skip-limit  (index=4)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   yt-error-stops  (index=4)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   bridge-state-mode  ({"play":true,"seekSeq":0,"hasKey":false,"seekMs":0,"artist":)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   bridge-status-accepted  (true 12001 200000)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   bridge-embedded-status-ignored  (12006)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   bridge-ad-message  (Werbung läuft – im YouTube-Tab „Überspringen“ klicken)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   bridge-ad-message-gone
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   bridge-ended-next  (3)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   bridge-extension-files  (/home/runner/work/oemer-client/oemer-client/build/run/clientGameTest/oemer-extension)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   web-unlib
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   web-unpl  (1)
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   web-delpl
+[19:14:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   lib-playlist-clear
+[19:14:57] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friends-nav
+[19:14:58] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   acc-register  (Konto erstellt – willkommen, Omer!)
+[19:14:58] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   acc-username-unique  (Dieser Username ist schon vergeben)
+[19:14:59] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   acc-username-invalid  (Username: 3–16 Zeichen, nur Buchstaben, Zahlen und _)
+[19:14:59] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   acc-saved-no-password
+[19:14:59] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   acc-logout
+[19:14:59] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   acc-wrong-password  (E-Mail oder Passwort stimmt nicht)
+[19:14:59] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   acc-login  (Angemeldet als Omer)
+[19:14:59] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-unknown  (Den Username gibt es nicht)
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-self  (Das bist du selbst)
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-request-sent
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-accepted
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-online
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   request-incoming  (1)
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   skins-upload
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   skins-stranger-denied
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-name-style  (Style[text=AnnaStar, mode=0, c1=9, c2=9, bold=true])
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-logo-texture
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   skins-friend-received
+[19:15:00] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   skins-cape-texture
+[19:15:01] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   chat-sent
+[19:15:01] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   chat-received  (2 Nachrichten, 1 ungelesen)
+[19:15:01] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   music-published
+[19:15:01] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   music-hidden-for-friend
+[19:15:01] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   music-visible-again
+[19:15:01] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   music-global-off
+[19:15:01] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   music-friend-visible
+[19:15:01] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   music-position-advances
+[19:15:04] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   chat-marked-read
+[19:15:05] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   listen-asks-first  (Anfrage an Anna geschickt – er muss das Mithören erst erlauben)
+[19:15:05] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   listen-request-in-chat
+[19:15:05] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   listen-blocked-without-permission
+[19:15:05] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   listen-incoming-request
+[19:15:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   listen-allow-saved
+[19:15:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   listen-allow-state
+[19:15:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   listen-revoked
+[19:15:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   listen-along  (Du hörst jetzt mit: Fools (Lyrics))
+[19:15:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   listen-spotify-refused  (Dieser Song läuft über Spotify – Mitlauschen geht nur bei YouTube)
+[19:15:08] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   request-declined
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   delete-look
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   delete-cape
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   delete-totem
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   delete-cosmetic
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   delete-crosshair
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   delete-schematic
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   delete-safe-path
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   delete-kit
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   spotify-pkce
+[19:15:10] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   spotify-status
+[19:15:12] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   totem-editor-saves  (Mein Totem 1.png)
+[19:15:12] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   crosshair-editor-saves  (Mein Crosshair 1.png)
+[19:15:13] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   cosmetic-editor-saves
+[19:15:13] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   editor-opens
+[19:15:14] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   editor-saves  (Mein Cape 1.png)
+[19:15:15] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   menu-closes
+[19:15:25] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   loading-level-drawn  (level=25 progress=0)
+[19:15:30] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   fullbright-key
+[19:15:30] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   freecam-on
+[19:15:33] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   freecam-moves  (cam z=3.70, wall z=4, start z=0.50)
+[19:15:33] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   freecam-collision  (cam z=3.70, wall z=4, start z=0.50)
+[19:15:33] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   player-stays  (player moved 0.00 / 0.00)
+[19:15:33] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   freecam-off
+[19:15:33] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   cape-from-editor  (oemerclient:cape/2)
+[19:15:34] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   cosmetic-wings-equipped
+[19:15:39] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   kit-count  (totems=3)
+[19:15:39] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   material-entries  (entries=8 )
+[19:15:40] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   material-done
+[19:15:41] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   chest-mark  (hit=(0.5, -58.37999999523163, 2.0625))
+[19:15:43] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   chest-search-known
+[19:15:43] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   chest-search-hit
+[19:15:44] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   chest-count  (64 -> 128)
+[19:15:45] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   kit-keys-shared  (key.keyboard.r|70)
+[19:15:45] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   kit-cpvp-fov-own  (key.keyboard.r|100)
+[19:15:45] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   kit-keys-per-kit  (key.keyboard.q)
+[19:15:46] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   zoom  (4.00)
+[19:15:49] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   weather-off
+[19:15:55] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   shulker-tooltip
+[19:15:58] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   graphics-low
+[19:15:58] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   distant-horizons-loaded
+[19:16:06] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   portal-texture-faded
+[19:16:06] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   dark-gui-textures
+[19:16:06] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   pack-tweaks-written
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   explosion-particles-normal
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   no-explosion-particles
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-display
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-one-color
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-gradient
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-rainbow
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-chat
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-tablist
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-chat-off
+[19:16:07] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-off-real
+[19:16:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   logo-own-texture
+[19:16:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   logo-own-png
+[19:16:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   logo-own-drawn  (drawn=15)
+[19:16:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-share-json  ({"t":"ÖmerKing","m":1,"a":8,"b":9,"f":true})
+[19:16:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   name-share-off
+[19:16:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   logo-needs-custom-name
+[19:16:19] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   looks-pack-active  (COMPATIBLE)
+[19:16:19] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   looks-pack-compatible  (COMPATIBLE)
+[19:16:19] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   sounds-json  ({
+[19:16:19] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   sounds-count
+[19:16:27] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   menu-key-ingame
+[19:16:38] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   badge-self
+[19:16:38] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   badge-stranger
+[19:16:38] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   badge-tablist-prefix  ( Player0)
+[19:16:38] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   badge-off
+[19:16:39] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-loaded  (haus.litematic 9x6x9 solid=292)
+[19:16:39] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-active
+[19:16:39] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-missing-counted  (Fehlt 292 · falsch 0 · passt 0)
+[19:16:40] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-has-blocks-layer0  (found=2)
+[19:16:40] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-correct-detected  (Fehlt 290 · falsch 1 · passt 1 | minecraft:stone_bricks)
+[19:16:40] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-wrong-detected  (Fehlt 290 · falsch 1 · passt 1)
+[19:16:42] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-rotate  (rot=1 9x9)
+[19:16:42] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-rotate-full
+[19:16:42] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-rotate-restores  (Fehlt 290 · falsch 1 · passt 1)
+[19:16:43] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-layers  (layers=6)
+[19:16:44] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-layer-key-up
+[19:16:45] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-layer-key-down
+[19:16:45] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-layer-clamp-top
+[19:16:45] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-layer-clamp-bottom
+[19:16:47] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-layer-filter  (80 < 291)
+[19:16:47] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-move
+[19:16:47] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-position-saved
+[19:16:47] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-set-looking
+[19:16:47] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-big-loaded  (256x256x1)
+[19:16:47] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-range-unlimited
+[19:16:48] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-big-shown  (angezeigt=65024 Fehlt 65024 · falsch 512 · passt 0)
+[19:16:52] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   music-volume-key-up  (55)
+[19:16:52] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   music-volume-key-down  (45)
+[19:16:52] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   armor-hud-stacks  (3)
+[19:16:54] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   hunger-gold-ready
+[19:16:55] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   armor-hud-gear  (6)
+[19:16:55] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   armor-hud-text-both  (40 % · 40/100)
+[19:16:56] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   schem-menu
+[19:17:06] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   clipper-frames  (139 Bilder, 9 s, 8033 KB)
+[19:17:06] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   clipper-frame-content  (854x480)
+[19:17:06] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   clipper-avi  (Clip_2026-10-26_19-17-06.avi 5502 KB)
+[19:17:06] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   clipper-avi-frame-decodes
+[19:17:06] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   clipper-ffprobe-avi
+[19:17:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   clipper-mp4  (Clip_2026-10-26_19-17-06.mp4 1243 KB, 4 s)
+[19:17:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   clipper-ffprobe-mp4
+[19:17:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   clipper-key-f9  (Gespeichert: Clip_2026-10-26_19-17-11.avi)
+[19:17:11] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   clipper-off-clears
+[19:17:13] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-cape-on-player
+[19:17:13] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-name-on-player
+[19:17:13] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   badge-friend
+[19:17:14] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   badge-nametag-drawn  (drawn=308)
+[19:17:14] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   friend-logo-drawn  (drawn=19)
+[19:17:14] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   sodium-loaded
+[19:17:14] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   iris-loaded
+[19:17:14] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   cape-fps-frame
+[19:17:14] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   anim-frame-at
+[19:17:14] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   notify-top-right
+[19:17:15] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   online-cleanup
+[19:17:15] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   pause-button
+[19:17:27] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   scene-6
+[19:17:28] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   scene-7
+[19:17:28] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   scene-8
+[19:17:28] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   scene-9
+[19:17:29] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] OK   scene-10
+[19:17:29] [Test thread/INFO] (Minecraft) [STDOUT]: [OEMER-TEST] fertig, Fehler: 0
