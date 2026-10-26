@@ -1422,8 +1422,12 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			lg.drawArc(3, 4, 10, 8, 20, 140);
 			lg.drawArc(4, 7, 8, 5, 20, 140);
 			lg.dispose();
-			Files.createDirectories(NameShare.folder());
-			javax.imageio.ImageIO.write(logoImg, "png", NameShare.folder().resolve("Mein Logo test.png").toFile());
+			try {
+				Files.createDirectories(NameShare.folder());
+				javax.imageio.ImageIO.write(logoImg, "png", NameShare.folder().resolve("Mein Logo test.png").toFile());
+			} catch (java.io.IOException ex) {
+				check("logo-file-written", false, ex.toString());
+			}
 			ctx.runOnClient(mc -> {
 				OemerConfig c = OemerConfig.get();
 				c.nameLogo = "Mein Logo test.png";
