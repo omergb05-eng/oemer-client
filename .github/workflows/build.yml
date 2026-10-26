@@ -41,7 +41,7 @@ jobs:
           path: build/libs/
 
       - name: read minecraft signatures
-        if: false
+        if: steps.build.outcome == 'success'
         continue-on-error: true
         run: bash ci/javap.sh
 

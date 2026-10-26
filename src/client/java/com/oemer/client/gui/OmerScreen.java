@@ -526,6 +526,7 @@ public class OmerScreen extends Screen {
 		l.add(new ModInfo("zoom", "⌕", "Just Zoom", "Taste halten = Zoom", () -> c.zoomOn, v -> c.zoomOn = v, null));
 		l.add(new ModInfo("crosshair", "✛", "Custom Crosshair", "Eigenes Fadenkreuz", () -> c.customCrosshair, v -> c.customCrosshair = v, null));
 		l.add(new ModInfo("material", "▤", "Material List", "Blöcke für deine Schematic + Kisten", () -> c.materialList, v -> c.materialList = v, null));
+		l.add(new ModInfo("chestsearch", "⌕", "Chest Search", "Items in Kisten suchen, Kisten mit gesuchten Items leuchten", () -> c.chestSearch, v -> c.chestSearch = v, null));
 		l.add(new ModInfo("schematic", "▦", "Schematic-Platzierung", "Hologramm setzen, drehen, Ebene für Ebene", () -> c.placeOn, v -> c.placeOn = v, null));
 		l.add(new ModInfo("clipper", "●", "Clipper", "Taste drücken = letzte 30 s / 1 / 2 min speichern", () -> c.clipperOn, v -> {
 			c.clipperOn = v;
@@ -665,8 +666,18 @@ public class OmerScreen extends Screen {
 				endFlow();
 				info(() -> "Helm, Brustplatte, Hose und Schuhe mit Haltbarkeit (grün = heil, rot = fast kaputt). Größe: Settings → HUD-Größe.");
 			}
+			case "chestsearch" -> {
+				toggle("Kisten leuchten", () -> c.chestSearchGlow, v -> c.chestSearchGlow = v, "Kisten im Umkreis von 20 Blöcken mit gesuchten Items leuchten leicht");
+				toggle("Treffer in der Kiste zeigen", () -> c.chestSearchSlots, v -> c.chestSearchSlots = v, "Passende Items in der offenen Kiste werden hervorgehoben");
+				button("Items wählen", () -> this.minecraft.gui.setScreen(new ChestSearchScreen(this)), OmerWidgets.Style.PRIMARY);
+				button("Auswahl leeren", com.oemer.client.feature.ChestSearch::clearSelection, OmerWidgets.Style.GLASS);
+				endFlow();
+				keyRow(OemerKeys.chestSearch, "Taste: Items wählen", "");
+				info(() -> "In jeder Kiste gibt es oben ein Suchfeld: tippst du z. B. „Dia“, leuchten passende Items auf.");
+				info(() -> "Der Client kennt den Inhalt jeder Kiste, die du einmal geöffnet hast – nur diese können leuchten.");
+			}
 			case "loading" -> info(() -> "Gilt beim Start von Minecraft, beim Betreten einer Welt und bei Portalen. Aus = normaler Ladebildschirm.");
-			case "nameicon" -> info(() -> "Das Symbol steht eine Zeile über dem Namen – bei dir (in F5 / Free Cam), bei Freunden mit Ömer Client und in der Tab-Liste.");
+			case "nameicon" -> info(() -> "Das Symbol steht direkt vor dem Namen – bei dir (in F5 / Free Cam), bei Freunden mit Ömer Client und in der Tab-Liste.");
 			case "clipper" -> buildClipper();
 			case "kithud" -> {
 				cycle("Ort", OemerConfig.CORNERS, () -> c.kitHudCorner, v -> c.kitHudCorner = v);
@@ -696,7 +707,10 @@ public class OmerScreen extends Screen {
 				info(() -> "Die Textur wird beim Schließen vom Menü geladen (dauert kurz).");
 			}
 			case "customname" -> buildCustomName();
-			case "lowfire" -> cycle("Wie tief", OemerConfig.LOW_NAMES, () -> c.lowFireLevel, v -> c.lowFireLevel = v);
+			case "lowfire" -> {
+				cycle("Feuer am Bildschirm", OemerConfig.LOW_FIRE_NAMES, () -> c.lowFireLevel, v -> c.lowFireLevel = v);
+				info(() -> "Wenn du brennst, wird das Feuer kleiner und tiefer. „Fast unsichtbar“ zeichnet es gar nicht – du siehst Boden und Umgebung frei.");
+			}
 			case "lowshield" -> cycle("Wie tief", OemerConfig.LOW_NAMES, () -> c.lowShieldLevel, v -> c.lowShieldLevel = v);
 			case "smalltotem" -> cycle("Größe", OemerConfig.SMALL_NAMES, () -> c.smallerTotemLevel, v -> c.smallerTotemLevel = v);
 			case "weather" -> {
@@ -1151,6 +1165,7 @@ public class OmerScreen extends Screen {
 
 		// ---- Vorlagen (Fotos + deine Bilder)
 		List<String> choices = new ArrayList<>();
+		for (int i = PresetArt.BLOCK_FIRST; i < PresetArt.BACKGROUNDS.length; i++) choices.add(Looks.PRESET + i); // Minecraft-Pixel-Landschaften
 		for (int i = 0; i < Looks.PHOTOS.length; i++) choices.add(Looks.WEB + i);
 		choices.addAll(Looks.files());
 		int gx = cw >= 420 ? cx0 + prevW + 14 : cx0;
@@ -1171,8 +1186,8 @@ public class OmerScreen extends Screen {
 				c.lookImage = ch;
 				c.lookMode = true;
 				OemerConfig.save();
-			}).cover().badge(ch.startsWith(Looks.WEB) ? "" : "Eigenes")
-					.deletable(ch.startsWith(Looks.WEB) ? null : () -> confirmDelete("„" + Looks.displayName(ch) + "“ aus deinen Hintergründen löschen?",
+			}).cover().badge(ch.startsWith(Looks.WEB) || ch.startsWith(Looks.PRESET) ? "" : "Eigenes")
+					.deletable(ch.startsWith(Looks.WEB) || ch.startsWith(Looks.PRESET) ? null : () -> confirmDelete("„" + Looks.displayName(ch) + "“ aus deinen Hintergründen löschen?",
 							() -> OwnFiles.look(ch))));
 			i++;
 		}
@@ -1183,7 +1198,7 @@ public class OmerScreen extends Screen {
 		heading("Ältere Designs");
 		int on = Math.max(3, cw / 110);
 		flow(on, (cw - (on - 1) * GAP) / on * 9 / 16 + 18);
-		for (int k = 0; k < PresetArt.BACKGROUNDS.length; k++) {
+		for (int k = 0; k < PresetArt.BLOCK_FIRST; k++) {
 			String ch = Looks.PRESET + k;
 			int[] p = flowSlot();
 			addContent(new OmerWidgets.Tile(p[0], p[1], p[2], p[3], PresetArt.BACKGROUNDS[k], () -> Looks.texture(ch, "lp_" + ch.hashCode(), 480),
@@ -2065,6 +2080,10 @@ public class OmerScreen extends Screen {
 		}), OmerWidgets.Style.PRIMARY);
 		button("Cape-Editor", () -> this.minecraft.gui.setScreen(new CapeEditorScreen(this)), OmerWidgets.Style.GLASS);
 		button("Ordner öffnen", () -> open(CapeManager.folder()), OmerWidgets.Style.GLASS);
+		cycle("Animation (GIF)", OemerConfig.CAPE_FPS_NAMES, () -> c.capeFpsLevel, v -> {
+			c.capeFpsLevel = v;
+			com.oemer.client.online.Social.syncSkinsLater();
+		});
 		heading("Vorlagen & deine Capes");
 		int n = tileCols(4);
 		int tw = (cw - (n - 1) * GAP) / n;

@@ -93,6 +93,7 @@ public class OemerClient implements ClientModInitializer {
 
 		// Material List: Kisten markieren
 		ChestMarker.register();
+		com.oemer.client.feature.ChestSearch.register();
 
 		// Cosmetics an den Spieler-Renderer hängen
 		LivingEntityRenderLayerRegistrationCallback.EVENT.register((entityType, renderer, helper, context) -> {

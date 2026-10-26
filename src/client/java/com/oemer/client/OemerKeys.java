@@ -29,7 +29,7 @@ public final class OemerKeys {
 
 	public static KeyMapping menu, freecam, fullbright, zoom, kitNext, materialToggle, materialOpen,
 			cosmeticsToggle, crosshairToggle, weatherToggle, musicPlay, musicNext, musicPrev, musicOpen,
-			placeToggle, placeLayerUp, placeLayerDown, placeHere, clipSave, clipToggle, musicVolUp, musicVolDown;
+			placeToggle, placeLayerUp, placeLayerDown, placeHere, clipSave, clipToggle, musicVolUp, musicVolDown, chestSearch;
 	public static final KeyMapping[] KIT = new KeyMapping[OemerConfig.KITS.length];
 
 	private static KeyMapping.Category category;
@@ -69,6 +69,7 @@ public final class OemerKeys {
 		placeLayerUp = key("place_layer_up", InputConstants.KEY_PAGEUP, "Ebene höher", "Schematic");
 		placeLayerDown = key("place_layer_down", InputConstants.KEY_PAGEDOWN, "Ebene tiefer", "Schematic");
 		placeHere = key("place_here", none, "Schematic hier setzen", "Schematic");
+		chestSearch = key("chest_search", InputConstants.KEY_J, "Chest Search: Items wählen", "Mods");
 	}
 
 	private static void say(Minecraft mc, String name, boolean on) {
@@ -148,6 +149,12 @@ public final class OemerKeys {
 			if (mc.level != null) {
 				if (!SchematicPlacer.setLooking(mc)) SchematicPlacer.setHere(mc);
 				say(mc, "Schematic gesetzt", true);
+			}
+		}
+		while (chestSearch.consumeClick()) {
+			if (mc.gui.screen() == null && mc.level != null) {
+				if (c.chestSearch) mc.gui.setScreen(new com.oemer.client.gui.ChestSearchScreen(null));
+				else say(mc, "Chest Search", false);
 			}
 		}
 		while (kitNext.consumeClick()) KitProfiles.next();

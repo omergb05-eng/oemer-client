@@ -92,9 +92,11 @@ public final class Looks {
 	/** Alle Möglichkeiten: Foto-Vorlagen, deine Bilder, ältere Designs. */
 	public static List<String> choices() {
 		List<String> out = new ArrayList<>();
+		// Minecraft-Pixel-Landschaften zuerst (offline, passen zum Client-Stil), dann Fotos, deine Bilder, ältere Designs
+		for (int i = PresetArt.BLOCK_FIRST; i < PresetArt.BACKGROUNDS.length; i++) out.add(PRESET + i);
 		for (int i = 0; i < PHOTOS.length; i++) out.add(WEB + i);
 		out.addAll(files());
-		for (int i = 0; i < PresetArt.BACKGROUNDS.length; i++) out.add(PRESET + i);
+		for (int i = 0; i < PresetArt.BLOCK_FIRST; i++) out.add(PRESET + i);
 		return out;
 	}
 

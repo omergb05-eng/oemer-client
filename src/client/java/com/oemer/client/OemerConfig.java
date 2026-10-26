@@ -86,6 +86,11 @@ public class OemerConfig {
 	public java.util.List<com.oemer.client.feature.YouTubeMusic.Playlist> ytPlaylists = new java.util.ArrayList<>();
 	public boolean chestCount = true;    // markierte Kisten in der Material List mitzählen
 	public boolean chestHighlight = true;
+	public boolean chestSearch = false;           // Chest Search: Suche in Kisten + leuchtende Kisten im Umkreis
+	public boolean chestSearchGlow = true;
+	public boolean chestSearchSlots = true;
+	public java.util.List<String> searchItems = new java.util.ArrayList<>(); // gesuchte Items (z. B. minecraft:diamond)
+	public int capeFpsLevel = 1;                  // Index in CAPE_FPS (Animation von GIF-Capes)
 
 	// ---- Mods ----
 	public boolean noWeather = false;
@@ -221,8 +226,13 @@ public class OemerConfig {
 	public static final String[] PORTAL_NAMES = {"Leicht", "Stark", "Fast unsichtbar"};
 	public static final float[] PORTAL_ALPHA = {0.6f, 0.35f, 0.14f};
 	public static final float[] LOW_AMOUNTS = {0.12f, 0.25f, 0.4f};
-	/** Wie klein das Feuer im Low-Fire-Modus gezeichnet wird (je größer die Stufe, desto kleiner). */
-	public static final float[] LOW_FIRE_SCALES = {0.75f, 0.6f, 0.45f};
+	/** Low Fire: 0 = kleiner und tiefer, 1 = winzig, 2 = Feuer am Bildschirm wird gar nicht gezeichnet. */
+	public static final String[] LOW_FIRE_NAMES = {"Kleiner", "Winzig", "Fast unsichtbar"};
+	public static final float[] LOW_FIRE_SCALES = {0.6f, 0.3f, 0f};
+	public static final float[] LOW_FIRE_SHIFT = {0.2f, 0.35f, 0f};
+	/** Abspielgeschwindigkeit von animierten Capes (GIF). */
+	public static final String[] CAPE_FPS_NAMES = {"15 FPS", "20 FPS", "24 FPS", "25 FPS", "30 FPS"};
+	public static final int[] CAPE_FPS = {15, 20, 24, 25, 30};
 	public static final String[] SMALL_NAMES = {"75 %", "50 %", "30 %"};
 	public static final float[] SMALL_SCALES = {0.75f, 0.5f, 0.3f};
 	public static final String[] ARMOR_POS = {"Links in der Mitte", "Rechts in der Mitte", "Links neben der Hotbar", "Rechts neben der Hotbar"};
@@ -328,7 +338,9 @@ public class OemerConfig {
 		clipQuality = Math.floorMod(clipQuality, CLIP_WIDTHS.length);
 		clipFormat = Math.floorMod(clipFormat, 2);
 		zoomLevel = Math.floorMod(zoomLevel, ZOOM_NAMES.length);
-		lowFireLevel = Math.floorMod(lowFireLevel, LOW_NAMES.length);
+		lowFireLevel = Math.floorMod(lowFireLevel, LOW_FIRE_NAMES.length);
+		capeFpsLevel = Math.floorMod(capeFpsLevel, CAPE_FPS.length);
+		if (searchItems == null) searchItems = new java.util.ArrayList<>();
 	portalLevel = Math.floorMod(portalLevel, PORTAL_NAMES.length);
 	nameMode = Math.floorMod(nameMode, 3);
 	nameColor1 = Math.floorMod(nameColor1, com.oemer.client.feature.NameStyle.COLORS.length);

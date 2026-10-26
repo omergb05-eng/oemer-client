@@ -940,7 +940,7 @@ public final class Social {
 				final String fn = NameShare.ownJson();
 				byte[] lp = fn == null ? null : NameShare.ownPng();
 				final String fl = lp == null ? null : Base64.getEncoder().encodeToString(lp);
-				String sig = (fc == null ? "-" : Integer.toHexString(fc.hashCode()) + fc.length() + "x" + ff) + "/" + (ft == null ? "-" : Integer.toHexString(ft.hashCode()) + ft.length())
+				String sig = (fc == null ? "-" : Integer.toHexString(fc.hashCode()) + fc.length() + "x" + ff + "@" + fms) + "/" + (ft == null ? "-" : Integer.toHexString(ft.hashCode()) + ft.length())
 						+ "/" + (fn == null ? "-" : Integer.toHexString(fn.hashCode())) + "/" + (fl == null ? "-" : Integer.toHexString(fl.hashCode()) + fl.length());
 				if (sig.equals(skinSig)) return;
 				ACTIONS.execute(() -> {

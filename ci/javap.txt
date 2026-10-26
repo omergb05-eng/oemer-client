@@ -82,6 +82,8 @@ com.mojang.blaze3d.platform.InputConstants$Type
 net.minecraft.client.Options
 net.minecraft.client.Minecraft
 net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
+net.fabricmc.fabric.api.client.screen.v1.ScreenEvents$AfterExtract
 net.minecraft.world.inventory.AbstractContainerMenu
 net.minecraft.world.inventory.Slot
 net.minecraft.tags.ItemTags

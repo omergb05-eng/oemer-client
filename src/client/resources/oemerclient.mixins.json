@@ -8,6 +8,7 @@
 	},
 	"client": [
 		"AbstractClientPlayerMixin",
+		"AbstractContainerScreenMixin",
 		"AvatarRendererMixin",
 		"CameraMixin",
 		"ChatComponentMixin",

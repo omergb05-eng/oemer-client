@@ -630,9 +630,15 @@ public final class PresetArt {
 
 	// ======================================================= Hintergründe
 
-	public static final String[] BACKGROUNDS = {"Galaxy", "Nordlicht", "Synthwave", "Sakura", "Ozean", "Roter Nebel"};
+	public static final String[] BACKGROUNDS = {"Galaxy", "Nordlicht", "Synthwave", "Sakura", "Ozean", "Roter Nebel",
+			"Minecraft Tag", "Nether", "The End", "Tiefe Höhle", "Mond-Nacht"};
+	/** Ab hier beginnen die Minecraft-Pixel-Landschaften (BlockScenes). */
+	public static final int BLOCK_FIRST = 6;
 
 	public static BufferedImage background(int index, int w, int h) {
+		if (Math.floorMod(index, BACKGROUNDS.length) >= BLOCK_FIRST) {
+			return BlockScenes.paint(Math.floorMod(index, BACKGROUNDS.length) - BLOCK_FIRST);
+		}
 		return switch (Math.floorMod(index, BACKGROUNDS.length)) {
 			case 1 -> aurora(w, h);
 			case 2 -> synthwave(w, h);

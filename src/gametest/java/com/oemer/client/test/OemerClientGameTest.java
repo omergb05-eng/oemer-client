@@ -1153,6 +1153,8 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			sp.getServer().runCommand("item replace block " + chest.getX() + " " + chest.getY() + " " + chest.getZ() + " container.1 with stone_bricks 32");
 			sp.getServer().runCommand("item replace entity @a weapon.mainhand with diamond_pickaxe");
 			ctx.runOnClient(mc -> {
+				OemerConfig.get().chestSearch = true;
+				OemerConfig.get().searchItems = new java.util.ArrayList<>(java.util.List.of("minecraft:stone_bricks"));
 				mc.player.setYRot(0);
 				mc.player.setXRot(0);
 			});
@@ -1170,9 +1172,19 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_RIGHT);
 			ctx.waitTicks(10);
 			ctx.takeScreenshot("29b-markierte-kiste-offen");
+			ctx.runOnClient(mc -> com.oemer.client.feature.ChestSearch.query = "oak");
+			ctx.waitTicks(3);
+			ctx.takeScreenshot("29d-chest-search-in-kiste");
 			ctx.setScreen(() -> null);
 			ctx.waitTicks(5);
-			int planksAfter = ctx.computeOnClient(mc -> MaterialList.haveTotal(Items.OAK_PLANKS));
+			check("chest-search-known", ctx.computeOnClient(mc -> com.oemer.client.feature.ChestSearch.knownChests() > 0), "");
+			check("chest-search-hit", ctx.computeOnClient(mc -> com.oemer.client.feature.ChestSearch.hits(mc.player.position()).contains(chest)), "");
+			ctx.setScreen(() -> new com.oemer.client.gui.ChestSearchScreen(null));
+			ctx.waitTicks(5);
+			ctx.takeScreenshot("29e-chest-search-items");
+			ctx.setScreen(() -> null);
+			ctx.waitTicks(3);
+			int planksAfter =ctx.computeOnClient(mc -> MaterialList.haveTotal(Items.OAK_PLANKS));
 			check("chest-count", planksAfter == planksBefore + 64, planksBefore + " -> " + planksAfter);
 			ctx.runOnClient(mc -> {
 				OemerConfig.get().freecam = true;
@@ -1511,6 +1523,14 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				OemerConfig.get().lookMode = true;
 				OemerConfig.get().lookImage = "test-look.png";
 			});
+			// Absturz-Test: Kit-Vorschau in der 3. Person mit eigenem Namen (text_see_through gibt es in Menüs nicht)
+			ctx.runOnClient(mc -> {
+				OemerConfig c = OemerConfig.get();
+				c.customName = true;
+				c.nameShowSelf = true;
+				mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+			});
+			ctx.waitTicks(5);
 			ctx.getInput().pressKey(InputConstants.KEY_RSHIFT);
 			ctx.waitTicks(10);
 			check("menu-key-ingame", ctx.computeOnClient(mc -> mc.gui.screen() instanceof OmerScreen), "");
@@ -1522,6 +1542,10 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			click(ctx, "Kits");
 			ctx.waitTicks(3);
 			ctx.takeScreenshot("32c-menu-ingame-kits");
+			ctx.runOnClient(mc -> {
+				mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+				OemerConfig.get().customName = false;
+			});
 			ctx.runOnClient(mc -> {
 				OemerConfig.get().lookMode = false;
 				OemerConfig.get().designStyle = 1;
@@ -1564,6 +1588,18 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		});
 		ctx.waitTicks(10);
 		ctx.takeScreenshot("37-startscreen-look");
+		// Minecraft-Pixel-Landschaften als Hintergrund
+		for (int scene = 6; scene <= 10; scene++) {
+			final String choice = Looks.PRESET + scene;
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().lookMode = true;
+				OemerConfig.get().lookImage = choice;
+			});
+			ctx.waitFor(mc -> Looks.selected() != null, 200);
+			ctx.waitTicks(5);
+			check("scene-" + scene, ctx.computeOnClient(mc -> Looks.selected() != null), "");
+			ctx.takeScreenshot("37b-landschaft-" + scene);
+		}
 
 		System.out.println("[OEMER-TEST] fertig, Fehler: " + failures.size());
 		if (!failures.isEmpty()) {

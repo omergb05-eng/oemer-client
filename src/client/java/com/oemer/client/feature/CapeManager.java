@@ -35,8 +35,8 @@ public final class CapeManager {
 	private static int counter;
 
 	/** Auflösung der Einzelbilder einer animierten Cape (4 = 256x128), damit viele Bilder wenig Speicher brauchen. */
-	private static final int ANIM_SCALE = 4;
-	private static final int ANIM_MAX_FRAMES = 24;
+	private static final int ANIM_SCALE = 6;
+	private static final int ANIM_MAX_FRAMES = 48;
 	private static List<Identifier> animIds = List.of();
 	private static List<ClientAsset.Texture> animTextures = List.of();
 	private static ImageTools.Gif animGif;
@@ -106,9 +106,19 @@ public final class CapeManager {
 			load(c.capeSelection, key);
 		}
 		if (!animTextures.isEmpty()) {
-			return animTextures.get(frameAt(animGif.delaysMs(), animGif.totalMs(), System.currentTimeMillis()));
+			return animTextures.get(fpsFrame(animTextures.size(), fps(), System.currentTimeMillis()));
 		}
 		return loadedTexture;
+	}
+
+	/** Gewählte Abspielgeschwindigkeit (15 bis 30 Bilder pro Sekunde). */
+	public static int fps() {
+		return OemerConfig.CAPE_FPS[Math.floorMod(OemerConfig.get().capeFpsLevel, OemerConfig.CAPE_FPS.length)];
+	}
+
+	/** Welches Bild bei fester Geschwindigkeit (fps) zu sehen ist. */
+	public static int fpsFrame(int frames, int fps, long nowMs) {
+		return (int) Math.floorMod(nowMs * fps / 1000L, (long) frames);
 	}
 
 	/** Welches Bild einer Animation zu diesem Zeitpunkt zu sehen ist. */
@@ -137,18 +147,18 @@ public final class CapeManager {
 				int n = Math.min(t[1], animGif.frames().size());
 				int step = Math.max(1, (animGif.frames().size() + n - 1) / n);
 				List<BufferedImage> picked = new ArrayList<>();
-				int ms = 0;
 				for (int i = 0; i < animGif.frames().size(); i += step) {
 					picked.add(ImageTools.toCape(animGif.frames().get(i), scale));
-					for (int j = i; j < Math.min(animGif.frames().size(), i + step); j++) ms += animGif.delaysMs()[j];
 				}
+				// gleiche Geschwindigkeit wie bei dir, auch wenn für Freunde Bilder weggelassen werden
+				int ms = Math.round(1000f / fps() * step);
 				int fw = 64 * scale, fh = 32 * scale;
 				BufferedImage strip = new BufferedImage(fw, fh * picked.size(), BufferedImage.TYPE_INT_ARGB);
 				java.awt.Graphics2D g = strip.createGraphics();
 				for (int i = 0; i < picked.size(); i++) g.drawImage(picked.get(i), 0, i * fh, fw, fh, null);
 				g.dispose();
 				byte[] png = ImageTools.toPng(strip);
-				if (png.length * 4 / 3 + 4 <= 50_000) return new Shared(png, picked.size(), Math.max(20, ms / picked.size()));
+				if (png.length * 4 / 3 + 4 <= 50_000) return new Shared(png, picked.size(), Math.max(20, ms));
 			}
 		} catch (Exception e) {
 			OemerClient.LOGGER.warn("Animierte Cape konnte nicht für Freunde vorbereitet werden", e);
