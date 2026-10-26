@@ -231,7 +231,7 @@ public final class NameShare {
 								boolean seeThrough, Identifier tex) {
 		float x1 = -nameWidth / 2f - 3f, x0 = x1 - 10f, y0 = -1f, y1 = 9f;
 		pose.pushPose();
-		pose.translate(attachment.x, attachment.y, attachment.z);
+		pose.translate(attachment.x, attachment.y + 0.5, attachment.z); // wie das Namensschild selbst
 		pose.mulPose(camera.orientation);
 		pose.scale(0.025f, -0.025f, 0.025f);
 		try {

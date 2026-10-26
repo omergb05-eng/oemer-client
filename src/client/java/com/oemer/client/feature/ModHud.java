@@ -116,7 +116,7 @@ public final class ModHud {
 	private static void loadGold() {
 		if (goldTried) return;
 		goldTried = true;
-		BufferedImage full = sprite("food_full"), half = sprite("food_half"), empty = sprite("food_empty");
+		BufferedImage full = sprite("food_full"), half = sprite("food_half");
 		if (full == null || full.getWidth() != 9 || full.getHeight() != 9) {
 			full = fallbackFood();
 			half = null;
@@ -128,8 +128,8 @@ public final class ModHud {
 				int c = gold(full.getRGB(x, y));
 				gf.setRGB(x, y, c);
 				boolean filled;
-				if (half != null && empty != null && half.getWidth() == 9 && empty.getWidth() == 9) {
-					filled = half.getRGB(x, y) != empty.getRGB(x, y);
+				if (half != null && half.getWidth() == 9 && half.getHeight() == 9) {
+					filled = half.getRGB(x, y) == full.getRGB(x, y); // gefüllte Hälfte sieht aus wie die volle Keule
 				} else {
 					filled = x >= 4;
 				}

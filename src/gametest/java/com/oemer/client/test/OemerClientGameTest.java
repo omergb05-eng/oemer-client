@@ -279,7 +279,8 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		Firebase.put(bob, "skins/" + bob.uid, sk);
 		off(Social::syncNow);
 		var annaId = java.util.UUID.fromString(bobMc);
-		check("friend-name-style", NameShare.styleOf(annaId) != null && NameShare.styleOf(annaId).text().equals("AnnaStar") && NameShare.styleOf(annaId).mode() == 0, "" + NameShare.styleOf(annaId));
+		var annaStyle = ctx.computeOnClient(mc -> NameShare.styleOf(annaId));
+		check("friend-name-style", annaStyle != null && annaStyle.text().equals("AnnaStar") && annaStyle.mode() == 0, "" + annaStyle);
 		check("friend-logo-texture", ctx.computeOnClient(mc -> NameShare.logoOf(annaId) != null), "");
 		check("skins-friend-received", FriendSkins.hasCape(bobMc) && FriendSkins.hasTotem(bob.uid), "");
 		check("skins-cape-texture", ctx.computeOnClient(mc -> FriendSkins.capeFor(java.util.UUID.fromString(bobMc)) != null), "");
