@@ -235,7 +235,7 @@ public class OmerScreen extends Screen {
 		cy = contentTop;
 		flowN = 0;
 
-		String key = section + "|" + openMod + "|" + skinTab + "|" + friendTab + "|" + chatWith + "|" + OemerConfig.get().musicService;
+		String key = section + "|" + openMod + "|" + skinTab + "|" + friendTab + "|" + chatWith + "|" + OemerConfig.get().musicService + "|" + musicHelp + "|" + helpTab;
 		if (!key.equals(pageKey)) {
 			pageKey = key;
 			scroll = 0;
@@ -1193,21 +1193,94 @@ public class OmerScreen extends Screen {
 
 	private void buildMusic() {
 		OemerConfig c = OemerConfig.get();
-		// Umschalter oben: YouTube | Spotify
+		// Umschalter oben: YouTube | Spotify | Anleitung
 		int x = panelX + panelW - 12;
+		int hw = Draw.width("Anleitung") + 22;
+		x -= hw;
+		this.addRenderableWidget(new OmerWidgets.Flat(x, panelY + 11, hw, 18, "Anleitung", () -> {
+			musicHelp = !musicHelp;
+			refresh();
+		}, () -> musicHelp).style(OmerWidgets.Style.PILL));
+		x -= 10;
 		for (int s = Music.SERVICES.length - 1; s >= 0; s--) {
 			final int idx = s;
 			int w = Draw.width(Music.SERVICES[s]) + 22;
 			x -= w;
 			this.addRenderableWidget(new OmerWidgets.Flat(x, panelY + 11, w, 18, Music.SERVICES[s], () -> {
 				c.musicService = idx;
+				musicHelp = false;
 				OemerConfig.save();
 				refresh();
-			}, () -> c.musicService == idx).style(OmerWidgets.Style.PILL));
+			}, () -> !musicHelp && c.musicService == idx).style(OmerWidgets.Style.PILL));
 			x -= 4;
 		}
-		if (c.musicService == 0) buildYouTube();
+		if (musicHelp) buildMusicHelp();
+		else if (c.musicService == 0) buildYouTube();
 		else buildSpotify();
+	}
+
+	private static boolean musicHelp;
+	private static int helpTab;
+
+	public static void helpForTest(int tab) {
+		musicHelp = true;
+		helpTab = tab;
+	}
+
+	public static void helpOff() {
+		musicHelp = false;
+	}
+
+	private void buildMusicHelp() {
+		List<MusicHelp.Tab> tabs = MusicHelp.tabs();
+		if (tabs.isEmpty()) {
+			note("Die Anleitung konnte nicht geladen werden.");
+			return;
+		}
+		helpTab = Math.floorMod(helpTab, tabs.size());
+		endFlow();
+		int tx = cx0;
+		for (int i = 0; i < tabs.size(); i++) {
+			final int idx = i;
+			int w = Draw.width(tabs.get(i).name()) + 22;
+			addContent(new OmerWidgets.Flat(tx, cy, w, 18, tabs.get(i).name(), () -> {
+				helpTab = idx;
+				refresh();
+			}, () -> helpTab == idx).style(OmerWidgets.Style.PILL));
+			tx += w + 4;
+		}
+		cy += 18 + GAP + 2;
+		MusicHelp.Tab tab = tabs.get(helpTab);
+		String name = tab.name();
+		if (name.equals("YouTube")) {
+			button("Player im Browser öffnen", YouTubeMusic::openPlayer, OmerWidgets.Style.GLASS);
+			button("Schlüssel holen", () -> Util.getPlatform().openUri(YouTubeMusic.GUIDE), OmerWidgets.Style.GLASS);
+			endFlow();
+		} else if (name.equals("Jedes Lied")) {
+			button("Erweiterung „Ömer Bridge“ installieren", () -> Util.getPlatform().openPath(YouTubeMusic.installExtension()), OmerWidgets.Style.GLASS);
+			button("Wiedergabe: YouTube-Seite", () -> {
+				OemerConfig.get().ytMode = 1;
+				OemerConfig.save();
+			}, OmerWidgets.Style.GLASS);
+			endFlow();
+		} else if (name.equals("Spotify")) {
+			button("Spotify-Dashboard öffnen", () -> Util.getPlatform().openUri(Spotify.DASHBOARD), OmerWidgets.Style.GLASS);
+			endFlow();
+		}
+		for (MusicHelp.Block b : tab.blocks()) {
+			if (b.type() == '#') {
+				heading(b.text());
+				continue;
+			}
+			int color = b.type() == '!' ? 0xFFFFC857 : b.type() == '1' ? Theme.TEXT : Theme.TEXT_DIM;
+			String text = b.type() == '!' ? "⚠ " + b.text() : b.text();
+			List<String> lines = MusicHelp.wrap(text, cw - 6);
+			for (int i = 0; i < lines.size(); i++) {
+				addContent(new OmerWidgets.Label(cx0 + (b.type() == '1' && i > 0 ? 12 : 0), cy, cw, 12, lines.get(i), false, color));
+				cy += 12;
+			}
+			cy += 4;
+		}
 	}
 
 	private void nowPlayingCard(int h) {

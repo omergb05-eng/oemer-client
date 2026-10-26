@@ -595,6 +595,22 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		click(ctx, "Spotify");
 		ctx.takeScreenshot("06b-musik-spotify");
 		click(ctx, "YouTube");
+		// Anleitung im Musik-Menue (4 Seiten)
+		int helpTabs = ctx.computeOnClient(mc -> com.oemer.client.gui.MusicHelp.tabs().size());
+		check("help-tabs", helpTabs == 4, "" + helpTabs);
+		int helpBlocks = ctx.computeOnClient(mc -> com.oemer.client.gui.MusicHelp.tabs().stream().mapToInt(t -> t.blocks().size()).sum());
+		check("help-content", helpBlocks > 80, "" + helpBlocks);
+		String[] helpNames = {"youtube", "jedes-lied", "spotify", "probleme"};
+		for (int ht = 0; ht < 4; ht++) {
+			final int hti = ht;
+			ctx.runOnClient(mc -> com.oemer.client.gui.OmerScreen.helpForTest(hti));
+			ctx.setScreen(() -> new OmerScreen(null));
+			ctx.waitTicks(8);
+			ctx.takeScreenshot("06h" + (ht + 1) + "-anleitung-" + helpNames[ht]);
+		}
+		ctx.runOnClient(mc -> com.oemer.client.gui.OmerScreen.helpOff());
+		ctx.setScreen(() -> new OmerScreen(null));
+		ctx.waitTicks(5);
 		click(ctx, "Skin");
 		click(ctx, "Cape");
 		ctx.waitTicks(10);
