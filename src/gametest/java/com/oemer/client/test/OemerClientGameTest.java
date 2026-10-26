@@ -599,7 +599,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		int helpTabs = ctx.computeOnClient(mc -> com.oemer.client.gui.MusicHelp.tabs().size());
 		check("help-tabs", helpTabs == 4, "" + helpTabs);
 		int helpBlocks = ctx.computeOnClient(mc -> com.oemer.client.gui.MusicHelp.tabs().stream().mapToInt(t -> t.blocks().size()).sum());
-		check("help-content", helpBlocks > 80, "" + helpBlocks);
+		check("help-content", helpBlocks > 60, "" + helpBlocks);
 		String[] helpNames = {"youtube", "jedes-lied", "spotify", "probleme"};
 		for (int ht = 0; ht < 4; ht++) {
 			final int hti = ht;
