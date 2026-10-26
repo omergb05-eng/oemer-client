@@ -64,6 +64,142 @@ public final class ImageTools {
 		return resize(src, nw, nh);
 	}
 
+	/**
+	 * Verkleinert ein frisch kopiertes, zu großes Bild (längste Seite &gt; maxSide) verlustfrei als PNG,
+	 * damit es nicht verpixelt und nichts ruckelt. GIFs (Animation) und kleine Bilder bleiben, wie sie sind.
+	 * @return die Datei, die danach benutzt werden soll (bei JPG/BMP heißt sie dann .png)
+	 */
+	public static Path shrinkFile(Path file, int maxSide) {
+		try {
+			String name = file.getFileName().toString();
+			if (name.toLowerCase(java.util.Locale.ROOT).endsWith(".gif")) {
+				return file;
+			}
+			BufferedImage img = ImageIO.read(file.toFile());
+			if (img == null || (img.getWidth() <= maxSide && img.getHeight() <= maxSide)) {
+				return file;
+			}
+			byte[] png = toPng(limit(toArgb(img), maxSide));
+			int dot = name.lastIndexOf('.');
+			String base = dot > 0 ? name.substring(0, dot) : name;
+			Path out = file.resolveSibling(base + ".png");
+			if (!out.equals(file) && java.nio.file.Files.exists(out)) {
+				out = file.resolveSibling(base + "_klein.png");
+			}
+			java.nio.file.Files.write(out, png);
+			if (!out.equals(file)) {
+				java.nio.file.Files.deleteIfExists(file);
+			}
+			return out;
+		} catch (Exception | OutOfMemoryError e) {
+			return file;
+		}
+	}
+
+	/** Eine GIF-Animation: fertig zusammengesetzte Bilder und wie lange jedes zu sehen ist (ms). */
+	public record Gif(java.util.List<BufferedImage> frames, int[] delaysMs) {
+		public int totalMs() {
+			int t = 0;
+			for (int d : delaysMs) t += d;
+			return Math.max(1, t);
+		}
+	}
+
+	private static org.w3c.dom.Node child(org.w3c.dom.Node n, String name) {
+		for (org.w3c.dom.Node c = n.getFirstChild(); c != null; c = c.getNextSibling()) {
+			if (c.getNodeName().equals(name)) return c;
+		}
+		return null;
+	}
+
+	private static int attr(org.w3c.dom.Node n, String name, int def) {
+		try {
+			return n == null ? def : Integer.parseInt(n.getAttributes().getNamedItem(name).getNodeValue());
+		} catch (Exception e) {
+			return def;
+		}
+	}
+
+	/** Liest ein GIF Bild für Bild (mit Positionen und Löschen wie im Original). Höchstens maxFrames Bilder, jedes höchstens maxSide groß. */
+	public static Gif readGif(Path file, int maxFrames, int maxSide) throws IOException {
+		java.util.Iterator<javax.imageio.ImageReader> it = ImageIO.getImageReadersByFormatName("gif");
+		if (!it.hasNext()) throw new IOException("Kein GIF-Leser");
+		javax.imageio.ImageReader rd = it.next();
+		try (javax.imageio.stream.ImageInputStream in = ImageIO.createImageInputStream(file.toFile())) {
+			rd.setInput(in, false);
+			int n = rd.getNumImages(true);
+			if (n <= 0) throw new IOException("Leeres GIF");
+			int cw = 0, ch = 0;
+			try {
+				org.w3c.dom.Node root = rd.getStreamMetadata().getAsTree("javax_imageio_gif_stream_1.0");
+				org.w3c.dom.Node lsd = child(root, "LogicalScreenDescriptor");
+				cw = attr(lsd, "logicalScreenWidth", 0);
+				ch = attr(lsd, "logicalScreenHeight", 0);
+			} catch (Exception ignored) {
+			}
+			if (cw <= 0 || ch <= 0) {
+				BufferedImage first = rd.read(0);
+				cw = first.getWidth();
+				ch = first.getHeight();
+			}
+			BufferedImage canvas = new BufferedImage(cw, ch, BufferedImage.TYPE_INT_ARGB);
+			BufferedImage previous = null;
+			java.util.List<BufferedImage> all = new java.util.ArrayList<>();
+			java.util.List<Integer> delays = new java.util.ArrayList<>();
+			for (int i = 0; i < n; i++) {
+				BufferedImage fr = rd.read(i);
+				int left = 0, top = 0, delay = 10;
+				String disposal = "none";
+				try {
+					org.w3c.dom.Node root = rd.getImageMetadata(i).getAsTree("javax_imageio_gif_image_1.0");
+					org.w3c.dom.Node desc = child(root, "ImageDescriptor");
+					left = attr(desc, "imageLeftPosition", 0);
+					top = attr(desc, "imageTopPosition", 0);
+					org.w3c.dom.Node gce = child(root, "GraphicControlExtension");
+					delay = attr(gce, "delayTime", 10);
+					if (gce != null) disposal = gce.getAttributes().getNamedItem("disposalMethod").getNodeValue();
+				} catch (Exception ignored) {
+				}
+				if (disposal.equals("restoreToPrevious")) {
+					previous = new BufferedImage(cw, ch, BufferedImage.TYPE_INT_ARGB);
+					Graphics2D pg = previous.createGraphics();
+					pg.drawImage(canvas, 0, 0, null);
+					pg.dispose();
+				}
+				Graphics2D g = canvas.createGraphics();
+				g.drawImage(fr, left, top, null);
+				g.dispose();
+				BufferedImage snap = new BufferedImage(cw, ch, BufferedImage.TYPE_INT_ARGB);
+				Graphics2D sg = snap.createGraphics();
+				sg.drawImage(canvas, 0, 0, null);
+				sg.dispose();
+				all.add(limit(snap, maxSide));
+				delays.add(Math.max(40, delay * 10));
+				if (disposal.equals("restoreToBackgroundColor")) {
+					Graphics2D cg = canvas.createGraphics();
+					cg.setComposite(java.awt.AlphaComposite.Clear);
+					cg.fillRect(left, top, fr.getWidth(), fr.getHeight());
+					cg.dispose();
+				} else if (disposal.equals("restoreToPrevious") && previous != null) {
+					canvas = previous;
+				}
+			}
+			// zu viele Bilder: gleichmäßig ausdünnen, die Zeit bleibt gleich lang
+			int step = (all.size() + maxFrames - 1) / maxFrames;
+			java.util.List<BufferedImage> frames = new java.util.ArrayList<>();
+			java.util.List<Integer> ms = new java.util.ArrayList<>();
+			for (int i = 0; i < all.size(); i += step) {
+				int d = 0;
+				for (int j = i; j < Math.min(all.size(), i + step); j++) d += delays.get(j);
+				frames.add(all.get(i));
+				ms.add(d);
+			}
+			return new Gif(frames, ms.stream().mapToInt(Integer::intValue).toArray());
+		} finally {
+			rd.dispose();
+		}
+	}
+
 	public static byte[] toPng(BufferedImage img) throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		ImageIO.write(img, "png", out);
@@ -157,10 +293,14 @@ public final class ImageTools {
 	 * Sonst kommt das Bild groß auf die Rückseite vom Cape und auf die Elytra.
 	 */
 	public static BufferedImage toCape(BufferedImage src) {
+		return toCape(src, CAPE_SCALE);
+	}
+
+	/** Wie toCape, aber mit eigener Auflösung (s = 1 → 64x32, 4 → 256x128, 16 → 1024x512). */
+	public static BufferedImage toCape(BufferedImage src, int s) {
 		if (src.getWidth() == src.getHeight() * 2 && src.getWidth() >= 64) {
-			return src;
+			return src.getWidth() > 64 * s ? resize(src, 64 * s, 32 * s) : src;
 		}
-		int s = CAPE_SCALE;
 		BufferedImage out = new BufferedImage(64 * s, 32 * s, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = smooth(out);
 

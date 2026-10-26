@@ -1952,7 +1952,7 @@ public class OmerScreen extends Screen {
 				c.shareSkins = v;
 				Social.syncSkinsLater();
 			}, "Freunde sehen dein Cape in der Welt und dein Totem in der Liste");
-			toggle("Nachrichten im Spiel zeigen", () -> c.chatToasts, v -> c.chatToasts = v, "Neue Freunde-Nachrichten und Anfragen erscheinen kurz im Chat");
+			toggle("Benachrichtigungen oben rechts", () -> c.chatToasts, v -> c.chatToasts = v, "Neue Nachrichten und Freundesanfragen erscheinen kurz oben rechts im Spiel");
 			endFlow();
 			button("Cape & Totem jetzt hochladen", Social::syncSkinsLater, OmerWidgets.Style.GLASS);
 			button("Abmelden", Social::logout, OmerWidgets.Style.GLASS);

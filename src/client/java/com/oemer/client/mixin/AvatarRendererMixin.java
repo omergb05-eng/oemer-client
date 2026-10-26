@@ -44,9 +44,18 @@ public class AvatarRendererMixin {
 		if (logo != null) {
 			NameShare.drawLogo(pose, collector, state.nameTagAttachment, camera, mc.font.width(state.nameTag), !state.isDiscrete, logo);
 		}
-		if (!OmerBadge.enabled() || !OmerBadge.isOmer(e.getUUID())) return;
+	}
+
+	// Ömer-Symbol (Mond + Haus) direkt vor dem Namen, bei dir und bei Freunden mit dem Client
+	@Inject(method = "submitNameDisplay(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
+			at = @At("HEAD"), require = 0)
+	private void oemer$badgeInline(AvatarRenderState state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
+		if (state.nameTag == null || !OmerBadge.enabled()) return;
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level == null) return;
+		Entity e = mc.level.getEntity(state.id);
+		if (e == null || !OmerBadge.isOmer(e.getUUID())) return;
+		if (!state.nameTag.getString().startsWith(OmerBadge.GLYPH)) state.nameTag = OmerBadge.prefix(state.nameTag);
 		OmerBadge.drawn++;
-		int line = state.scoreText != null ? -20 : -10;
-		collector.submitNameTag(pose, state.nameTagAttachment, line, OmerBadge.icon(), !state.isDiscrete, state.lightCoords, camera);
 	}
 }

@@ -129,7 +129,10 @@ public final class FilePicker {
 						int dot = base.lastIndexOf('.');
 						target = folder.resolve((dot > 0 ? base.substring(0, dot) : base) + "_" + n++ + (dot > 0 ? base.substring(dot) : ""));
 					}
-					if (!Files.exists(target)) Files.copy(src, target, StandardCopyOption.REPLACE_EXISTING);
+					boolean copied = !Files.exists(target);
+					if (copied) Files.copy(src, target, StandardCopyOption.REPLACE_EXISTING);
+					// Sehr große Bilder gleich beim Hochladen verlustfrei verkleinern (nur unsere Kopie, nie das Original)
+					if (copied && patterns.length > 0 && patterns[0].equals("*.png")) target = ImageTools.shrinkFile(target, 2048);
 					name = target.getFileName().toString();
 				} catch (Exception e) {
 					OemerClient.LOGGER.warn("Bild konnte nicht kopiert werden", e);

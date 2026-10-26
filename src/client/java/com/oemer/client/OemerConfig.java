@@ -221,6 +221,8 @@ public class OemerConfig {
 	public static final String[] PORTAL_NAMES = {"Leicht", "Stark", "Fast unsichtbar"};
 	public static final float[] PORTAL_ALPHA = {0.6f, 0.35f, 0.14f};
 	public static final float[] LOW_AMOUNTS = {0.12f, 0.25f, 0.4f};
+	/** Wie klein das Feuer im Low-Fire-Modus gezeichnet wird (je größer die Stufe, desto kleiner). */
+	public static final float[] LOW_FIRE_SCALES = {0.75f, 0.6f, 0.45f};
 	public static final String[] SMALL_NAMES = {"75 %", "50 %", "30 %"};
 	public static final float[] SMALL_SCALES = {0.75f, 0.5f, 0.3f};
 	public static final String[] ARMOR_POS = {"Links in der Mitte", "Rechts in der Mitte", "Links neben der Hotbar", "Rechts neben der Hotbar"};

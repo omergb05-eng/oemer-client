@@ -68,6 +68,7 @@ public final class Hud {
 		if (c.materialList) renderMaterials(g, mc, c);
 		if (c.spotifyHud) renderSpotify(g, c);
 		if (c.armorHud) renderArmor(g, mc, c);
+		com.oemer.client.online.Notify.render(g, g.guiWidth());
 	}
 
 	// ------------------------------------------------------------ Armor-HUD

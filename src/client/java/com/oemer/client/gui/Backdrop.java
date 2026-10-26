@@ -1,6 +1,7 @@
 package com.oemer.client.gui;
 
 import com.oemer.client.OemerConfig;
+import com.oemer.client.feature.BlockArt;
 import com.oemer.client.feature.GalaxyArt;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.Textures;
@@ -48,7 +49,14 @@ public final class Backdrop {
 			if (inWorld) {
 				g.fill(0, 0, w, h, 0xC8050507);
 			} else {
-				Draw.vGradient(g, 0, 0, w, h, Theme.BACKGROUND, Theme.BACKGROUND_2);
+				// Steinwand wie im Minecraft-Menü, dunkel abgedeckt, damit das Glas-Design lesbar bleibt
+				Textures.Tex blocks = Textures.image("blockbg", "v1", BlockArt.image());
+				if (blocks != null) {
+					Textures.drawCover(g, blocks, 0, 0, w, h);
+					g.fill(0, 0, w, h, 0x70050507);
+				} else {
+					Draw.vGradient(g, 0, 0, w, h, Theme.BACKGROUND, Theme.BACKGROUND_2);
+				}
 			}
 			// zwei weiche Lichtflecken, die langsam wandern
 			glow(g, (int) (w * (0.22f + 0.06f * (float) Math.sin(t * 0.21))), (int) (h * (0.25f + 0.05f * (float) Math.cos(t * 0.17))),

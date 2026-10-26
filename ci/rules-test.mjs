@@ -73,6 +73,12 @@ check('Zu langer Name abgelehnt', !(await db(a, 'PATCH', 'skins/' + a.uid, { nam
 check('Zu grosses Logo abgelehnt', !(await db(a, 'PATCH', 'skins/' + a.uid, { logo: 'x'.repeat(9001) })).ok);
 check('Dritte sehen Namensstil nicht', !(await db(c, 'GET', 'skins/' + a.uid)).ok);
 
+// Animierte Cape
+check('Animierte Cape speichern', (await db(a, 'PATCH', 'skins/' + a.uid, { capeFrames: 8, capeMs: 100 })).ok);
+check('Freund liest Animation', (await db(b, 'GET', 'skins/' + a.uid)).data?.capeFrames === 8);
+check('Zu viele Bilder abgelehnt', !(await db(a, 'PATCH', 'skins/' + a.uid, { capeFrames: 99 })).ok);
+check('Zu schnelle Animation abgelehnt', !(await db(a, 'PATCH', 'skins/' + a.uid, { capeMs: 1 })).ok);
+
 // Mithoeren nur mit Erlaubnis
 check('Ben darf sich nicht selbst erlauben', !(await db(b, 'PUT', `listenAllow/${a.uid}/${b.uid}`, true)).ok);
 check('Anna erlaubt Ben', (await db(a, 'PUT', `listenAllow/${a.uid}/${b.uid}`, true)).ok);

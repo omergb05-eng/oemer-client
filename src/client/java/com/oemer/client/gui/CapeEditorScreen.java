@@ -230,12 +230,14 @@ public class CapeEditorScreen extends Screen {
 			if (!canvas.undo()) say("Nichts zum Rückgängigmachen");
 		}).tip("Rückgängig (Strg+Z)"));
 		this.addRenderableWidget(new OmerWidgets.Flat(rx + third + 4, y, third, rowH, "↷ Redo", () -> canvas.redo()).tip("Wiederholen (Strg+Y)"));
-		this.addRenderableWidget(new OmerWidgets.Flat(rx + 2 * (third + 4), y, rw - 2 * (third + 4), rowH, "Füllen", () -> {
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + 2 * (third + 4), y, rw - 2 * (third + 4), rowH, "Radierer", () -> tool = Tool.RADIERER,
+				() -> tool == Tool.RADIERER).tip("Radiergummi: macht Pixel wieder durchsichtig"));
+		y += rowH + gap;
+		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, half, rowH, "Aktuelles laden", this::loadCurrent));
+		this.addRenderableWidget(new OmerWidgets.Flat(rx + half + 6, y, rw - half - 6, rowH, "Füllen", () -> {
 			canvas.snapshot();
 			canvas.clear(color);
 		}).tip("Ganze Fläche mit der Farbe füllen"));
-		y += rowH + gap;
-		this.addRenderableWidget(new OmerWidgets.Flat(rx, y, rw, rowH, "Aktuelles laden", this::loadCurrent));
 		y += rowH + gap + 2;
 
 		// Speichern

@@ -898,11 +898,10 @@ public final class Social {
 		}
 	}
 
+	/** Kleine Benachrichtigung oben rechts im Spiel (abschaltbar über "Benachrichtigungen"). */
 	private static void notice(String text) {
-		Minecraft mc = Minecraft.getInstance();
-		mc.execute(() -> {
-			if (mc.player != null) mc.player.sendSystemMessage(Component.literal("§8[§fÖmer§8]§r " + text));
-		});
+		if (!OemerConfig.get().chatToasts) return;
+		Notify.push(text);
 	}
 
 	// ---------------------------------------------------------- Skins
@@ -915,11 +914,19 @@ public final class Social {
 				if (!loggedIn()) return;
 				OemerConfig c = OemerConfig.get();
 				String cape = null, totem = null;
+				int capeFrames = 1, capeMs = 100;
 				if (c.shareSkins) {
 					if (c.customCape) {
-						BufferedImage img = CapeManager.previewImage();
-						if (img != null) cape = Base64.getEncoder().encodeToString(ImageTools.toPng(img));
-						if (cape != null && cape.length() > 55_000) cape = null;
+						CapeManager.Shared anim = CapeManager.sharedAnimation();
+						if (anim != null) {
+							cape = Base64.getEncoder().encodeToString(anim.png());
+							capeFrames = anim.frames();
+							capeMs = anim.ms();
+						} else {
+							BufferedImage img = CapeManager.previewImage();
+							if (img != null) cape = Base64.getEncoder().encodeToString(ImageTools.toPng(img));
+							if (cape != null && cape.length() > 55_000) cape = null;
+						}
 					}
 					if (c.customTotem) {
 						BufferedImage img = LooksPack.totemImage();
@@ -929,10 +936,11 @@ public final class Social {
 					}
 				}
 				final String fc = cape, ft = totem;
+				final int ff = capeFrames, fms = capeMs;
 				final String fn = NameShare.ownJson();
 				byte[] lp = fn == null ? null : NameShare.ownPng();
 				final String fl = lp == null ? null : Base64.getEncoder().encodeToString(lp);
-				String sig = (fc == null ? "-" : Integer.toHexString(fc.hashCode()) + fc.length()) + "/" + (ft == null ? "-" : Integer.toHexString(ft.hashCode()) + ft.length())
+				String sig = (fc == null ? "-" : Integer.toHexString(fc.hashCode()) + fc.length() + "x" + ff) + "/" + (ft == null ? "-" : Integer.toHexString(ft.hashCode()) + ft.length())
 						+ "/" + (fn == null ? "-" : Integer.toHexString(fn.hashCode())) + "/" + (fl == null ? "-" : Integer.toHexString(fl.hashCode()) + fl.length());
 				if (sig.equals(skinSig)) return;
 				ACTIONS.execute(() -> {
@@ -942,7 +950,13 @@ public final class Social {
 							Firebase.delete(s, "skins/" + s.uid);
 						} else {
 							JsonObject o = new JsonObject();
-							if (fc != null) o.addProperty("cape", fc);
+							if (fc != null) {
+								o.addProperty("cape", fc);
+								if (ff > 1) {
+									o.addProperty("capeFrames", ff);
+									o.addProperty("capeMs", fms);
+								}
+							}
 							if (ft != null) o.addProperty("totem", ft);
 							if (fn != null) o.addProperty("name", fn);
 							if (fl != null) o.addProperty("logo", fl);
@@ -973,15 +987,18 @@ public final class Social {
 			try {
 				JsonElement e = Firebase.get(s, "skins/" + f.uid);
 				byte[] cape = null, totem = null, logo = null;
+				int capeFrames = 1, capeMs = 100;
 				String nameJson = null;
 				if (e.isJsonObject()) {
 					JsonObject o = e.getAsJsonObject();
 					if (o.has("cape")) cape = Base64.getDecoder().decode(o.get("cape").getAsString());
+					if (o.has("capeFrames")) capeFrames = o.get("capeFrames").getAsInt();
+					if (o.has("capeMs")) capeMs = o.get("capeMs").getAsInt();
 					if (o.has("totem")) totem = Base64.getDecoder().decode(o.get("totem").getAsString());
 					if (o.has("name")) nameJson = o.get("name").getAsString();
 					if (o.has("logo")) logo = Base64.getDecoder().decode(o.get("logo").getAsString());
 				}
-				FriendSkins.update(f.uid, f.mc, cape, totem);
+				FriendSkins.update(f.uid, f.mc, cape, capeFrames, capeMs, totem);
 				NameShare.setFriend(f.mc, nameJson, logo);
 				bump();
 			} catch (Exception ignored) {

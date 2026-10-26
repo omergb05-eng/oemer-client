@@ -28,6 +28,8 @@
         ".read": "auth != null && (auth.uid === $uid || root.child('friends').child($uid).child(auth.uid).val() === true)",
         ".write": "auth != null && auth.uid === $uid",
         "cape": { ".validate": "newData.isString() && newData.val().length <= 60000" },
+        "capeFrames": { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 16" },
+        "capeMs": { ".validate": "newData.isNumber() && newData.val() >= 20 && newData.val() <= 5000" },
         "totem": { ".validate": "newData.isString() && newData.val().length <= 120000" },
         "name": { ".validate": "newData.isString() && newData.val().length <= 200" },
         "logo": { ".validate": "newData.isString() && newData.val().length <= 9000" },

@@ -438,6 +438,12 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(10);
 		check("badge-nametag-drawn", OmerBadge.drawn > 0, "drawn=" + OmerBadge.drawn);
 		check("friend-logo-drawn", NameShare.drawn > 0, "drawn=" + NameShare.drawn);
+		check("anim-frame-at", com.oemer.client.feature.CapeManager.frameAt(new int[]{100, 100, 100}, 300, 150) == 1
+				&& com.oemer.client.feature.CapeManager.frameAt(new int[]{100, 100, 100}, 300, 310) == 0, "");
+		ctx.runOnClient(mc -> com.oemer.client.online.Notify.push("§bTest§r hat dir geschrieben"));
+		ctx.waitTicks(2);
+		check("notify-top-right", ctx.computeOnClient(mc -> com.oemer.client.online.Notify.visible() > 0), "");
+		ctx.takeScreenshot("55-benachrichtigung");
 		ctx.takeScreenshot("54-freund-cape-in-welt");
 		ctx.runOnClient(mc -> {
 			for (var e : mc.level.entitiesForRendering()) {
