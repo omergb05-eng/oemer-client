@@ -1,6 +1,6 @@
 # Ömer Client – Version 7.0
 
-Fabric-Mod für **Minecraft 1.21.11** (braucht **Fabric API**).
+Fabric-Mod für **Minecraft 26.3** (Branch `mc-26.3`; für 1.21.11 siehe Branch `main`) (braucht **Fabric API**).
 
 ## Menü
 - Button **„Ömer Client“** im Startscreen direkt unter Multiplayer, im ESC-Menü oben links
