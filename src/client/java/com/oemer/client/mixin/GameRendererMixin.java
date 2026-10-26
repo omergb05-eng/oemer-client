@@ -2,7 +2,6 @@ package com.oemer.client.mixin;
 
 import com.oemer.client.feature.Freecam;
 import com.oemer.client.feature.Zoom;
-import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -28,13 +27,4 @@ public class GameRendererMixin {
 		}
 	}
 
-	// Just Zoom: Sichtfeld kleiner machen
-	@Inject(method = "getFov", at = @At("RETURN"), cancellable = true, require = 0)
-	private void oemer$zoom(Camera camera, float partialTick, boolean useFovSetting, CallbackInfoReturnable<Float> cir) {
-		if (!useFovSetting) return;
-		double f = Zoom.update();
-		if (f > 1.001) {
-			cir.setReturnValue((float) (cir.getReturnValue() / f));
-		}
-	}
 }

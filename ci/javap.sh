@@ -31,7 +31,7 @@ find ~/.gradle/caches/modules-2 -path '*net.fabricmc.fabric-api*' -name '*.jar' 
 ALLCP=$(cat ci-out/jars.txt ci-out/fabric-jars.txt | tr '\n' ':')
 : > ci-out/all-classes.list
 for jar in $(grep -E 'minecraft-(clientonly|common)-deobf' ci-out/jars.txt) $(cat ci-out/fabric-jars.txt); do
-  unzip -Z1 "$jar" 2>/dev/null | grep '\.class$' | grep -v -e module-info -e '/mixin/' | grep -E '^(com/mojang/blaze3d|net/minecraft/client|net/minecraft/world/entity/player|net/minecraft/world/item|net/minecraft/network/chat|net/minecraft/core|net/minecraft/resources|net/minecraft/util|net/minecraft/server/packs|net/minecraft/world/phys|net/fabricmc/fabric/api)' | sed 's/\.class$//' >> ci-out/all-classes.list
+  unzip -Z1 "$jar" 2>/dev/null | grep '\.class$' | grep -v -e module-info -e '/mixin/' | grep -E '^(com/mojang/blaze3d|net/minecraft/client|net/minecraft/world|com/mojang/renderpearl|net/minecraft/server/level|net/minecraft/network/protocol|net/minecraft/network/chat|net/minecraft/core|net/minecraft/resources|net/minecraft/util|net/minecraft/server/packs|net/minecraft/world/phys|net/fabricmc/fabric/api)' | sed 's/\.class$//' >> ci-out/all-classes.list
 done
 sort -u ci-out/all-classes.list -o ci-out/all-classes.list
 tr '/' '.' < ci-out/all-classes.list | xargs -n 300 javap -p -J-Xmx3g -cp "$ALLCP" 2>ci-out/javap-all.err | gzip -9 > ci-out/javap-all.txt.gz

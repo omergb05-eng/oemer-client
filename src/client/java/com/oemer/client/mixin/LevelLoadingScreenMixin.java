@@ -17,7 +17,7 @@ public abstract class LevelLoadingScreenMixin {
 	@Shadow
 	private LevelLoadTracker loadTracker;
 
-	@Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", at = @At("HEAD"), cancellable = true, require = 0)
+	@Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", at = @At("HEAD"), cancellable = true, require = 0)
 	private void oemer$render(GuiGraphicsExtractor g, int mx, int my, float pt, CallbackInfo ci) {
 		if (!OmerLoading.enabled()) return;
 		float p = -1f;

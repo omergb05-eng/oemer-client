@@ -27,7 +27,7 @@ public class MinecraftMixin {
 	}
 
 	// In der Free Cam keinen Block mit Mausrad-Klick nehmen
-	@Inject(method = "pickBlock", at = @At("HEAD"), cancellable = true)
+	@Inject(method = "pickBlockOrEntity", at = @At("HEAD"), cancellable = true)
 	private void oemer$noPick(CallbackInfo ci) {
 		if (Freecam.isEnabled()) {
 			ci.cancel();
