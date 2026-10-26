@@ -2,7 +2,7 @@ package com.oemer.client.feature;
 
 import com.oemer.client.OemerConfig;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
@@ -53,15 +53,15 @@ public final class ShulkerPreview {
 		}
 
 		@Override
-		public void renderImage(Font font, int x, int y, int w, int h, GuiGraphics g) {
+		public void renderImage(Font font, int x, int y, int w, int h, GuiGraphicsExtractor g) {
 			for (int i = 0; i < items.size(); i++) {
 				int sx = x + 1 + (i % 9) * 18, sy = y + 2 + (i / 9) * 18;
 				g.fill(sx, sy, sx + 17, sy + 17, 0x40000000);
 				g.fill(sx, sy, sx + 17, sy + 1, 0x30FFFFFF);
 				ItemStack s = items.get(i);
 				if (s.isEmpty()) continue;
-				g.renderItem(s, sx, sy);
-				g.renderItemDecorations(font, s, sx, sy);
+				g.item(s, sx, sy);
+				g.itemDecorations(font, s, sx, sy);
 			}
 		}
 	}

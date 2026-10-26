@@ -7,7 +7,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 
 import javax.imageio.ImageIO;
@@ -88,7 +88,7 @@ public final class OmerLoading {
 		}
 	}
 
-	private static void glow(GuiGraphics g, int cx, int cy, int radius, int color, int strength, float alpha) {
+	private static void glow(GuiGraphicsExtractor g, int cx, int cy, int radius, int color, int strength, float alpha) {
 		int steps = 7;
 		for (int i = steps; i >= 1; i--) {
 			int r = radius * i / steps;
@@ -103,7 +103,7 @@ public final class OmerLoading {
 	 * @param progress 0..1, oder negativ = unbestimmt (Balken wandert)
 	 * @param kind     "overlay", "level" oder "progress" (nur fürs Testen)
 	 */
-	public static void draw(GuiGraphics g, float alpha, float progress, String status, String kind) {
+	public static void draw(GuiGraphicsExtractor g, float alpha, float progress, String status, String kind) {
 		if (alpha <= 0.01f) return;
 		int w = g.guiWidth(), h = g.guiHeight();
 		float t = (System.currentTimeMillis() % 1_000_000L) / 1000f;

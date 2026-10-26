@@ -3,7 +3,7 @@ package com.oemer.client.feature;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.oemer.client.OemerClient;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
@@ -82,17 +82,17 @@ public final class Textures {
 	}
 
 	/** Ganze Textur in ein Rechteck strecken. */
-	public static void draw(GuiGraphics g, Tex t, int x, int y, int w, int h) {
+	public static void draw(GuiGraphicsExtractor g, Tex t, int x, int y, int w, int h) {
 		g.blit(RenderPipelines.GUI_TEXTURED, t.id(), x, y, 0f, 0f, w, h, t.width(), t.height(), t.width(), t.height());
 	}
 
 	/** Ausschnitt (u,v,uw,vh in Textur-Pixeln) in ein Rechteck zeichnen. */
-	public static void drawRegion(GuiGraphics g, Tex t, int x, int y, int w, int h, int u, int v, int uw, int vh) {
+	public static void drawRegion(GuiGraphicsExtractor g, Tex t, int x, int y, int w, int h, int u, int v, int uw, int vh) {
 		g.blit(RenderPipelines.GUI_TEXTURED, t.id(), x, y, (float) u, (float) v, w, h, uw, vh, t.width(), t.height());
 	}
 
 	/** Füllt das Rechteck komplett aus (wie ein Hintergrundbild), schneidet überstehende Ränder ab. */
-	public static void drawCover(GuiGraphics g, Tex t, int x, int y, int w, int h) {
+	public static void drawCover(GuiGraphicsExtractor g, Tex t, int x, int y, int w, int h) {
 		double target = (double) w / h;
 		double have = (double) t.width() / t.height();
 		int u = 0, v = 0, uw = t.width(), vh = t.height();
@@ -107,7 +107,7 @@ public final class Textures {
 	}
 
 	/** Passt komplett rein (mit Rand), Seitenverhältnis bleibt. */
-	public static void drawContain(GuiGraphics g, Tex t, int x, int y, int w, int h) {
+	public static void drawContain(GuiGraphicsExtractor g, Tex t, int x, int y, int w, int h) {
 		double scale = Math.min((double) w / t.width(), (double) h / t.height());
 		int dw = Math.max(1, (int) Math.round(t.width() * scale));
 		int dh = Math.max(1, (int) Math.round(t.height() * scale));

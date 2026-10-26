@@ -1,7 +1,7 @@
 package com.oemer.client.gui;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.InputWithModifiers;
@@ -19,7 +19,7 @@ public final class OmerWidgets {
 	}
 
 	/** Alte Hilfsfunktion (eckiger Rahmen), wird noch an ein paar Stellen benutzt. */
-	static void frame(GuiGraphics g, int x, int y, int w, int h, int fill, int border) {
+	static void frame(GuiGraphicsExtractor g, int x, int y, int w, int h, int fill, int border) {
 		Draw.round(g, x, y, w, h, 3, fill);
 		Draw.roundBorder(g, x, y, w, h, 3, border);
 	}
@@ -28,7 +28,7 @@ public final class OmerWidgets {
 		return Draw.font();
 	}
 
-	static void centered(GuiGraphics g, String text, int centerX, int y, int color) {
+	static void centered(GuiGraphicsExtractor g, String text, int centerX, int y, int color) {
 		Draw.centered(g, text, centerX, y, color);
 	}
 
@@ -59,7 +59,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected final void renderContents(GuiGraphics g, int mouseX, int mouseY, float partial) {
+		protected final void renderContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partial) {
 			float d = delta();
 			hover = Draw.approach(hover, this.isHovered() && this.active ? 1f : 0f, 14f, d);
 			draw(g, mouseX, mouseY, d);
@@ -68,7 +68,7 @@ public final class OmerWidgets {
 			}
 		}
 
-		protected abstract void draw(GuiGraphics g, int mouseX, int mouseY, float delta);
+		protected abstract void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta);
 
 		@Override
 		protected void updateWidgetNarration(NarrationElementOutput output) {
@@ -113,7 +113,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			boolean sel = this.selected.getAsBoolean();
 			int x = getX(), y = getY(), w = width, h = height;
 			int r = style == Style.PILL ? h / 2 : 4;
@@ -173,7 +173,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			boolean on = getter.getAsBoolean();
 			anim = Draw.approach(anim, on ? 1f : 0f, 16f, delta);
 			int x = getX(), y = getY(), w = width, h = height;
@@ -234,7 +234,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			int x = getX(), y = getY(), w = width, h = height;
 			Draw.round(g, x, y, w, h, 4, Theme.element(hover));
 			Draw.roundBorder(g, x, y, w, h, 4, Theme.border(hover));
@@ -282,7 +282,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			int x = getX(), y = getY(), s = width;
 			boolean sel = selected.getAsBoolean();
 			if (sel) {
@@ -345,7 +345,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			int x = getX(), y = getY(), w = width, h = height;
 			boolean sel = selected.getAsBoolean();
 			int lift = Math.round(hover * 2);
@@ -445,7 +445,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			int x = getX(), y = getY(), w = width, h = height;
 			boolean isOn = on != null && on.getAsBoolean();
 			anim = Draw.approach(anim, isOn ? 1f : 0f, 16f, delta);
@@ -507,7 +507,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			int x = getX(), y = getY(), w = width, h = height;
 			boolean lis = listening.getAsBoolean();
 			Draw.round(g, x, y, w, h, 4, Theme.element(hover));
@@ -547,7 +547,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			String t = getMessage().getString();
 			if (big) {
 				g.pose().pushMatrix();
@@ -574,7 +574,7 @@ public final class OmerWidgets {
 	/** Fläche mit eigenem Zeichnen (Vorschau, Now Playing …). Optional klickbar. */
 	public static class Painter extends Base {
 		public interface Paint {
-			void paint(GuiGraphics g, int x, int y, int w, int h, int mouseX, int mouseY);
+			void paint(GuiGraphicsExtractor g, int x, int y, int w, int h, int mouseX, int mouseY);
 		}
 
 		private final Paint paint;
@@ -588,7 +588,7 @@ public final class OmerWidgets {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			paint.paint(g, getX(), getY(), width, height, mouseX, mouseY);
 		}
 

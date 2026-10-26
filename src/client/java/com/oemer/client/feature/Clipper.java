@@ -291,7 +291,7 @@ public final class Clipper {
 
 	private static void say(Minecraft mc, String text) {
 		mc.execute(() -> {
-			if (mc.player != null) mc.player.displayClientMessage(Component.literal(text), false);
+			if (mc.player != null) mc.player.sendSystemMessage(Component.literal(text));
 		});
 	}
 

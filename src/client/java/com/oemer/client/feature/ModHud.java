@@ -9,7 +9,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
@@ -32,10 +32,10 @@ public final class ModHud {
 
 	// ------------------------------------------------------------ AppleSkin
 
-	public static void food(GuiGraphics g, DeltaTracker tracker) {
+	public static void food(GuiGraphicsExtractor g, DeltaTracker tracker) {
 		Minecraft mc = Minecraft.getInstance();
 		Player p = mc.player;
-		if (!OemerConfig.get().appleSkin || p == null || mc.options.hideGui || p.isCreative() || p.isSpectator()) return;
+		if (!OemerConfig.get().appleSkin || p == null || mc.gui.hud.isHidden() || p.isCreative() || p.isSpectator()) return;
 		if (p.getVehicle() instanceof LivingEntity) return; // dann zeigt Minecraft die Reittier-Herzen
 		int right = g.guiWidth() / 2 + 91;
 		int top = g.guiHeight() - 39;
@@ -75,7 +75,7 @@ public final class ModHud {
 		return goldFull != null && goldHalf != null;
 	}
 
-	private static void drawGold(GuiGraphics g, Textures.Tex t, int x, int y, int color) {
+	private static void drawGold(GuiGraphicsExtractor g, Textures.Tex t, int x, int y, int color) {
 		if (t == null) return;
 		g.blit(RenderPipelines.GUI_TEXTURED, t.id(), x, y, 0f, 0f, 9, 9, t.width(), t.height(), t.width(), t.height(), color);
 	}
@@ -209,9 +209,9 @@ public final class ModHud {
 		};
 	}
 
-	public static void noteTuner(GuiGraphics g, DeltaTracker tracker) {
+	public static void noteTuner(GuiGraphicsExtractor g, DeltaTracker tracker) {
 		Minecraft mc = Minecraft.getInstance();
-		if (!OemerConfig.get().noteTuner || mc.player == null || mc.level == null || mc.options.hideGui) return;
+		if (!OemerConfig.get().noteTuner || mc.player == null || mc.level == null || mc.gui.hud.isHidden()) return;
 		HitResult hit = mc.hitResult;
 		if (!(hit instanceof BlockHitResult bh) || hit.getType() != HitResult.Type.BLOCK) return;
 		BlockState state = mc.level.getBlockState(bh.getBlockPos());

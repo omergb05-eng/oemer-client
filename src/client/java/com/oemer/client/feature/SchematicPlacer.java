@@ -5,13 +5,14 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.oemer.client.OemerClient;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.gui.Theme;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import com.mojang.blaze3d.vertex.QuadInstance;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
@@ -108,7 +109,7 @@ public final class SchematicPlacer {
 	private static String scanSig = "";
 
 	public static void init() {
-		WorldRenderEvents.BEFORE_TRANSLUCENT.register(SchematicPlacer::render);
+		LevelRenderEvents.COLLECT_SUBMITS.register(SchematicPlacer::collect);
 	}
 
 	public static Path folder() {
@@ -469,14 +470,14 @@ public final class SchematicPlacer {
 	private static QuadSet buildQuads(Minecraft mc, BlockState state) {
 		QuadSet qs = new QuadSet();
 		try {
-			BlockStateModel model = mc.getBlockRenderer().getBlockModel(state);
-			List<BlockModelPart> parts = new ArrayList<>();
+			BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
+			List<BlockStateModelPart> parts = new ArrayList<>();
 			model.collectParts(RandomSource.create(42L), parts);
 			List<BakedQuad>[] byDir = new List[6];
 			for (int i = 0; i < 6; i++) byDir[i] = new ArrayList<>();
 			List<BakedQuad> general = new ArrayList<>();
 			Direction[] dirs = Direction.values();
-			for (BlockModelPart part : parts) {
+			for (BlockStateModelPart part : parts) {
 				for (int i = 0; i < 6; i++) byDir[i].addAll(part.getQuads(dirs[i]));
 				general.addAll(part.getQuads(null));
 			}
@@ -496,7 +497,7 @@ public final class SchematicPlacer {
 
 	/** Passende Texturen für jeden Palette-Eintrag (mit Drehung und Spiegelung). */
 	private static void ensureQuads(Minecraft mc, OemerConfig c) {
-		Object epoch = mc.getBlockRenderer().getBlockModel(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+		Object epoch = mc.getModelManager().getBlockStateModelSet().get(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
 		int key = c.placeRot * 3 + c.placeMirror;
 		if (key == quadsKey && epoch == quadsEpoch && quadsByPal.length == paletteStates.length) return;
 		if (epoch != quadsEpoch) QUAD_CACHE.clear();
@@ -543,35 +544,58 @@ public final class SchematicPlacer {
 		};
 	}
 
-	private static void render(WorldRenderContext ctx) {
-		if (!active()) return;
-		SchematicGrid g = grid;
-		if (g == null) return;
-		OemerConfig c = OemerConfig.get();
-		Minecraft mc = Minecraft.getInstance();
-		Vec3 cam = mc.gameRenderer.getLevelRenderState().cameraRenderState.pos;
+	private static void collect(LevelRenderContext ctx) {
+		if (!active() || grid == null) return;
+		Vec3 cam = ctx.levelState().cameraRenderState.pos;
 		if (cam == null) return;
-		PoseStack pose = ctx.matrices();
+		OemerConfig c = OemerConfig.get();
+		var nc = ctx.submitNodeCollector();
+		PoseStack base = ctx.poseStack();
 		Cells cells = shown;
 		int n = cells.n;
-		float t = (System.nanoTime() / 1_000_000L % 1_000_000L) / 1000f;
 		if (drawn.length < n) drawn = new boolean[Math.max(n, drawn.length * 2)];
 		java.util.Arrays.fill(drawn, 0, n, false);
-
-		// ---- Pass 1: echte Texturen (nahe Blöcke)
-		int texQuads = 0;
 		if (c.placeTextures && n > 0) {
-			ensureQuads(mc, c);
-			VertexConsumer tex = ctx.consumers().getBuffer(RenderTypes.translucentMovingBlock());
+			ensureQuads(Minecraft.getInstance(), c);
 			float maxSq = texDist * texDist;
-			final float S = 0.985f;
-			for (int i = 0; i < n && texQuads < 220_000; i++) {
-				float dx = (float) (cells.x[i] - cam.x), dy = (float) (cells.y[i] - cam.y), dz = (float) (cells.z[i] - cam.z);
-				float cx = dx + 0.5f, cy = dy + 0.5f, cz = dz + 0.5f;
+			for (int i = 0; i < n; i++) {
+				float cx = (float) (cells.x[i] - cam.x) + 0.5f, cy = (float) (cells.y[i] - cam.y) + 0.5f, cz = (float) (cells.z[i] - cam.z) + 0.5f;
 				if (cx * cx + cy * cy + cz * cz > maxSq) continue;
 				int pal = cells.pal[i];
 				QuadSet qs = pal < quadsByPal.length ? quadsByPal[pal] : null;
 				if (qs == null || qs.empty) continue;
+				drawn[i] = true;
+			}
+			nc.submitCustomGeometry(base, RenderTypes.translucentMovingBlock(), (po, vc) -> renderTex(po, vc, cam, cells));
+		}
+		nc.submitCustomGeometry(base, RenderTypes.debugQuads(), (po, vc) -> renderFlat(po, vc, cam, cells));
+	}
+
+	private static int argb(float r, float g, float b, float a) {
+		return (Math.round(Math.max(0f, Math.min(1f, a)) * 255) << 24) | (Math.round(Math.max(0f, Math.min(1f, r)) * 255) << 16)
+				| (Math.round(Math.max(0f, Math.min(1f, g)) * 255) << 8) | Math.round(Math.max(0f, Math.min(1f, b)) * 255);
+	}
+
+	private static void renderTex(PoseStack.Pose po, VertexConsumer tex, Vec3 cam, Cells cells) {
+		OemerConfig c = OemerConfig.get();
+		PoseStack pose = new PoseStack();
+		pose.last().set(po);
+		QuadInstance qi = new QuadInstance();
+		qi.setLightCoords(FULL_BRIGHT);
+		qi.setOverlayCoords(OverlayTexture.NO_OVERLAY);
+		int n = cells.n;
+		float t = (System.nanoTime() / 1_000_000L % 1_000_000L) / 1000f;
+
+		// ---- Pass 1: echte Texturen (nahe Blöcke)
+		int texQuads = 0;
+		{
+			final float S = 0.985f;
+			for (int i = 0; i < n && texQuads < 220_000; i++) {
+				if (!drawn[i]) continue;
+				float dx = (float) (cells.x[i] - cam.x), dy = (float) (cells.y[i] - cam.y), dz = (float) (cells.z[i] - cam.z);
+				float cx = dx + 0.5f, cy = dy + 0.5f, cz = dz + 0.5f;
+				int pal = cells.pal[i];
+				QuadSet qs = quadsByPal[pal];
 				int kind = cells.kind[i];
 				float r, gr, b, a;
 				switch (kind) {
@@ -606,33 +630,34 @@ public final class SchematicPlacer {
 					if ((mask & (1 << d)) == 0) continue;
 					if (fullCube && !faceToCamera(d, dx, dy, dz)) continue;
 					for (BakedQuad q : qs.dir[d]) {
-						if (q.isTinted()) {
-							tex.putBulkData(pose.last(), q, r * ((tint >> 16 & 255) / 255f), gr * ((tint >> 8 & 255) / 255f), b * ((tint & 255) / 255f), a, FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
-						} else {
-							tex.putBulkData(pose.last(), q, r, gr, b, a, FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
-						}
+						if (q.materialInfo().isTinted()) qi.setColor(argb(r * ((tint >> 16 & 255) / 255f), gr * ((tint >> 8 & 255) / 255f), b * ((tint & 255) / 255f), a));
+						else qi.setColor(argb(r, gr, b, a));
+						tex.putBakedQuad(pose.last(), q, qi);
 						texQuads++;
 					}
 				}
 				for (BakedQuad q : qs.general) {
-					if (q.isTinted()) {
-						tex.putBulkData(pose.last(), q, r * ((tint >> 16 & 255) / 255f), gr * ((tint >> 8 & 255) / 255f), b * ((tint & 255) / 255f), a, FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
-					} else {
-						tex.putBulkData(pose.last(), q, r, gr, b, a, FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
-					}
+					if (q.materialInfo().isTinted()) qi.setColor(argb(r * ((tint >> 16 & 255) / 255f), gr * ((tint >> 8 & 255) / 255f), b * ((tint & 255) / 255f), a));
+						else qi.setColor(argb(r, gr, b, a));
+						tex.putBakedQuad(pose.last(), q, qi);
 					texQuads++;
 				}
 				pose.popPose();
-				drawn[i] = true;
 			}
 			// Gleichzeitig nicht zu viel zeichnen: Texturen-Radius passt sich der Last an
 			if (texQuads > 150_000) texDist = Math.max(10f, texDist * 0.85f);
 			else if (texQuads < 70_000 && texDist < 128f) texDist = Math.min(128f, texDist * 1.04f);
 		}
 
+	}
+
+	private static void renderFlat(PoseStack.Pose po, VertexConsumer vc, Vec3 cam, Cells cells) {
 		// ---- Pass 2: ferne Blöcke / Blöcke ohne Modell als einfache, farbige Flächen
-		VertexConsumer vc = ctx.consumers().getBuffer(RenderTypes.debugQuads());
-		Matrix4f m = pose.last().pose();
+		SchematicGrid g = grid;
+		if (g == null) return;
+		OemerConfig c = OemerConfig.get();
+		int n = cells.n;
+		Matrix4f m = po.pose();
 		float e = 0.012f;
 		float flatSq = flatDist * flatDist;
 		int flatQuads = 0;

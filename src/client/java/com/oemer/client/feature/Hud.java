@@ -5,7 +5,7 @@ import com.oemer.client.gui.Draw;
 import com.oemer.client.gui.Theme;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
@@ -60,9 +60,9 @@ public final class Hud {
 		};
 	}
 
-	public static void render(GuiGraphics g, DeltaTracker tracker) {
+	public static void render(GuiGraphicsExtractor g, DeltaTracker tracker) {
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.player == null || mc.options.hideGui) return;
+		if (mc.player == null || mc.gui.hud.isHidden()) return;
 		OemerConfig c = OemerConfig.get();
 		if (c.kitHud) renderKit(g, mc, c);
 		if (c.materialList) renderMaterials(g, mc, c);
@@ -118,7 +118,7 @@ public final class Hud {
 		};
 	}
 
-	private static void renderArmor(GuiGraphics g, Minecraft mc, OemerConfig c) {
+	private static void renderArmor(GuiGraphicsExtractor g, Minecraft mc, OemerConfig c) {
 		List<ItemStack> stacks = armorStacks(mc.player, c.armorHudHands, c.armorHudGear);
 		List<ItemStack> shown = new ArrayList<>();
 		for (ItemStack s : stacks) if (!s.isEmpty()) shown.add(s);
@@ -154,7 +154,7 @@ public final class Hud {
 		Draw.roundBorder(g, 0, 0, w, h, 6, Theme.white(0x28));
 		int y = 3;
 		for (ItemStack s : shown) {
-			g.renderItem(s, 4, y + 1);
+			g.item(s, 4, y + 1);
 			if (c.armorHudValue != 2 && s.isDamageableItem()) {
 				int max = s.getMaxDamage(), left = max - s.getDamageValue();
 				float f = max <= 0 ? 1f : Math.max(0f, Math.min(1f, left / (float) max));
@@ -180,7 +180,7 @@ public final class Hud {
 
 	// ------------------------------------------------------------- Spotify
 
-	private static void renderSpotify(GuiGraphics g, OemerConfig c) {
+	private static void renderSpotify(GuiGraphicsExtractor g, OemerConfig c) {
 		Music.Now t = Music.now();
 		if (t == null) return;
 		float scale = OemerConfig.HUD_SCALES[Math.floorMod(c.hudScale, OemerConfig.HUD_SCALES.length)];
@@ -216,7 +216,7 @@ public final class Hud {
 
 	// ------------------------------------------------------------ Kit-HUD
 
-	private static void renderKit(GuiGraphics g, Minecraft mc, OemerConfig c) {
+	private static void renderKit(GuiGraphicsExtractor g, Minecraft mc, OemerConfig c) {
 		List<String> lines = new ArrayList<>();
 		List<ItemStack> icons = new ArrayList<>();
 		List<Integer> colors = new ArrayList<>();
@@ -245,7 +245,7 @@ public final class Hud {
 
 	// ------------------------------------------------------- Material List
 
-	private static void renderMaterials(GuiGraphics g, Minecraft mc, OemerConfig c) {
+	private static void renderMaterials(GuiGraphicsExtractor g, Minecraft mc, OemerConfig c) {
 		List<MaterialList.Entry> all = MaterialList.entries();
 		List<String> lines = new ArrayList<>();
 		List<ItemStack> icons = new ArrayList<>();
@@ -297,7 +297,7 @@ public final class Hud {
 
 	private static int lastHeight;
 
-	private static void box(GuiGraphics g, int corner, OemerConfig c, String title,
+	private static void box(GuiGraphicsExtractor g, int corner, OemerConfig c, String title,
 							List<String> lines, List<ItemStack> icons, List<Integer> colors, int offset) {
 		float scale = OemerConfig.HUD_SCALES[Math.floorMod(c.hudScale, OemerConfig.HUD_SCALES.length)];
 		int rowH = 18;
@@ -333,7 +333,7 @@ public final class Hud {
 			ItemStack icon = icons.get(i);
 			int tx = pad;
 			if (!icon.isEmpty()) {
-				g.renderItem(icon, pad, y);
+				g.item(icon, pad, y);
 				tx += 20;
 			} else if (anyIcon) {
 				tx += 0;

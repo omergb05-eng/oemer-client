@@ -1,5 +1,6 @@
 package com.oemer.client.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.oemer.client.OemerClient;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.feature.CapeCanvas;
@@ -9,12 +10,11 @@ import com.oemer.client.feature.CustomCosmetics;
 import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.SkinTotem;
 import com.oemer.client.feature.ImageTools;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
@@ -431,7 +431,7 @@ public class CapeEditorScreen extends Screen {
 		if (super.mouseClicked(event, doubleClick)) return true;
 		int[] p = pixelAt(event.x(), event.y());
 		if (p == null) return false;
-		boolean right = event.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT;
+		boolean right = event.button() == InputConstants.MOUSE_BUTTON_RIGHT;
 		if (!right && tool != Tool.PIPETTE) canvas.snapshot();
 		painting = false;
 		lastPx = -1;
@@ -459,16 +459,16 @@ public class CapeEditorScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyEvent event) {
-		boolean ctrl = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
-		if (ctrl && event.key() == GLFW.GLFW_KEY_Z) {
+		boolean ctrl = (event.modifiers() & InputConstants.MOD_CONTROL) != 0;
+		if (ctrl && event.key() == InputConstants.KEY_Z) {
 			canvas.undo();
 			return true;
 		}
-		if (ctrl && event.key() == GLFW.GLFW_KEY_Y) {
+		if (ctrl && event.key() == InputConstants.KEY_Y) {
 			canvas.redo();
 			return true;
 		}
-		if (ctrl && event.key() == GLFW.GLFW_KEY_S) {
+		if (ctrl && event.key() == InputConstants.KEY_S) {
 			save();
 			return true;
 		}
@@ -478,7 +478,7 @@ public class CapeEditorScreen extends Screen {
 	// ============================================================= Zeichnen
 
 	@Override
-	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
+	public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 		Backdrop.render(g, this.width, this.height, this.minecraft.level != null);
 
 		// Kopfzeile
@@ -497,8 +497,8 @@ public class CapeEditorScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
-		super.render(g, mouseX, mouseY, delta);
+	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+		super.extractRenderState(g, mouseX, mouseY, delta);
 
 		// Malfläche
 		int cw = canvas.width * pixel, ch = canvas.height * pixel;
@@ -563,7 +563,7 @@ public class CapeEditorScreen extends Screen {
 
 	@Override
 	public void onClose() {
-		this.minecraft.setScreen(parent);
+		this.minecraft.gui.setScreen(parent);
 	}
 
 	/** Ordner anlegen, falls nötig (für "Speichern"). */

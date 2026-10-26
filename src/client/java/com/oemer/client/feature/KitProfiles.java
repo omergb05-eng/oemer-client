@@ -139,7 +139,7 @@ public final class KitProfiles {
 		if (!loaded) save(kit); // neues Kit startet mit deinen jetzigen Einstellungen
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.player != null) {
-			mc.player.displayClientMessage(Component.literal("§fKit §l" + name(kit) + (loaded ? " §ageladen" : " §7(neu, mit deinen Einstellungen)")), true);
+			mc.player.sendOverlayMessage(Component.literal("§fKit §l" + name(kit) + (loaded ? " §ageladen" : " §7(neu, mit deinen Einstellungen)")));
 		}
 	}
 

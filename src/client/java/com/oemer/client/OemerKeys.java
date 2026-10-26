@@ -8,12 +8,11 @@ import com.oemer.client.feature.Spotify;
 import com.oemer.client.feature.SchematicPlacer;
 import com.oemer.client.gui.MaterialListScreen;
 import com.oemer.client.gui.OmerScreen;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,25 +35,25 @@ public final class OemerKeys {
 	private static KeyMapping.Category category;
 
 	private static KeyMapping key(String id, int glfw, String label, String group) {
-		KeyMapping k = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.oemerclient." + id,
-				InputConstants.Type.KEYSYM, glfw, category));
+		KeyMapping k = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.oemerclient." + id,
+				InputConstants.Type.KEYBOARD, glfw, category));
 		ALL.add(new Entry(k, label, group));
 		return k;
 	}
 
 	public static void register() {
 		category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(OemerClient.MOD_ID, "main"));
-		int none = GLFW.GLFW_KEY_UNKNOWN;
-		menu = key("menu", GLFW.GLFW_KEY_RIGHT_SHIFT, "Menü öffnen", "Allgemein");
-		freecam = key("freecam", GLFW.GLFW_KEY_F4, "Free Cam an/aus", "Mods");
-		fullbright = key("fullbright", GLFW.GLFW_KEY_G, "Fullbright an/aus", "Mods");
-		zoom = key("zoom", GLFW.GLFW_KEY_C, "Zoom (halten)", "Mods");
+		int none = InputConstants.UNKNOWN.getValue();
+		menu = key("menu", InputConstants.KEY_RSHIFT, "Menü öffnen", "Allgemein");
+		freecam = key("freecam", InputConstants.KEY_F4, "Free Cam an/aus", "Mods");
+		fullbright = key("fullbright", InputConstants.KEY_G, "Fullbright an/aus", "Mods");
+		zoom = key("zoom", InputConstants.KEY_C, "Zoom (halten)", "Mods");
 		weatherToggle = key("weather", none, "Wetter an/aus", "Mods");
 		crosshairToggle = key("crosshair", none, "Eigenes Crosshair an/aus", "Mods");
 		cosmeticsToggle = key("cosmetics", none, "Cosmetics an/aus", "Mods");
 		materialToggle = key("material_toggle", none, "Material List an/aus", "Material List");
 		materialOpen = key("material_open", none, "Material List öffnen", "Material List");
-		kitNext = key("kit_next", GLFW.GLFW_KEY_K, "Nächstes Kit", "Kits");
+		kitNext = key("kit_next", InputConstants.KEY_K, "Nächstes Kit", "Kits");
 		for (int i = 0; i < KIT.length; i++) {
 			KIT[i] = key("kit_" + (i + 1), none, "Kit: " + OemerConfig.KITS[i], "Kits");
 		}
@@ -62,22 +61,22 @@ public final class OemerKeys {
 		musicNext = key("music_next", none, "Nächster Song", "Musik");
 		musicPrev = key("music_prev", none, "Vorheriger Song", "Musik");
 		musicOpen = key("music_open", none, "Musik-Player öffnen", "Musik");
-		musicVolUp = key("music_vol_up", GLFW.GLFW_KEY_UP, "Musik lauter", "Musik");
-		musicVolDown = key("music_vol_down", GLFW.GLFW_KEY_DOWN, "Musik leiser", "Musik");
-		clipSave = key("clip_save", GLFW.GLFW_KEY_F9, "Clip speichern (letzte Sekunden)", "Clipper");
+		musicVolUp = key("music_vol_up", InputConstants.KEY_UP, "Musik lauter", "Musik");
+		musicVolDown = key("music_vol_down", InputConstants.KEY_DOWN, "Musik leiser", "Musik");
+		clipSave = key("clip_save", InputConstants.KEY_F9, "Clip speichern (letzte Sekunden)", "Clipper");
 		clipToggle = key("clip_toggle", none, "Clipper an/aus", "Clipper");
 		placeToggle = key("place_toggle", none, "Schematic anzeigen an/aus", "Schematic");
-		placeLayerUp = key("place_layer_up", GLFW.GLFW_KEY_PAGE_UP, "Ebene höher", "Schematic");
-		placeLayerDown = key("place_layer_down", GLFW.GLFW_KEY_PAGE_DOWN, "Ebene tiefer", "Schematic");
+		placeLayerUp = key("place_layer_up", InputConstants.KEY_PAGEUP, "Ebene höher", "Schematic");
+		placeLayerDown = key("place_layer_down", InputConstants.KEY_PAGEDOWN, "Ebene tiefer", "Schematic");
 		placeHere = key("place_here", none, "Schematic hier setzen", "Schematic");
 	}
 
 	private static void say(Minecraft mc, String name, boolean on) {
-		if (mc.player != null) mc.player.displayClientMessage(Component.literal("§f" + name + (on ? " §aan" : " §caus")), true);
+		if (mc.player != null) mc.player.sendOverlayMessage(Component.literal("§f" + name + (on ? " §aan" : " §caus")));
 	}
 
 	private static void volume(Minecraft mc, int delta) {
-		if (mc.screen != null || mc.player == null) return;
+		if (mc.gui.screen() != null || mc.player == null) return;
 		int v;
 		if (Music.youtube()) {
 			Music.volume(delta);
@@ -87,13 +86,13 @@ public final class OemerKeys {
 			v = Math.max(0, Math.min(100, (t == null || t.volume() < 0 ? 50 : t.volume()) + delta));
 			Music.volume(delta);
 		}
-		mc.player.displayClientMessage(Component.literal("§fMusik-Lautstärke §b" + v + " %"), true);
+		mc.player.sendOverlayMessage(Component.literal("§fMusik-Lautstärke §b" + v + " %"));
 	}
 
 	public static void tick(Minecraft mc) {
 		OemerConfig c = OemerConfig.get();
 		while (menu.consumeClick()) {
-			if (mc.screen == null) mc.setScreen(new OmerScreen(null));
+			if (mc.gui.screen() == null) mc.gui.setScreen(new OmerScreen(null));
 		}
 		while (freecam.consumeClick()) {
 			if (mc.player != null) c.freecam = !c.freecam;
@@ -124,7 +123,7 @@ public final class OemerKeys {
 			say(mc, "Material List", c.materialList);
 		}
 		while (materialOpen.consumeClick()) {
-			if (mc.screen == null) mc.setScreen(new MaterialListScreen(null));
+			if (mc.gui.screen() == null) mc.gui.setScreen(new MaterialListScreen(null));
 		}
 		while (clipSave.consumeClick()) {
 			if (mc.level != null) Clipper.saveRequested(mc);
@@ -140,10 +139,10 @@ public final class OemerKeys {
 			say(mc, "Schematic", c.placeOn);
 		}
 		while (placeLayerUp.consumeClick()) {
-			if (mc.screen == null && c.placeOn) SchematicPlacer.layer(1);
+			if (mc.gui.screen() == null && c.placeOn) SchematicPlacer.layer(1);
 		}
 		while (placeLayerDown.consumeClick()) {
-			if (mc.screen == null && c.placeOn) SchematicPlacer.layer(-1);
+			if (mc.gui.screen() == null && c.placeOn) SchematicPlacer.layer(-1);
 		}
 		while (placeHere.consumeClick()) {
 			if (mc.level != null) {
@@ -161,7 +160,7 @@ public final class OemerKeys {
 		while (musicVolUp.consumeClick()) volume(mc, 5);
 		while (musicVolDown.consumeClick()) volume(mc, -5);
 		while (musicOpen.consumeClick()) {
-			if (mc.screen == null) OmerScreen.openMusic();
+			if (mc.gui.screen() == null) OmerScreen.openMusic();
 		}
 	}
 }

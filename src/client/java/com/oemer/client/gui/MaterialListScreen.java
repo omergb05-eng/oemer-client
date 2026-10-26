@@ -3,7 +3,7 @@ package com.oemer.client.gui;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.feature.CapeManager;
 import com.oemer.client.feature.MaterialList;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -96,7 +96,7 @@ public class MaterialListScreen extends Screen {
 	}
 
 	@Override
-	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
+	public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 		Backdrop.render(g, this.width, this.height, this.minecraft.level != null);
 		g.pose().pushMatrix();
 		g.pose().translate(90, 14);
@@ -110,8 +110,8 @@ public class MaterialListScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
-		super.render(g, mouseX, mouseY, delta);
+	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+		super.extractRenderState(g, mouseX, mouseY, delta);
 
 		List<MaterialList.Entry> rows = rows();
 		scroll = Math.min(scroll, maxScroll());
@@ -155,7 +155,7 @@ public class MaterialListScreen extends Screen {
 			if (i % 2 == 0) Draw.round(g, listX, y, listW, ROW - 2, 4, Theme.white(0x08));
 			if (hover) Draw.round(g, listX, y, listW, ROW - 2, 4, Theme.white(0x14));
 
-			g.renderItem(e.icon(), listX + 6, y + 2);
+			g.item(e.icon(), listX + 6, y + 2);
 			int textColor = done ? Theme.TEXT_FAINT : Theme.TEXT;
 			Draw.text(g, Draw.fit(e.name(), nameW), listX + 28, y + 7, textColor);
 			String need = MaterialList.amount(e.needed(), e.icon().getMaxStackSize());
@@ -186,6 +186,6 @@ public class MaterialListScreen extends Screen {
 
 	@Override
 	public void onClose() {
-		this.minecraft.setScreen(parent);
+		this.minecraft.gui.setScreen(parent);
 	}
 }

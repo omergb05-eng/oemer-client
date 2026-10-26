@@ -2,7 +2,7 @@ package com.oemer.client.feature;
 
 import com.oemer.client.OemerConfig;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
@@ -162,7 +162,7 @@ public final class Looks {
 	}
 
 	/** Bild über den ganzen Screen + Abdunkeln (damit Text lesbar bleibt). */
-	public static boolean drawFullscreen(GuiGraphics g, int w, int h) {
+	public static boolean drawFullscreen(GuiGraphicsExtractor g, int w, int h) {
 		if (!OemerConfig.get().lookMode) return false;
 		Textures.Tex t = selected();
 		if (t == null) return false;

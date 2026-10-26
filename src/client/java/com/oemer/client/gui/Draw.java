@@ -2,7 +2,7 @@ package com.oemer.client.gui;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * Zeichen-Helfer für das Ömer-Design.
@@ -24,7 +24,7 @@ public final class Draw {
 	}
 
 	/** Gefülltes Rechteck mit runden Ecken. Überlappt sich nirgends, darum klappt es auch mit Transparenz. */
-	public static void round(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
+	public static void round(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int color) {
 		if (w <= 0 || h <= 0) return;
 		r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
 		if (r == 0) {
@@ -40,7 +40,7 @@ public final class Draw {
 	}
 
 	/** 1-Pixel-Rahmen mit runden Ecken. */
-	public static void roundBorder(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
+	public static void roundBorder(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int color) {
 		if (w <= 1 || h <= 1) return;
 		r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
 		if (r == 0) {
@@ -67,7 +67,7 @@ public final class Draw {
 	}
 
 	/** Weicher Schatten unter einer Karte (mehrere sehr durchsichtige Schichten). */
-	public static void shadow(GuiGraphics g, int x, int y, int w, int h, int r, int strength) {
+	public static void shadow(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int strength) {
 		for (int i = 4; i >= 1; i--) {
 			int a = Math.max(0, Math.min(255, strength / (i + 1)));
 			round(g, x - i, y - i + 2, w + i * 2, h + i * 2, r + i, (a << 24));
@@ -75,7 +75,7 @@ public final class Draw {
 	}
 
 	/** Glas-Karte: Schatten, Fläche, Rand und ein heller Streifen oben (Licht-Kante). */
-	public static void glass(GuiGraphics g, int x, int y, int w, int h, int r, int fill, int border) {
+	public static void glass(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int fill, int border) {
 		shadow(g, x, y, w, h, r, 90);
 		round(g, x, y, w, h, r, fill);
 		roundBorder(g, x, y, w, h, r, border);
@@ -84,7 +84,7 @@ public final class Draw {
 	}
 
 	/** Senkrechter Verlauf aus vielen dünnen Streifen (geht immer). */
-	public static void vGradient(GuiGraphics g, int x, int y, int w, int h, int top, int bottom) {
+	public static void vGradient(GuiGraphicsExtractor g, int x, int y, int w, int h, int top, int bottom) {
 		if (h <= 0) return;
 		int steps = Math.min(h, 48);
 		for (int i = 0; i < steps; i++) {
@@ -95,7 +95,7 @@ public final class Draw {
 	}
 
 	/** Waagerechter Verlauf. */
-	public static void hGradient(GuiGraphics g, int x, int y, int w, int h, int left, int right) {
+	public static void hGradient(GuiGraphicsExtractor g, int x, int y, int w, int h, int left, int right) {
 		if (w <= 0) return;
 		int steps = Math.min(w, 48);
 		for (int i = 0; i < steps; i++) {
@@ -125,16 +125,16 @@ public final class Draw {
 		return (a << 24) | (color & 0xFFFFFF);
 	}
 
-	public static void text(GuiGraphics g, String s, int x, int y, int color) {
-		g.drawString(font(), s, x, y, color, false);
+	public static void text(GuiGraphicsExtractor g, String s, int x, int y, int color) {
+		g.text(font(), s, x, y, color, false);
 	}
 
-	public static void textShadow(GuiGraphics g, String s, int x, int y, int color) {
-		g.drawString(font(), s, x, y, color, true);
+	public static void textShadow(GuiGraphicsExtractor g, String s, int x, int y, int color) {
+		g.text(font(), s, x, y, color, true);
 	}
 
-	public static void centered(GuiGraphics g, String s, int cx, int y, int color) {
-		g.drawString(font(), s, cx - font().width(s) / 2, y, color, false);
+	public static void centered(GuiGraphicsExtractor g, String s, int cx, int y, int color) {
+		g.text(font(), s, cx - font().width(s) / 2, y, color, false);
 	}
 
 	public static int width(String s) {

@@ -15,7 +15,7 @@ public final class Zoom {
 
 	public static boolean active() {
 		Minecraft mc = Minecraft.getInstance();
-		return OemerConfig.get().zoomOn && OemerKeys.zoom != null && OemerKeys.zoom.isDown() && mc.screen == null && mc.player != null;
+		return OemerConfig.get().zoomOn && OemerKeys.zoom != null && OemerKeys.zoom.isDown() && mc.gui.screen() == null && mc.player != null;
 	}
 
 	/** Pro Bild einmal aufrufen: rechnet die weiche Zoom-Animation weiter. */

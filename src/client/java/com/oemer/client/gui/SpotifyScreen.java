@@ -2,7 +2,7 @@ package com.oemer.client.gui;
 
 import com.oemer.client.feature.Spotify;
 import com.oemer.client.feature.Textures;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -65,7 +65,7 @@ public class SpotifyScreen extends Screen {
 	}
 
 	/** Karte "Läuft gerade" mit Cover, Titel, Fortschritt. */
-	static void drawNowPlaying(GuiGraphics g, int x, int y, int w, int h, boolean withButtonsSpace) {
+	static void drawNowPlaying(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean withButtonsSpace) {
 		Draw.round(g, x, y, w, h, 6, 0x50000000);
 		Draw.roundBorder(g, x, y, w, h, 6, Theme.white(0x22));
 		Spotify.Track t = Spotify.track();
@@ -147,7 +147,7 @@ public class SpotifyScreen extends Screen {
 	}
 
 	@Override
-	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
+	public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 		Backdrop.render(g, this.width, this.height, this.minecraft.level != null);
 		g.pose().pushMatrix();
 		g.pose().translate(90, 14);
@@ -160,8 +160,8 @@ public class SpotifyScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
-		super.render(g, mouseX, mouseY, delta);
+	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+		super.extractRenderState(g, mouseX, mouseY, delta);
 		Draw.text(g, "Deine Playlists · Klick = abspielen", listX, listY - 11, Theme.TEXT_SOFT);
 
 		List<Spotify.Playlist> pls = Spotify.playlists();
@@ -196,6 +196,6 @@ public class SpotifyScreen extends Screen {
 
 	@Override
 	public void onClose() {
-		this.minecraft.setScreen(parent);
+		this.minecraft.gui.setScreen(parent);
 	}
 }

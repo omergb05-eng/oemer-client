@@ -70,7 +70,7 @@ public final class Freecam {
 		camera.spawn();
 		mc.setCameraEntity(camera);
 
-		mc.player.displayClientMessage(Component.literal("§fFree Cam §aan"), true);
+		mc.player.sendOverlayMessage(Component.literal("§fFree Cam §aan"));
 	}
 
 	private static void disable(Minecraft mc) {
@@ -83,7 +83,7 @@ public final class Freecam {
 
 		if (mc.player != null && playerInput != null) {
 			mc.player.input = playerInput;
-			mc.player.displayClientMessage(Component.literal("§fFree Cam §caus"), true);
+			mc.player.sendOverlayMessage(Component.literal("§fFree Cam §caus"));
 		}
 		playerInput = null;
 		dummyInput = null;

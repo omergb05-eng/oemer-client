@@ -5,7 +5,7 @@ import com.oemer.client.gui.Theme;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
@@ -143,7 +143,7 @@ public final class Crosshair {
 	}
 
 	/** Zeichnet das Crosshair zentriert. Gibt false zurück, wenn das Original gezeichnet werden soll. */
-	public static boolean render(GuiGraphics g, DeltaTracker tracker) {
+	public static boolean render(GuiGraphicsExtractor g, DeltaTracker tracker) {
 		if (!active()) return false;
 		Minecraft mc = Minecraft.getInstance();
 		if (!mc.options.getCameraType().isFirstPerson()) return true; // wie Minecraft: in F5 kein Crosshair
@@ -153,7 +153,7 @@ public final class Crosshair {
 	}
 
 	/** Auch für die Vorschau im Menü. */
-	public static void draw(GuiGraphics g, float cx, float cy, float scale) {
+	public static void draw(GuiGraphicsExtractor g, float cx, float cy, float scale) {
 		OemerConfig c = OemerConfig.get();
 		g.pose().pushMatrix();
 		g.pose().translate(cx, cy);

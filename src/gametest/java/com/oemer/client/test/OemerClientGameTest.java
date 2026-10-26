@@ -50,14 +50,13 @@ import net.minecraft.world.item.component.ItemContainerContents;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
+import net.fabricmc.fabric.api.client.gui.screen().v1.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.world.item.Items;
-import org.lwjgl.glfw.GLFW;
 
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
@@ -87,12 +86,12 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	/** Klickt einen Ömer-Button (eigene Buttons kennt der Fabric-Klick nicht). */
 	private static void click(ClientGameTestContext ctx, String text) {
 		boolean found = ctx.computeOnClient(mc -> {
-			if (mc.screen == null) {
+			if (mc.gui.screen() == null) {
 				return false;
 			}
-			for (var child : mc.screen.children()) {
+			for (var child : mc.gui.screen().children()) {
 				if (child instanceof AbstractButton b && b.getMessage().getString().equals(text)) {
-					b.onPress(new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0));
+					b.onPress(new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
 					return true;
 				}
 			}
@@ -198,7 +197,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		OmerScreen.friendsForTest(2, null, false);
 		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
 		ctx.waitTicks(10);
-		check("friends-nav", ctx.computeOnClient(mc -> mc.screen.children().stream().anyMatch(c -> c instanceof AbstractButton b && b.getMessage().getString().equals("Konto erstellen") == false && b.getMessage().getString().equals("Anmelden"))), "");
+		check("friends-nav", ctx.computeOnClient(mc -> mc.gui.screen().children().stream().anyMatch(c -> c instanceof AbstractButton b && b.getMessage().getString().equals("Konto erstellen") == false && b.getMessage().getString().equals("Anmelden"))), "");
 		ctx.takeScreenshot("50-freunde-anmelden");
 		OmerScreen.friendsForTest(2, null, true);
 		ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
@@ -460,7 +459,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		}
 
 		@Override
-		public void render(net.minecraft.client.gui.GuiGraphics g, int mx, int my, float pt) {
+		public void render(net.minecraft.client.gui.GuiGraphicsExtractor g, int mx, int my, float pt) {
 			OmerLoading.draw(g, 1f, progress, progress >= 0 ? "Welt wird geladen" : "Dimension wird geladen", "test");
 		}
 	}
@@ -502,7 +501,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	}
 
 	private static boolean hasButton(Minecraft mc, String text) {
-		return mc.screen != null && Screens.getButtons(mc.screen).stream()
+		return mc.gui.screen() != null && Screens.getButtons(mc.gui.screen()).stream()
 				.anyMatch(w -> w.getMessage().getString().equals(text));
 	}
 
@@ -585,9 +584,9 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		});
 
 		// ---------------------------------------------- Startscreen
-		ctx.waitFor(mc -> mc.screen != null && mc.getOverlay() == null, 1200);
+		ctx.waitFor(mc -> mc.gui.screen() != null && mc.getOverlay() == null, 1200);
 		ctx.waitTicks(20);
-		String firstScreen = ctx.computeOnClient(mc -> mc.screen == null ? "null" : mc.screen.getClass().getName());
+		String firstScreen = ctx.computeOnClient(mc -> mc.gui.screen() == null ? "null" : mc.gui.screen().getClass().getName());
 		check("first-screen-title", firstScreen.equals(TitleScreen.class.getName()), firstScreen);
 
 		// ---------------------------------------------- Ömer-Ladescreen
@@ -612,19 +611,19 @@ public class OemerClientGameTest implements FabricClientGameTest {
 
 		// ---------------------------------------------- Menü: alle Bereiche
 		click(ctx, "Ömer Client");
-		check("menu-opens", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
+		check("menu-opens", ctx.computeOnClient(mc -> mc.gui.screen() instanceof OmerScreen), "");
 		ctx.waitTicks(10);
 		ctx.takeScreenshot("02-mods");
 		click(ctx, "Just Zoom");
 		ctx.takeScreenshot("02b-mod-zoom");
 		click(ctx, "‹ Alle Mods");
 		ctx.runOnClient(mc -> {
-			if (mc.screen instanceof OmerScreen o) o.searchForTest("no");
+			if (mc.gui.screen() instanceof OmerScreen o) o.searchForTest("no");
 		});
 		ctx.waitTicks(3);
 		ctx.takeScreenshot("02c-mods-suche");
 		ctx.runOnClient(mc -> {
-			if (mc.screen instanceof OmerScreen o) o.searchForTest("");
+			if (mc.gui.screen() instanceof OmerScreen o) o.searchForTest("");
 		});
 		ctx.waitTicks(2);
 		click(ctx, "Material List");
@@ -634,7 +633,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.takeScreenshot("02e-mod-crosshair");
 		click(ctx, "Settings");
 		ctx.takeScreenshot("03-settings");
-		ctx.runOnClient(mc -> mc.screen.mouseScrolled(mc.screen.width / 2.0, mc.screen.height / 2.0, 0, -10));
+		ctx.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.gui.screen().width / 2.0, mc.gui.screen().height / 2.0, 0, -10));
 		ctx.waitTicks(3);
 		ctx.takeScreenshot("03b-settings-tasten");
 		click(ctx, "Kits");
@@ -644,7 +643,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(40);
 		check("background-download", ctx.computeOnClient(mc -> Looks.photoReady(0)), "");
 		ctx.takeScreenshot("05-design");
-		ctx.runOnClient(mc -> mc.screen.mouseScrolled(mc.screen.width / 2.0, mc.screen.height / 2.0, 0, -8));
+		ctx.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.gui.screen().width / 2.0, mc.gui.screen().height / 2.0, 0, -8));
 		ctx.waitTicks(10);
 		ctx.takeScreenshot("05b-design-gescrollt");
 		click(ctx, "Musik");
@@ -737,7 +736,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
 	ctx.waitTicks(30);
 	ctx.takeScreenshot("11a-musik-loeschen");
-	ctx.runOnClient(mc -> mc.screen.mouseScrolled(mc.screen.width / 2.0, mc.screen.height / 2.0, 0, -12));
+	ctx.runOnClient(mc -> mc.gui.screen().mouseScrolled(mc.gui.screen().width / 2.0, mc.gui.screen().height / 2.0, 0, -12));
 	ctx.waitTicks(10);
 	ctx.takeScreenshot("11b-musik-playlists");
 	OmerScreen.musicForTest(null, tr[3]);
@@ -748,7 +747,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	ctx.setScreen(() -> new OmerScreen(new TitleScreen()));
 	ctx.waitTicks(30);
 	ctx.takeScreenshot("11d-musik-playlist-offen");
-	check("playlist-open-menu", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
+	check("playlist-open-menu", ctx.computeOnClient(mc -> mc.gui.screen() instanceof OmerScreen), "");
 	OmerScreen.musicForTest(null, null);
 
 	// Warteschlange: Song entfernen, aktueller Song entfernen, leeren
@@ -909,7 +908,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.setScreen(() -> new CapeEditorScreen(new OmerScreen(null), CapeEditorScreen.Mode.TOTEM));
 		ctx.waitTicks(3);
 		ctx.runOnClient(mc -> {
-			if (mc.screen instanceof CapeEditorScreen ed) {
+			if (mc.gui.screen() instanceof CapeEditorScreen ed) {
 				// kleines Herz
 				int[][] heart = {{4,4},{5,3},{6,3},{7,4},{8,4},{9,3},{10,3},{11,4},{3,5},{12,5},{3,6},{12,6},{4,7},{11,7},{5,8},{10,8},{6,9},{9,9},{7,10},{8,10}};
 				for (int[] p : heart) ed.paintForTest(p[0], p[1], 0xFFFF4F9A, CapeEditorScreen.Tool.PINSEL);
@@ -919,7 +918,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(2);
 		ctx.takeScreenshot("12b-totem-editor");
 		ctx.runOnClient(mc -> {
-			if (mc.screen instanceof CapeEditorScreen ed) ed.saveForTest();
+			if (mc.gui.screen() instanceof CapeEditorScreen ed) ed.saveForTest();
 		});
 		String tsel = ctx.computeOnClient(mc -> OemerConfig.get().totemSelection);
 		check("totem-editor-saves", tsel.startsWith("Mein Totem") && ctx.computeOnClient(mc -> OemerConfig.get().totemMode == 0), tsel);
@@ -927,7 +926,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.setScreen(() -> new CapeEditorScreen(new OmerScreen(null), CapeEditorScreen.Mode.CROSSHAIR));
 		ctx.waitTicks(3);
 		ctx.runOnClient(mc -> {
-			if (mc.screen instanceof CapeEditorScreen ed) {
+			if (mc.gui.screen() instanceof CapeEditorScreen ed) {
 				for (int i = 2; i <= 12; i++) {
 					if (i < 6 || i > 8) {
 						ed.paintForTest(i, 7, 0xFFFFFFFF, CapeEditorScreen.Tool.PINSEL);
@@ -946,7 +945,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.setScreen(() -> new CapeEditorScreen(new OmerScreen(null), CapeEditorScreen.Mode.COSMETIC));
 		ctx.waitTicks(3);
 		ctx.runOnClient(mc -> {
-			if (mc.screen instanceof CapeEditorScreen ed) {
+			if (mc.gui.screen() instanceof CapeEditorScreen ed) {
 				// kleiner Stern
 				int[][] star = {{7,1},{8,1},{7,2},{8,2},{6,3},{9,3},{1,5},{2,5},{3,5},{4,5},{5,5},{6,5},{9,5},{10,5},{11,5},{12,5},{13,5},{14,5},
 						{3,6},{12,6},{4,7},{11,7},{5,8},{10,8},{4,9},{11,9},{3,10},{7,10},{8,10},{12,10},{2,11},{6,11},{9,11},{13,11},{2,12},{5,12},{10,12},{13,12}};
@@ -975,9 +974,9 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		click(ctx, "Skin");
 		click(ctx, "Cape");
 		click(ctx, "Cape-Editor");
-		check("editor-opens", ctx.computeOnClient(mc -> mc.screen instanceof CapeEditorScreen), "");
+		check("editor-opens", ctx.computeOnClient(mc -> mc.gui.screen() instanceof CapeEditorScreen), "");
 		ctx.runOnClient(mc -> {
-			if (mc.screen instanceof CapeEditorScreen ed) {
+			if (mc.gui.screen() instanceof CapeEditorScreen ed) {
 				var cv = ed.canvas();
 				// schwarzer Hintergrund, rosa Streifen, weißes Ö-ähnliches Muster
 				ed.paintForTest(0, 0, 0xFF0B0B0F, CapeEditorScreen.Tool.EIMER);
@@ -993,7 +992,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(3);
 		ctx.takeScreenshot("12-cape-editor");
 		ctx.runOnClient(mc -> {
-			if (mc.screen instanceof CapeEditorScreen ed) ed.saveForTest();
+			if (mc.gui.screen() instanceof CapeEditorScreen ed) ed.saveForTest();
 		});
 		ctx.waitTicks(3);
 		String sel = ctx.computeOnClient(mc -> OemerConfig.get().capeSelection);
@@ -1003,7 +1002,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		click(ctx, "‹ Zurück");
 		ctx.takeScreenshot("14-skins-cape-eigenes");
 		click(ctx, "Fertig");
-		check("menu-closes", ctx.computeOnClient(mc -> mc.screen instanceof TitleScreen), "");
+		check("menu-closes", ctx.computeOnClient(mc -> mc.gui.screen() instanceof TitleScreen), "");
 
 		// ---------------------------------------------- Welt
 		try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
@@ -1027,14 +1026,14 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.takeScreenshot("20-welt-nacht");
 
 			// ------------------------------------------ Fullbright
-			ctx.getInput().pressKey(GLFW.GLFW_KEY_G);
+			ctx.getInput().pressKey(InputConstants.KEY_G);
 			ctx.waitTicks(5);
 			check("fullbright-key", ctx.computeOnClient(mc -> OemerConfig.get().fullbright), "");
 			ctx.takeScreenshot("21-fullbright");
 
 			// ------------------------------------------ Free Cam
 			double[] player0 = ctx.computeOnClient(mc -> new double[]{mc.player.getX(), mc.player.getY(), mc.player.getZ()});
-			ctx.getInput().pressKey(GLFW.GLFW_KEY_F4);
+			ctx.getInput().pressKey(InputConstants.KEY_F4);
 			ctx.waitTicks(3);
 			check("freecam-on", ctx.computeOnClient(mc -> Freecam.isEnabled() && mc.getCameraEntity() instanceof FreeCamera), "");
 			ctx.getInput().holdKeyFor(o -> o.keyUp, 40);
@@ -1048,7 +1047,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			check("freecam-collision", cam[2] < z + 4.0, camInfo);
 			check("player-stays", Math.abs(player1[0] - player0[0]) < 0.3 && Math.abs(player1[2] - player0[2]) < 0.3,
 					String.format("player moved %.2f / %.2f", player1[0] - player0[0], player1[2] - player0[2]));
-			ctx.getInput().pressKey(GLFW.GLFW_KEY_F4);
+			ctx.getInput().pressKey(InputConstants.KEY_F4);
 			ctx.waitTicks(3);
 			check("freecam-off", ctx.computeOnClient(mc -> !Freecam.isEnabled() && mc.getCameraEntity() == mc.player), "");
 
@@ -1154,14 +1153,14 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			int planksBefore = ctx.computeOnClient(mc -> MaterialList.haveTotal(Items.OAK_PLANKS));
 			ctx.getInput().holdKey(o -> o.keyShift);
 			ctx.waitTicks(3);
-			ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+			ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_RIGHT);
 			ctx.waitTicks(3);
 			ctx.getInput().releaseKey(o -> o.keyShift);
 			ctx.waitTicks(3);
 			boolean marked = ctx.computeOnClient(mc -> ChestMarker.find(chest) != null);
 			check("chest-mark", marked, "hit=" + ctx.computeOnClient(mc -> String.valueOf(mc.hitResult == null ? null : mc.hitResult.getLocation())));
 			if (!marked) ctx.runOnClient(mc -> ChestMarker.toggle(chest));
-			ctx.getInput().pressMouse(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+			ctx.getInput().pressMouse(InputConstants.MOUSE_BUTTON_RIGHT);
 			ctx.waitTicks(10);
 			ctx.takeScreenshot("29b-markierte-kiste-offen");
 			ctx.setScreen(() -> null);
@@ -1224,12 +1223,12 @@ public class OemerClientGameTest implements FabricClientGameTest {
 
 			// ------------------------------------------ Mods
 			// Zoom
-			ctx.getInput().holdKey(GLFW.GLFW_KEY_C);
+			ctx.getInput().holdKey(InputConstants.KEY_C);
 			ctx.waitTicks(15);
 			double zoom = ctx.computeOnClient(mc -> Zoom.factor());
 			check("zoom", zoom > 3.0, String.format("%.2f", zoom));
 			ctx.takeScreenshot("40-zoom");
-			ctx.getInput().releaseKey(GLFW.GLFW_KEY_C);
+			ctx.getInput().releaseKey(InputConstants.KEY_C);
 			ctx.waitTicks(10);
 			// Wetter aus
 			sp.getServer().runCommand("weather thunder");
@@ -1379,7 +1378,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 						net.minecraft.network.chat.Component.literal(real), "Hallo"));
 				nm[4] = chat.getString().contains("ÖmerKing") && !chat.getString().contains(real) && chat.getString().contains("Hallo");
 				var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
-				nm[5] = info != null && mc.gui.getTabList().getNameForDisplay(info).getString().endsWith("ÖmerKing");
+				nm[5] = info != null && mc.gui.hud.getTabList().getNameForDisplay(info).getString().endsWith("ÖmerKing");
 				c.nameInChat = false;
 				nm[6] = NameStyle.replaceInChat(net.minecraft.network.chat.Component.literal("<" + real + "> hi")).getString().contains(real);
 				c.nameInChat = true;
@@ -1401,7 +1400,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				c.nameColor1 = 8;
 				c.nameColor2 = 9;
 				c.nameBold = true;
-				mc.gui.getChat().addMessage(net.minecraft.network.chat.Component.translatable("chat.type.text",
+				mc.gui.hud.getChat().addMessage(net.minecraft.network.chat.Component.translatable("chat.type.text",
 						net.minecraft.network.chat.Component.literal(mc.getUser().getName()), "Hallo Leute, mein Name ist jetzt bunt!"));
 				mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
 			});
@@ -1505,9 +1504,9 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				OemerConfig.get().lookMode = true;
 				OemerConfig.get().lookImage = "test-look.png";
 			});
-			ctx.getInput().pressKey(GLFW.GLFW_KEY_RIGHT_SHIFT);
+			ctx.getInput().pressKey(InputConstants.KEY_RSHIFT);
 			ctx.waitTicks(10);
-			check("menu-key-ingame", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
+			check("menu-key-ingame", ctx.computeOnClient(mc -> mc.gui.screen() instanceof OmerScreen), "");
 			ctx.takeScreenshot("31-menu-ingame-look");
 			click(ctx, "Skin");
 			click(ctx, "Cosmetics");
@@ -1601,7 +1600,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		String tabName = ctx.computeOnClient(mc -> {
 			try {
 				var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
-				return mc.gui.getTabList().getNameForDisplay(info).getString();
+				return mc.gui.hud.getTabList().getNameForDisplay(info).getString();
 			} catch (Throwable t) {
 				return "Fehler " + t;
 			}
@@ -1705,12 +1704,12 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(15);
 		int shown0 = SchematicPlacer.shownCount();
 		ctx.takeScreenshot("53-schematic-ebene-1");
-		ctx.getInput().pressKey(GLFW.GLFW_KEY_PAGE_UP);
+		ctx.getInput().pressKey(InputConstants.KEY_PAGEUP);
 		ctx.waitTicks(3);
 		check("schem-layer-key-up", ctx.computeOnClient(mc -> OemerConfig.get().placeLayer) == 1, "");
 		ctx.waitTicks(15);
 		ctx.takeScreenshot("54-schematic-ebene-2");
-		ctx.getInput().pressKey(GLFW.GLFW_KEY_PAGE_DOWN);
+		ctx.getInput().pressKey(InputConstants.KEY_PAGEDOWN);
 		ctx.waitTicks(3);
 		check("schem-layer-key-down", ctx.computeOnClient(mc -> OemerConfig.get().placeLayer) == 0, "");
 		ctx.runOnClient(mc -> SchematicPlacer.layer(1000));
@@ -1801,12 +1800,12 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			OemerConfig.get().musicService = 0;
 			OemerConfig.get().ytVolume = 50;
 		});
-		ctx.getInput().pressKey(GLFW.GLFW_KEY_UP);
+		ctx.getInput().pressKey(InputConstants.KEY_UP);
 		ctx.waitTicks(4);
 		int volUp = ctx.computeOnClient(mc -> OemerConfig.get().ytVolume);
-		ctx.getInput().pressKey(GLFW.GLFW_KEY_DOWN);
+		ctx.getInput().pressKey(InputConstants.KEY_DOWN);
 		ctx.waitTicks(4);
-		ctx.getInput().pressKey(GLFW.GLFW_KEY_DOWN);
+		ctx.getInput().pressKey(InputConstants.KEY_DOWN);
 		ctx.waitTicks(4);
 		int volDown = ctx.computeOnClient(mc -> OemerConfig.get().ytVolume);
 		check("music-volume-key-up", volUp == 55, "" + volUp);
@@ -1876,7 +1875,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.runOnClient(mc -> OemerConfig.get().placeOn = true);
 		ctx.setScreen(() -> new OmerScreen(null));
 		ctx.waitTicks(10);
-		check("schem-menu", ctx.computeOnClient(mc -> mc.screen instanceof OmerScreen), "");
+		check("schem-menu", ctx.computeOnClient(mc -> mc.gui.screen() instanceof OmerScreen), "");
 		ctx.takeScreenshot("55-menue-schematic");
 		ctx.setScreen(() -> null);
 		ctx.runOnClient(mc -> OemerConfig.get().placeOn = false);
@@ -1940,7 +1939,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		// Taste F9
 		long before = Files.list(clipDir).count();
 		ctx.runOnClient(mc -> OemerConfig.get().clipFormat = 1);
-		ctx.getInput().pressKey(GLFW.GLFW_KEY_F9);
+		ctx.getInput().pressKey(InputConstants.KEY_F9);
 		boolean viaKey = until(ctx, 400, () -> Files.list(clipDir).count() > before && !Clipper.saving());
 		check("clipper-key-f9", viaKey, Clipper.status());
 		ctx.runOnClient(mc -> {

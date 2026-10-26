@@ -5,7 +5,7 @@ import com.oemer.client.feature.GalaxyArt;
 import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.Textures;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.Random;
 
@@ -35,7 +35,7 @@ public final class Backdrop {
 		}
 	}
 
-	public static void render(GuiGraphics g, int w, int h, boolean inWorld) {
+	public static void render(GuiGraphicsExtractor g, int w, int h, boolean inWorld) {
 		setup();
 		OemerConfig c = OemerConfig.get();
 		float t = (System.currentTimeMillis() % 1_000_000L) / 1000f;
@@ -79,7 +79,7 @@ public final class Backdrop {
 	 * Galaxy-Hintergrund: großes Bild, das ganz langsam schwebt, dazu ein pulsierendes Leuchten am Planeten.
 	 * @return false, solange das Bild noch gemalt wird.
 	 */
-	public static boolean drawGalaxy(GuiGraphics g, int w, int h, float t, int darken) {
+	public static boolean drawGalaxy(GuiGraphicsExtractor g, int w, int h, float t, int darken) {
 		java.awt.image.BufferedImage img = GalaxyArt.image();
 		if (img == null) return false;
 		Textures.Tex tex = Textures.image("galaxy", "v1", img);
@@ -106,7 +106,7 @@ public final class Backdrop {
 	}
 
 	/** Runder, sehr weicher Lichtfleck aus vielen durchsichtigen Ringen. */
-	private static void glow(GuiGraphics g, int cx, int cy, int radius, int color, int strength) {
+	private static void glow(GuiGraphicsExtractor g, int cx, int cy, int radius, int color, int strength) {
 		int steps = 7;
 		for (int i = steps; i >= 1; i--) {
 			int r = radius * i / steps;

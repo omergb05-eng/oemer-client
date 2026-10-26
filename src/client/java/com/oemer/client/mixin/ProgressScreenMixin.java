@@ -1,7 +1,7 @@
 package com.oemer.client.mixin;
 
 import com.oemer.client.gui.OmerLoading;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,8 +20,8 @@ public abstract class ProgressScreenMixin {
 	@Shadow
 	private int progress;
 
-	@Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V", at = @At("HEAD"), cancellable = true, require = 0)
-	private void oemer$render(GuiGraphics g, int mx, int my, float pt, CallbackInfo ci) {
+	@Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", at = @At("HEAD"), cancellable = true, require = 0)
+	private void oemer$render(GuiGraphicsExtractor g, int mx, int my, float pt, CallbackInfo ci) {
 		if (!OmerLoading.enabled()) return;
 		String text = stage != null ? stage.getString() : header != null ? header.getString() : "Bitte warten …";
 		if (text.isBlank()) text = header != null ? header.getString() : "Bitte warten …";

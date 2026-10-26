@@ -901,7 +901,7 @@ public final class Social {
 	private static void notice(String text) {
 		Minecraft mc = Minecraft.getInstance();
 		mc.execute(() -> {
-			if (mc.player != null) mc.player.displayClientMessage(Component.literal("§8[§fÖmer§8]§r " + text), false);
+			if (mc.player != null) mc.player.sendSystemMessage(Component.literal("§8[§fÖmer§8]§r " + text));
 		});
 	}
 

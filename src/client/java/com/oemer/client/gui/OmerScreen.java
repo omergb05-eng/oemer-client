@@ -35,7 +35,7 @@ import com.oemer.client.online.FriendSkins;
 import com.oemer.client.online.Social;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ConfirmScreen;
@@ -46,7 +46,6 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
-import org.lwjgl.glfw.GLFW;
 
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
@@ -121,7 +120,7 @@ public class OmerScreen extends Screen {
 	private String dynKey = "";
 
 	// Vorschau rechts (optional)
-	private Consumer<GuiGraphics> previewArea;
+	private Consumer<GuiGraphicsExtractor> previewArea;
 	private int previewX, previewY, previewW, previewH;
 	private int mouseXNow, mouseYNow;
 
@@ -291,8 +290,8 @@ public class OmerScreen extends Screen {
 
 	/** „Wirklich löschen?“ – erst bei Ja wird die Aktion ausgeführt. */
 	private void confirmDelete(String what, Runnable action) {
-		this.minecraft.setScreen(new ConfirmScreen(yes -> {
-			this.minecraft.setScreen(this);
+		this.minecraft.gui.setScreen(new ConfirmScreen(yes -> {
+			this.minecraft.gui.setScreen(this);
 			if (yes) {
 				action.run();
 				refresh();
@@ -482,7 +481,7 @@ public class OmerScreen extends Screen {
 		infoLines.add(line);
 	}
 
-	private void usePreview(Consumer<GuiGraphics> draw) {
+	private void usePreview(Consumer<GuiGraphicsExtractor> draw) {
 		if (cw < 400) return;
 		previewArea = draw;
 		int pw = Math.min(260, cw * 2 / 5);
@@ -680,7 +679,7 @@ public class OmerScreen extends Screen {
 			case "distanthorizons" -> {
 				button("Distant-Horizons-Einstellungen", () -> {
 					Screen s = DistantHorizonsBridge.configScreen(this);
-					if (s != null) this.minecraft.setScreen(s);
+					if (s != null) this.minecraft.gui.setScreen(s);
 				}, OmerWidgets.Style.GLASS);
 				info(() -> DistantHorizonsBridge.installed()
 						? "Version " + DistantHorizonsBridge.version() + " · " + DistantHorizonsBridge.status()
@@ -740,7 +739,7 @@ public class OmerScreen extends Screen {
 		OemerConfig c = OemerConfig.get();
 		cycle("Farbe", OemerConfig.CROSSHAIR_COLOR_NAMES, () -> c.crosshairColor, v -> c.crosshairColor = v);
 		cycle("Größe", OemerConfig.CROSSHAIR_SIZE_NAMES, () -> c.crosshairSize, v -> c.crosshairSize = v);
-		button("Selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.CROSSHAIR)), OmerWidgets.Style.GLASS);
+		button("Selbst malen", () -> this.minecraft.gui.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.CROSSHAIR)), OmerWidgets.Style.GLASS);
 		button("Datei wählen", () -> FilePicker.pickImage("Crosshair wählen", Crosshair.folder(), name -> {
 			c.crosshairSelection = name;
 			c.customCrosshair = true;
@@ -789,7 +788,7 @@ public class OmerScreen extends Screen {
 			g.pose().pushMatrix();
 			g.pose().translate(x + 14, y + 10);
 			g.pose().scale(1.5f);
-			g.drawString(this.font, NameStyle.display(), 0, 0, 0xFFFFFFFF);
+			g.text(this.font, NameStyle.display(), 0, 0, 0xFFFFFFFF);
 			g.pose().popMatrix();
 		}, null));
 		cy += 34 + GAP;
@@ -823,7 +822,7 @@ public class OmerScreen extends Screen {
 			NameShare.invalidate();
 		}, "Erscheint links neben deinem Namensschild – auch bei Freunden");
 		endFlow();
-		button("Logo malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.LOGO)), OmerWidgets.Style.PRIMARY);
+		button("Logo malen", () -> this.minecraft.gui.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.LOGO)), OmerWidgets.Style.PRIMARY);
 		button("Datei hochladen", () -> FilePicker.pickImage("Logo wählen (PNG, am besten quadratisch)", NameShare.folder(), name -> {
 			c.nameLogo = name;
 			c.nameLogoOn = true;
@@ -868,7 +867,7 @@ public class OmerScreen extends Screen {
 			}
 		});
 		cycle("Ort im HUD", OemerConfig.CORNERS, () -> c.materialListCorner, v -> c.materialListCorner = v);
-		button("Liste öffnen & abhaken", () -> this.minecraft.setScreen(new MaterialListScreen(this)), OmerWidgets.Style.PRIMARY);
+		button("Liste öffnen & abhaken", () -> this.minecraft.gui.setScreen(new MaterialListScreen(this)), OmerWidgets.Style.PRIMARY);
 		button("Schematic-Ordner öffnen", () -> open(MaterialList.folder()), OmerWidgets.Style.GLASS);
 	button("Schematic löschen", () -> {
 		String sn = c.schematic;
@@ -941,7 +940,7 @@ public class OmerScreen extends Screen {
 		button("Dort setzen (Block, auf den ich schaue)", () -> {
 			if (this.minecraft.level == null) return;
 			Minecraft mc = this.minecraft;
-			mc.setScreen(null);
+			mc.gui.setScreen(null);
 			mc.execute(() -> {
 				if (!SchematicPlacer.setLooking(mc)) SchematicPlacer.setHere(mc);
 			});
@@ -1079,7 +1078,7 @@ public class OmerScreen extends Screen {
 		toggle("Menü-Blur im Spiel", () -> c.menuBlur, v -> c.menuBlur = v, "Welt hinter dem Menü verschwommen");
 		toggle("Version anzeigen", () -> c.showVersion, v -> c.showVersion = v, "");
 		toggle("Menü-Partikel", () -> c.menuParticles, v -> c.menuParticles = v, "Funkelnde Punkte im Hintergrund");
-		button("Minecraft-Optionen", () -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options)), OmerWidgets.Style.GLASS);
+		button("Minecraft-Optionen", () -> this.minecraft.gui.setScreen(new OptionsScreen(this, this.minecraft.options)), OmerWidgets.Style.GLASS);
 		heading("Minecraft-Tasten");
 		note("Hier änderst du auch F5, Springen, Inventar … Klick auf eine Taste, dann die neue drücken.");
 		keySharingRows();
@@ -1642,7 +1641,7 @@ public class OmerScreen extends Screen {
 			endFlow();
 			info(() -> "Redirect-URI: " + Spotify.REDIRECT + " · Spotify-Steuerung braucht Premium.");
 		} else {
-			button("Playlists öffnen", () -> this.minecraft.setScreen(new SpotifyScreen(this)), OmerWidgets.Style.PRIMARY);
+			button("Playlists öffnen", () -> this.minecraft.gui.setScreen(new SpotifyScreen(this)), OmerWidgets.Style.PRIMARY);
 			toggle("Musik-HUD", () -> c.spotifyHud, v -> c.spotifyHud = v, "Zeigt den Song im Spiel");
 			button("Abmelden", () -> {
 				Spotify.disconnect();
@@ -1785,7 +1784,7 @@ public class OmerScreen extends Screen {
 		info(() -> "Freunde sehen dein Cape in der Welt und dein Totem hier in der Liste (Konto → Teilen).");
 	}
 
-	private void paintFriend(GuiGraphics g, Social.Friend f, int x, int y, int w, int h) {
+	private void paintFriend(GuiGraphicsExtractor g, Social.Friend f, int x, int y, int w, int h) {
 		Draw.round(g, x, y, w, h, 6, Theme.white(0x10));
 		Draw.roundBorder(g, x, y, w, h, 6, Theme.white(0x1C));
 		int tx = x + 22;
@@ -1882,7 +1881,7 @@ public class OmerScreen extends Screen {
 		cy += ROW_H + GAP;
 	}
 
-	private void paintChat(GuiGraphics g, String uid, int x, int y, int w, int h) {
+	private void paintChat(GuiGraphicsExtractor g, String uid, int x, int y, int w, int h) {
 		Draw.round(g, x, y, w, h, 8, 0x50000000);
 		Draw.roundBorder(g, x, y, w, h, 8, Theme.white(0x1C));
 		List<Social.Msg> msgs = Social.chat(uid);
@@ -1916,7 +1915,7 @@ public class OmerScreen extends Screen {
 			Draw.round(g, bx, by, bw, bh, 6, mine ? Theme.accent(0x55) : Theme.white(0x1E));
 			int ty = by + 5;
 			for (var l : lines) {
-				g.drawString(this.font, l, bx + 7, ty, 0xFFFFFFFF);
+				g.text(this.font, l, bx + 7, ty, 0xFFFFFFFF);
 				ty += 10;
 			}
 			bottom = by - 4;
@@ -2064,7 +2063,7 @@ public class OmerScreen extends Screen {
 			OemerConfig.save();
 			refresh();
 		}), OmerWidgets.Style.PRIMARY);
-		button("Cape-Editor", () -> this.minecraft.setScreen(new CapeEditorScreen(this)), OmerWidgets.Style.GLASS);
+		button("Cape-Editor", () -> this.minecraft.gui.setScreen(new CapeEditorScreen(this)), OmerWidgets.Style.GLASS);
 		button("Ordner öffnen", () -> open(CapeManager.folder()), OmerWidgets.Style.GLASS);
 		heading("Vorlagen & deine Capes");
 		int n = tileCols(4);
@@ -2127,7 +2126,7 @@ public class OmerScreen extends Screen {
 			OemerConfig.save();
 			refresh();
 		}), OmerWidgets.Style.PRIMARY);
-		button("Selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.TOTEM)), OmerWidgets.Style.GLASS);
+		button("Selbst malen", () -> this.minecraft.gui.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.TOTEM)), OmerWidgets.Style.GLASS);
 		heading("Totems");
 		int n = tileCols(4);
 		flow(n, (cw - (n - 1) * GAP) / n + 18);
@@ -2194,7 +2193,7 @@ public class OmerScreen extends Screen {
 			CustomCosmetics.invalidate();
 			refresh();
 		}), OmerWidgets.Style.PRIMARY);
-		button("Selbst malen", () -> this.minecraft.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.COSMETIC)), OmerWidgets.Style.GLASS);
+		button("Selbst malen", () -> this.minecraft.gui.setScreen(new CapeEditorScreen(this, CapeEditorScreen.Mode.COSMETIC)), OmerWidgets.Style.GLASS);
 		button("Ordner öffnen", () -> open(CustomCosmetics.folder()), OmerWidgets.Style.GLASS);
 		endFlow();
 		// Platz wählen
@@ -2314,7 +2313,7 @@ public class OmerScreen extends Screen {
 		}).tip("Setzt dieses Kit auf die Einstellungen von Survival"));
 		p = flowSlot();
 		addContent(new OmerWidgets.Flat(p[0], p[1], p[2], p[3], "Minecraft-Optionen", () ->
-				this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options))).tip("FOV, Maus, Grafik … – danach hier speichern"));
+				this.minecraft.gui.setScreen(new OptionsScreen(this, this.minecraft.options))).tip("FOV, Maus, Grafik … – danach hier speichern"));
 		p = flowSlot();
 		addContent(new OmerWidgets.Flat(p[0], p[1], p[2], p[3], "✕ Gespeichertes löschen", () ->
 				confirmDelete("Die gespeicherten Einstellungen von Kit „" + KitProfiles.name(KitProfiles.active()) + "“ löschen?",
@@ -2442,14 +2441,14 @@ public class OmerScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (listening != null) {
-			if (event.key() == GLFW.GLFW_KEY_ESCAPE) listening.setKey(InputConstants.UNKNOWN);
+			if (event.key() == InputConstants.KEY_ESCAPE) listening.setKey(InputConstants.UNKNOWN);
 			else listening.setKey(InputConstants.getKey(event));
 			KeyMapping.resetMapping();
 			this.minecraft.options.save();
 			listening = null;
 			return true;
 		}
-		if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+		if (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) {
 			for (var en : boxes.entrySet()) {
 				Runnable r = enters.get(en.getKey());
 				if (r != null && en.getValue().isFocused()) {
@@ -2458,21 +2457,21 @@ public class OmerScreen extends Screen {
 				}
 			}
 		}
-		if ((event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) && ytBox != null && ytBox.isFocused()) {
+		if ((event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) && ytBox != null && ytBox.isFocused()) {
 			YouTubeMusic.submit(ytBox.getValue());
 			focusName = "yt";
 			return true;
 		}
-		if ((event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) && plBox != null && plBox.isFocused()) {
+		if ((event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) && plBox != null && plBox.isFocused()) {
 		createPlaylistFromBox();
 		return true;
 	}
-	if (event.key() == GLFW.GLFW_KEY_ESCAPE && pickTrack != null) {
+	if (event.key() == InputConstants.KEY_ESCAPE && pickTrack != null) {
 		pickTrack = null;
 		refresh();
 		return true;
 	}
-	if (event.key() == GLFW.GLFW_KEY_ESCAPE && openMod != null) {
+	if (event.key() == InputConstants.KEY_ESCAPE && openMod != null) {
 			openMod = null;
 			refresh();
 			return true;
@@ -2483,7 +2482,7 @@ public class OmerScreen extends Screen {
 	// ============================================================== Zeichnen
 
 	@Override
-	public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float delta) {
+	public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 		boolean own = !scaledNow && uiScale != 1f;
 		if (own) {
 			g.pose().pushMatrix();
@@ -2493,7 +2492,7 @@ public class OmerScreen extends Screen {
 		if (own) g.pose().popMatrix();
 	}
 
-	private void drawBackground(GuiGraphics g) {
+	private void drawBackground(GuiGraphicsExtractor g) {
 		boolean inWorld = this.minecraft.level != null;
 		if (inWorld && OemerConfig.get().menuBlur) this.renderBlurredBackground(g);
 		Backdrop.render(g, this.width, this.height, inWorld);
@@ -2553,7 +2552,7 @@ public class OmerScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics g, int realX, int realY, float delta) {
+	public void extractRenderState(GuiGraphicsExtractor g, int realX, int realY, float delta) {
 		lastFrame = System.nanoTime();
 		int mouseX = Math.round(realX / uiScale), mouseY = Math.round(realY / uiScale);
 		if (uiScale != 1f) {
@@ -2563,7 +2562,7 @@ public class OmerScreen extends Screen {
 		scaledNow = true;
 		OmerWidgets.tooltipScale = uiScale;
 		try {
-			super.render(g, mouseX, mouseY, delta);
+			super.extractRenderState(g, mouseX, mouseY, delta);
 			renderOverlay(g, mouseX, mouseY, delta);
 		} finally {
 			scaledNow = false;
@@ -2572,7 +2571,7 @@ public class OmerScreen extends Screen {
 		}
 	}
 
-	private void renderOverlay(GuiGraphics g, int mouseX, int mouseY, float delta) {
+	private void renderOverlay(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 
 		// ---- Inhalte (scrollen, abgeschnitten)
 		int max = maxScroll();
@@ -2592,7 +2591,7 @@ public class OmerScreen extends Screen {
 				Draw.round(g, eb.getX() - 10, eb.getY() - 8, eb.getWidth() + 20, ROW_H, 5, Theme.white(focus ? 0x26 : 0x14));
 				Draw.roundBorder(g, eb.getX() - 10, eb.getY() - 8, eb.getWidth() + 20, ROW_H, 5, focus ? Theme.accent(0xC0) : Theme.white(0x30));
 			}
-			w.render(g, mouseIn ? mouseX : -1000, mouseIn ? mouseY : -1000, delta);
+			w.extractRenderState(g, mouseIn ? mouseX : -1000, mouseIn ? mouseY : -1000, delta);
 		}
 		g.disableScissor();
 		if (max > 0) {
@@ -2639,7 +2638,7 @@ public class OmerScreen extends Screen {
 		}
 	}
 
-	private void drawPlayerPreview(GuiGraphics g) {
+	private void drawPlayerPreview(GuiGraphicsExtractor g) {
 		if (this.minecraft.player == null) return;
 		int size = Math.min(previewW, previewH) * 2 / 5;
 		// Die Spieler-Vorschau kennt unseren Menü-Maßstab nicht → in echten Koordinaten zeichnen
@@ -2668,7 +2667,7 @@ public class OmerScreen extends Screen {
 		}
 
 		@Override
-		protected void draw(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		protected void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
 			int x = getX(), y = getY(), w = width, h = height;
 			boolean sel = section == target;
 			if (sel) {
@@ -2735,6 +2734,6 @@ public class OmerScreen extends Screen {
 			looksChanged = false;
 			LooksPack.apply(this.minecraft);
 		}
-		this.minecraft.setScreen(parent);
+		this.minecraft.gui.setScreen(parent);
 	}
 }

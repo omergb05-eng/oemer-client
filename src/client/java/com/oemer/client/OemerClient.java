@@ -24,12 +24,12 @@ import com.oemer.client.gui.OmerWidgets;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
+import net.fabricmc.fabric.api.client.gui.screen().v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.gui.screen().v1.Screens;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -40,7 +40,6 @@ import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +73,7 @@ public class OemerClient implements ClientModInitializer {
 		Spotify.init(() -> {
 			Minecraft mc = Minecraft.getInstance();
 			return (OemerConfig.get().spotifyHud && mc.level != null)
-					|| mc.screen instanceof OmerScreen || mc.screen instanceof SpotifyScreen;
+					|| mc.gui.screen() instanceof OmerScreen || mc.gui.screen() instanceof SpotifyScreen;
 		});
 
 		// Eigenes Crosshair statt dem normalen
@@ -124,7 +123,7 @@ public class OemerClient implements ClientModInitializer {
 				});
 			} else if (screen instanceof PauseScreen) {
 				Screens.getButtons(screen).add(new OmerWidgets.Flat(6, 6, 90, 20, "Ömer Client",
-						() -> client.setScreen(new OmerScreen(screen))));
+						() -> client.gui.setScreen(new OmerScreen(screen))));
 			}
 		});
 
@@ -152,7 +151,7 @@ public class OemerClient implements ClientModInitializer {
 		if (mp == null) {
 			// Falls Minecraft das Menü ändert: oben links anzeigen
 			buttons.add(new OmerWidgets.Flat(6, 6, 90, 20, "Ömer Client",
-					() -> client.setScreen(new OmerScreen(screen))));
+					() -> client.gui.setScreen(new OmerScreen(screen))));
 			return;
 		}
 
@@ -166,7 +165,7 @@ public class OemerClient implements ClientModInitializer {
 		}
 
 		buttons.add(new OmerWidgets.Flat(mp.getX(), mpY + step, mp.getWidth(), mp.getHeight(),
-				"Ömer Client", () -> client.setScreen(new OmerScreen(screen))).style(OmerWidgets.Style.PRIMARY));
+				"Ömer Client", () -> client.gui.setScreen(new OmerScreen(screen))).style(OmerWidgets.Style.PRIMARY));
 	}
 
 	/** Ordner für eigene Bilder & Sounds (für die nächsten Versionen). */

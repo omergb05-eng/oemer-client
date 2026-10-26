@@ -4,9 +4,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.oemer.client.OemerConfig;
 import com.oemer.client.OemerConfig.MarkedChest;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.fabricmc.fabric.api.client.gui.screen().v1.ScreenEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -73,7 +73,7 @@ public final class ChestMarker {
 			ScreenEvents.remove(screen).register(s -> record(acs, target, true));
 		});
 
-		WorldRenderEvents.BEFORE_TRANSLUCENT.register(ChestMarker::render);
+		LevelRenderEvents.COLLECT_SUBMITS.register(ChestMarker::render);
 	}
 
 	// --------------------------------------------------------------- Welt
@@ -145,7 +145,7 @@ public final class ChestMarker {
 	}
 
 	private static void say(Minecraft mc, String text) {
-		if (mc.player != null) mc.player.displayClientMessage(Component.literal(text), true);
+		if (mc.player != null) mc.player.sendOverlayMessage(Component.literal(text));
 	}
 
 	/** Inhalt der offenen Kiste merken (alle Plätze, die nicht dein Inventar sind). */
@@ -184,17 +184,18 @@ public final class ChestMarker {
 
 	// ------------------------------------------------------------ Leuchten
 
-	private static void render(WorldRenderContext ctx) {
+	private static void render(LevelRenderContext ctx) {
 		OemerConfig c = OemerConfig.get();
 		if (!c.chestHighlight || !c.materialList) return;
 		List<MarkedChest> list = here();
 		if (list.isEmpty()) return;
-		Minecraft mc = Minecraft.getInstance();
-		Vec3 cam = mc.gameRenderer.getLevelRenderState().cameraRenderState.pos;
+		Vec3 cam = ctx.levelState().cameraRenderState.pos;
 		if (cam == null) return;
-		PoseStack pose = ctx.matrices();
-		VertexConsumer vc = ctx.consumers().getBuffer(RenderTypes.debugQuads());
-		Matrix4f m = pose.last().pose();
+		ctx.submitNodeCollector().submitCustomGeometry(ctx.poseStack(), RenderTypes.debugQuads(), (po, vc) -> draw(po, vc, cam, list));
+	}
+
+	private static void draw(PoseStack.Pose po, VertexConsumer vc, Vec3 cam, List<MarkedChest> list) {
+		Matrix4f m = po.pose();
 		float pulse = (float) (0.5 + 0.5 * Math.sin(System.currentTimeMillis() / 300.0));
 		int a = Math.round(0x38 + 0x30 * pulse);
 		int color = (a << 24) | (com.oemer.client.gui.Theme.accent() & 0xFFFFFF);
