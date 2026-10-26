@@ -420,6 +420,14 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		return img;
 	}
 
+	private static String readSafe(Path p) {
+		try {
+			return Files.readString(p);
+		} catch (Exception e) {
+			return "";
+		}
+	}
+
 	private static int seqOf(String stateJson) {
 		var m = java.util.regex.Pattern.compile("\"seq\":(\\d+)").matcher(stateJson);
 		return m.find() ? Integer.parseInt(m.group(1)) : -1;
@@ -728,7 +736,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	check("bridge-ended-next", YouTubeMusic.index() == 3, "" + YouTubeMusic.index());
 	java.nio.file.Path extDir = YouTubeMusic.installExtension();
 	check("bridge-extension-files", Files.isRegularFile(extDir.resolve("manifest.json")) && Files.isRegularFile(extDir.resolve("content.js"))
-			&& Files.isRegularFile(extDir.resolve("background.js")) && Files.readString(extDir.resolve("manifest.json")).contains("Ömer Bridge"), extDir.toString());
+			&& Files.isRegularFile(extDir.resolve("background.js")) && readSafe(extDir.resolve("manifest.json")).contains("Ömer Bridge"), extDir.toString());
 	ctx.runOnClient(mc -> {
 		OemerConfig.get().ytMode = 0;
 		YouTubeMusic.clearQueue();
