@@ -142,7 +142,10 @@ public class OemerConfig {
 	public boolean placeShowCorrect = false;
 	public boolean placeShowWrong = true;
 	public boolean placeBox = true;
-	public int placeRange = 1;            // Index in PLACE_RANGES
+	public int placeRange = 3;            // Index in PLACE_RANGES (3 = unbegrenzt)
+	public boolean placeRangeV81 = false;  // einmalig auf "unbegrenzt" gestellt
+	public boolean placeTextures = true;  // echte Block-Texturen
+	public boolean placeGhost = true;     // Geister-Schimmern
 	public int placeStep = 0;             // Index in PLACE_STEPS
 
 	// ---- Clipper ----
@@ -219,8 +222,8 @@ public class OemerConfig {
 	public static final String[] ARMOR_VALUE = {"Prozent", "Haltbarkeit (Zahl)", "Nur Balken"};
 	public static final String[] PLACE_MODES = {"Alle Ebenen", "Nur diese Ebene", "Bis zu dieser Ebene", "Ab dieser Ebene"};
 	public static final String[] PLACE_MIRRORS = {"Aus", "Links ↔ rechts", "Vorne ↔ hinten"};
-	public static final int[] PLACE_RANGES = {32, 64, 96};
-	public static final String[] PLACE_RANGE_NAMES = {"32 Blöcke", "64 Blöcke", "96 Blöcke"};
+	public static final int[] PLACE_RANGES = {32, 64, 128, Integer.MAX_VALUE / 4};
+	public static final String[] PLACE_RANGE_NAMES = {"32 Blöcke", "64 Blöcke", "128 Blöcke", "Unbegrenzt"};
 	public static final int[] PLACE_STEPS = {1, 4, 16};
 	public static final String[] PLACE_STEP_NAMES = {"1 Block", "4 Blöcke", "16 Blöcke"};
 	public static final int[] CLIP_LENGTHS = {30, 60, 120};
@@ -305,6 +308,10 @@ public class OemerConfig {
 		placeMirror = Math.floorMod(placeMirror, 3);
 		placeLayerMode = Math.floorMod(placeLayerMode, 4);
 		placeLayer = Math.max(0, placeLayer);
+		if (!placeRangeV81) {
+			placeRangeV81 = true;
+			placeRange = PLACE_RANGES.length - 1;
+		}
 		placeRange = Math.floorMod(placeRange, PLACE_RANGES.length);
 		placeStep = Math.floorMod(placeStep, PLACE_STEPS.length);
 		clipLen = Math.floorMod(clipLen, CLIP_LENGTHS.length);

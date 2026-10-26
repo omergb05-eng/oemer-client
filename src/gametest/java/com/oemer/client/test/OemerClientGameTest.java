@@ -9,6 +9,7 @@ import com.oemer.client.feature.Looks;
 import com.oemer.client.feature.LooksPack;
 import com.oemer.client.feature.MaterialList;
 import com.oemer.client.feature.OmerBadge;
+import com.oemer.client.feature.Hud;
 import com.oemer.client.feature.SchematicPlacer;
 import com.oemer.client.feature.SchematicGrid;
 import com.oemer.client.feature.Clipper;
@@ -419,6 +420,11 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		return img;
 	}
 
+	private static int seqOf(String stateJson) {
+		var m = java.util.regex.Pattern.compile("\"seq\":(\\d+)").matcher(stateJson);
+		return m.find() ? Integer.parseInt(m.group(1)) : -1;
+	}
+
 	private static String httpGet(String url) {
 		try {
 			var client = java.net.http.HttpClient.newHttpClient();
@@ -433,6 +439,33 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	private static boolean hasButton(Minecraft mc, String text) {
 		return mc.screen != null && Screens.getButtons(mc.screen).stream()
 				.anyMatch(w -> w.getMessage().getString().equals(text));
+	}
+
+	/** Schreibt ein buntes Pixelbild als .schem (Sponge v2), Breite x Hoehe, 1 Block dick. */
+	private static void writeBigPicture(Path target, int w, int h) {
+		try {
+			java.io.ByteArrayOutputStream raw = new java.io.ByteArrayOutputStream();
+			java.io.DataOutputStream o = new java.io.DataOutputStream(raw);
+			o.writeByte(10); o.writeUTF("");
+			o.writeByte(3); o.writeUTF("Version"); o.writeInt(2);
+			o.writeByte(2); o.writeUTF("Width"); o.writeShort(w);
+			o.writeByte(2); o.writeUTF("Height"); o.writeShort(h);
+			o.writeByte(2); o.writeUTF("Length"); o.writeShort(1);
+			o.writeByte(10); o.writeUTF("Palette");
+			String[] pal = {"minecraft:white_concrete", "minecraft:orange_concrete", "minecraft:blue_concrete", "minecraft:lime_wool"};
+			for (int i = 0; i < pal.length; i++) { o.writeByte(3); o.writeUTF(pal[i]); o.writeInt(i); }
+			o.writeByte(0);
+			byte[] data = new byte[w * h];
+			for (int yy = 0; yy < h; yy++) for (int xx = 0; xx < w; xx++) data[yy * w + xx] = (byte) (((xx / 16) + (yy / 16)) % 4);
+			o.writeByte(7); o.writeUTF("BlockData"); o.writeInt(data.length); o.write(data);
+			o.writeByte(0);
+			Files.createDirectories(target.getParent());
+			try (java.util.zip.GZIPOutputStream gz = new java.util.zip.GZIPOutputStream(Files.newOutputStream(target))) {
+				gz.write(raw.toByteArray());
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	private static void copyAsset(String name, Path target) {
@@ -644,6 +677,29 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	check("queue-remove-current", YouTubeMusic.queue().size() == 1 && YouTubeMusic.current() != null && YouTubeMusic.current().id.equals(tr[2].id), "");
 	httpGet(page + "api/cmd?do=clearqueue");
 	check("queue-clear", YouTubeMusic.queue().isEmpty() && YouTubeMusic.current() == null, "");
+	// Fehler beim Abspielen: selbst gewählter Song bleibt stehen, automatisches Weiterspringen nur begrenzt
+	java.util.List<YouTubeMusic.Track> six = new ArrayList<>();
+	for (int i = 0; i < 6; i++) six.add(new YouTubeMusic.Track("aaaaaaaaaa" + i, "Song " + i, "X"));
+	ctx.runOnClient(mc -> {
+		OemerConfig.get().ytShuffle = false;
+		OemerConfig.get().ytRepeat = false;
+		YouTubeMusic.playList(six, 3);
+	});
+	httpGet(page + "api/cmd?do=error&code=150&seq=" + seqOf(httpGet(page + "api/state")));
+	String st1 = httpGet(page + "api/state");
+	check("yt-error-picked-stays", YouTubeMusic.index() == 3 && YouTubeMusic.message().contains("eingebettet")
+			&& !YouTubeMusic.message().contains("übersprungen") && st1.contains("\"play\":false"), "index=" + YouTubeMusic.index() + " " + YouTubeMusic.message());
+	ctx.runOnClient(mc -> YouTubeMusic.playList(six, 0));
+	httpGet(page + "api/cmd?do=next");
+	check("yt-next-index", YouTubeMusic.index() == 1, "" + YouTubeMusic.index());
+	httpGet(page + "api/cmd?do=error&code=150&seq=" + seqOf(httpGet(page + "api/state")));
+	check("yt-error-auto-skips", YouTubeMusic.index() == 2 && YouTubeMusic.message().contains("übersprungen"), "index=" + YouTubeMusic.index() + " " + YouTubeMusic.message());
+	for (int i = 0; i < 3; i++) httpGet(page + "api/cmd?do=error&code=150&seq=" + seqOf(httpGet(page + "api/state")));
+	check("yt-error-skip-limit", YouTubeMusic.index() == 5 || YouTubeMusic.index() == 4, "index=" + YouTubeMusic.index());
+	int stopIdx = YouTubeMusic.index();
+	httpGet(page + "api/cmd?do=error&code=150&seq=" + seqOf(httpGet(page + "api/state")));
+	check("yt-error-stops", YouTubeMusic.index() == stopIdx && httpGet(page + "api/state").contains("\"play\":false"), "index=" + YouTubeMusic.index());
+	httpGet(page + "api/cmd?do=clearqueue");
 	// dieselben Löschbefehle wie in der Player-Seite
 	httpGet(page + "api/cmd?do=unlib&id=" + tr[1].id);
 	check("web-unlib", !YouTubeMusic.inLibrary(tr[1].id), "");
@@ -1005,31 +1061,50 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			ctx.waitTicks(3);
 			sp.getServer().runCommand("setblock " + chest.getX() + " " + chest.getY() + " " + chest.getZ() + " air");
 
-			// ------------------------------------------ Kits = eigene Einstellungen pro Kit
+			// ------------------------------------------ Kits: Tasten gelten fuer alle Kits (Standard), Rest pro Kit
 			ctx.runOnClient(mc -> {
 				OemerConfig.get().kitAutoSave = true;
 				OemerConfig.get().kit = 0;
-				mc.options.keyDrop.setKey(InputConstants.getKey("key.keyboard.q"));
-				mc.options.keyHotbarSlots[4].setKey(InputConstants.getKey("key.keyboard.5"));
+				OemerConfig.get().sharedKeys = true;
 				mc.options.fov().set(70);
-				net.minecraft.client.KeyMapping.resetMapping();
 				KitProfiles.save(0);
-				KitProfiles.switchTo(1);  // CPVP: startet mit Survival-Einstellungen
-				mc.options.keyHotbarSlots[4].setKey(InputConstants.getKey("key.keyboard.q"));
-				mc.options.keyDrop.setKey(InputConstants.UNKNOWN);
+				KitProfiles.switchTo(1);
 				mc.options.fov().set(100);
+				// "Taste in den normalen Einstellungen aendern" -> muss in jedem Kit gelten
+				mc.options.keyDrop.setKey(InputConstants.getKey("key.keyboard.r"));
 				net.minecraft.client.KeyMapping.resetMapping();
 				KitProfiles.save(1);
 				KitProfiles.switchTo(0);
 			});
 			ctx.waitTicks(3);
-			String survival = ctx.computeOnClient(mc -> mc.options.keyDrop.saveString() + "|" + mc.options.keyHotbarSlots[4].saveString() + "|" + mc.options.fov().get());
-			check("kit-survival", survival.equals("key.keyboard.q|key.keyboard.5|70"), survival);
+			String survival = ctx.computeOnClient(mc -> mc.options.keyDrop.saveString() + "|" + mc.options.fov().get());
+			check("kit-keys-shared", survival.equals("key.keyboard.r|70"), survival);
 			ctx.runOnClient(mc -> KitProfiles.switchTo(1));
 			ctx.waitTicks(3);
-			String cpvp = ctx.computeOnClient(mc -> mc.options.keyDrop.saveString() + "|" + mc.options.keyHotbarSlots[4].saveString() + "|" + mc.options.fov().get());
-			check("kit-cpvp", cpvp.equals("key.keyboard.unknown|key.keyboard.q|100"), cpvp);
-			ctx.runOnClient(mc -> KitProfiles.switchTo(0));
+			String cpvp = ctx.computeOnClient(mc -> mc.options.keyDrop.saveString() + "|" + mc.options.fov().get());
+			check("kit-cpvp-fov-own", cpvp.equals("key.keyboard.r|100"), cpvp);
+			// Alte Variante: Tasten pro Kit
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().sharedKeys = false;
+				mc.options.keyDrop.setKey(InputConstants.getKey("key.keyboard.q"));
+				net.minecraft.client.KeyMapping.resetMapping();
+				KitProfiles.save(1);
+				KitProfiles.switchTo(0);
+				mc.options.keyDrop.setKey(InputConstants.getKey("key.keyboard.g"));
+				net.minecraft.client.KeyMapping.resetMapping();
+				KitProfiles.save(0);
+				KitProfiles.switchTo(1);
+			});
+			ctx.waitTicks(3);
+			String perKit = ctx.computeOnClient(mc -> mc.options.keyDrop.saveString());
+			check("kit-keys-per-kit", perKit.equals("key.keyboard.q"), perKit);
+			ctx.runOnClient(mc -> {
+				OemerConfig.get().sharedKeys = true;
+				KitProfiles.switchTo(0);
+				mc.options.keyDrop.setKey(InputConstants.getKey("key.keyboard.q"));
+				net.minecraft.client.KeyMapping.resetMapping();
+				KitProfiles.save(0);
+			});
 			ctx.waitTicks(3);
 
 			// ------------------------------------------ Mods
@@ -1519,6 +1594,88 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			OemerConfig.get().placeOn = false;
 		});
 		sp.getServer().runCommand("fill " + (x - 10) + " " + y + " " + (z + 1) + " " + (x + 10) + " " + (y + 12) + " " + (z + 16) + " air");
+
+		// ------------------------------------------------ Riesiges Bild (256 x 256), unbegrenzte Reichweite
+		Path big = MaterialList.folder().resolve("zz_bild256.schem");
+		writeBigPicture(big, 256, 256);
+		ctx.runOnClient(mc -> {
+			OemerConfig c = OemerConfig.get();
+			c.placeFile = "zz_bild256.schem";
+			c.placeRange = OemerConfig.PLACE_RANGES.length - 1;
+			c.placeRot = 0;
+			c.placeMirror = 0;
+			c.placeLayerMode = 0;
+			c.placeShowWrong = false;
+			c.placeShowCorrect = false;
+			c.placeBox = false;
+			c.placeX = x - 128;
+			c.placeY = y - 2;
+			c.placeZ = z + 6;
+			c.placeSet = true;
+			c.placeOn = true;
+			mc.player.setYRot(0);
+			mc.player.setXRot(-8);
+			SchematicPlacer.reload();
+		});
+		boolean bigLoaded = until(ctx, 600, () -> SchematicPlacer.grid() != null);
+		SchematicGrid bg = SchematicPlacer.grid();
+		check("schem-big-loaded", bigLoaded && bg != null && bg.sx == 256 && bg.sy == 256,
+				bg == null ? SchematicPlacer.error() : bg.sx + "x" + bg.sy + "x" + bg.sz);
+		check("schem-range-unlimited", OemerConfig.PLACE_RANGES[OemerConfig.PLACE_RANGES.length - 1] > 10000
+				&& OemerConfig.PLACE_RANGE_NAMES[OemerConfig.PLACE_RANGE_NAMES.length - 1].equals("Unbegrenzt"), "");
+		boolean bigShown = until(ctx, 900, () -> SchematicPlacer.shownCount() > 20000);
+		check("schem-big-shown", bigShown, "angezeigt=" + SchematicPlacer.shownCount() + " " + SchematicPlacer.stats());
+		ctx.waitTicks(20);
+		ctx.takeScreenshot("57-bild-256-nah");
+		shotFreecam(ctx, 0, 60, -90, 0, 10, "58-bild-256-weit");
+		ctx.runOnClient(mc -> {
+			OemerConfig.get().freecam = false;
+			OemerConfig.get().placeOn = false;
+			OemerConfig.get().placeFile = "haus.litematic";
+			OemerConfig.get().placeBox = true;
+			OemerConfig.get().placeShowWrong = true;
+			SchematicPlacer.reload();
+		});
+		ctx.waitTicks(3);
+
+		// ------------------------------------------------ Musik-Lautstaerke per Taste + Armor HUD
+		ctx.runOnClient(mc -> {
+			OemerConfig.get().musicService = 0;
+			OemerConfig.get().ytVolume = 50;
+		});
+		ctx.getInput().pressKey(GLFW.GLFW_KEY_UP);
+		ctx.waitTicks(4);
+		int volUp = ctx.computeOnClient(mc -> OemerConfig.get().ytVolume);
+		ctx.getInput().pressKey(GLFW.GLFW_KEY_DOWN);
+		ctx.waitTicks(4);
+		ctx.getInput().pressKey(GLFW.GLFW_KEY_DOWN);
+		ctx.waitTicks(4);
+		int volDown = ctx.computeOnClient(mc -> OemerConfig.get().ytVolume);
+		check("music-volume-key-up", volUp == 55, "" + volUp);
+		check("music-volume-key-down", volDown == 45, "" + volDown);
+
+		sp.getServer().runCommand("item replace entity @a armor.head with minecraft:diamond_helmet[damage=120]");
+		sp.getServer().runCommand("item replace entity @a armor.chest with minecraft:iron_chestplate[damage=100]");
+		sp.getServer().runCommand("item replace entity @a armor.feet with minecraft:netherite_boots");
+		ctx.runOnClient(mc -> {
+			OemerConfig c = OemerConfig.get();
+			c.armorHud = true;
+			c.armorHudPos = 0;
+			c.armorHudValue = 0;
+			c.armorHudHands = false;
+		});
+		ctx.waitTicks(10);
+		int armorCount = ctx.computeOnClient(mc -> (int) Hud.armorStacks(mc.player, false).stream().filter(st -> !st.isEmpty()).count());
+		check("armor-hud-stacks", armorCount == 3, "" + armorCount);
+		ctx.takeScreenshot("59-armor-hud");
+		ctx.runOnClient(mc -> {
+			OemerConfig c = OemerConfig.get();
+			c.armorHudValue = 1;
+			c.armorHudPos = 1;
+		});
+		ctx.waitTicks(5);
+		ctx.takeScreenshot("60-armor-hud-zahl");
+		ctx.runOnClient(mc -> OemerConfig.get().armorHud = false);
 
 		// Menü-Seite
 		OmerScreen.sectionForTest("MODS", "schematic");

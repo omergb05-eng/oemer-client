@@ -25,4 +25,16 @@ final class BoxDraw {
 		quad(b, m, c, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0); // West
 		quad(b, m, c, x1, y0, z0, x1, y1, z0, x1, y1, z1, x1, y0, z1); // Ost
 	}
+
+	/** Eine einzelne Fläche des Kastens; dir = Reihenfolge von Direction.values() (unten, oben, Nord, Süd, West, Ost). */
+	static void face(VertexConsumer b, Matrix4f m, int dir, float x0, float y0, float z0, float x1, float y1, float z1, int c) {
+		switch (dir) {
+			case 0 -> quad(b, m, c, x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1);
+			case 1 -> quad(b, m, c, x0, y1, z0, x0, y1, z1, x1, y1, z1, x1, y1, z0);
+			case 2 -> quad(b, m, c, x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0);
+			case 3 -> quad(b, m, c, x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1);
+			case 4 -> quad(b, m, c, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0);
+			default -> quad(b, m, c, x1, y0, z0, x1, y1, z0, x1, y1, z1, x1, y0, z1);
+		}
+	}
 }

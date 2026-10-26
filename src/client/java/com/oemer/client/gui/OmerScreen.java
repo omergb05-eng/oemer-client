@@ -952,6 +952,8 @@ public class OmerScreen extends Screen {
 			c.placeRange = v;
 			SchematicPlacer.changed();
 		});
+		toggle("Echte Block-Texturen", () -> c.placeTextures, v -> c.placeTextures = v, "Ghost-Blöcke mit der echten Textur statt nur einer Farbe");
+		toggle("Geister-Schimmern", () -> c.placeGhost, v -> c.placeGhost = v, "Durchsichtig und leicht pulsierend, damit man sie von echten Blöcken unterscheidet");
 		toggle("Falsche Blöcke rot", () -> c.placeShowWrong, v -> {
 			c.placeShowWrong = v;
 			SchematicPlacer.changed();
