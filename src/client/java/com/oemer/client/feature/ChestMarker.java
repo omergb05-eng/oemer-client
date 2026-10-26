@@ -193,7 +193,7 @@ public final class ChestMarker {
 		Vec3 cam = mc.gameRenderer.getLevelRenderState().cameraRenderState.pos;
 		if (cam == null) return;
 		PoseStack pose = ctx.matrices();
-		VertexConsumer vc = ctx.consumers().getBuffer(RenderTypes.debugFilledBox());
+		VertexConsumer vc = ctx.consumers().getBuffer(RenderTypes.debugQuads());
 		Matrix4f m = pose.last().pose();
 		float pulse = (float) (0.5 + 0.5 * Math.sin(System.currentTimeMillis() / 300.0));
 		int a = Math.round(0x38 + 0x30 * pulse);
@@ -202,17 +202,8 @@ public final class ChestMarker {
 			double dx = mc2.x - cam.x, dy = mc2.y - cam.y, dz = mc2.z - cam.z;
 			if (dx * dx + dy * dy + dz * dz > 96 * 96) continue;
 			float e = 0.03f;
-			box(vc, m, (float) dx - e, (float) dy - e, (float) dz - e, (float) dx + 1 + e, (float) dy + 1 + e, (float) dz + 1 + e, color);
+			BoxDraw.box(vc, m, (float) dx - e, (float) dy - e, (float) dz - e, (float) dx + 1 + e, (float) dy + 1 + e, (float) dz + 1 + e, color);
 		}
 	}
 
-	/** Gefüllter Kasten als Dreiecks-Streifen (wie Minecrafts Debug-Kästen). */
-	private static void box(VertexConsumer b, Matrix4f m, float x0, float y0, float z0, float x1, float y1, float z1, int c) {
-		float[][] v = {
-				{x0, y0, z0}, {x0, y0, z0}, {x0, y0, z0}, {x0, y0, z1}, {x0, y1, z0}, {x0, y1, z1}, {x0, y1, z1}, {x0, y0, z1},
-				{x1, y1, z1}, {x1, y0, z1}, {x1, y0, z1}, {x1, y0, z0}, {x1, y1, z1}, {x1, y1, z0}, {x1, y1, z0}, {x1, y0, z0},
-				{x0, y1, z0}, {x0, y0, z0}, {x0, y0, z0}, {x1, y0, z0}, {x0, y0, z1}, {x1, y0, z1}, {x1, y0, z1}, {x0, y1, z0},
-				{x0, y1, z0}, {x0, y1, z1}, {x1, y1, z0}, {x1, y1, z1}, {x1, y1, z1}, {x1, y1, z1}};
-		for (float[] p : v) b.addVertex(m, p[0], p[1], p[2]).setColor(c);
-	}
 }

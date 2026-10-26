@@ -360,12 +360,12 @@ public final class SchematicPlacer {
 		Vec3 cam = mc.gameRenderer.getLevelRenderState().cameraRenderState.pos;
 		if (cam == null) return;
 		PoseStack pose = ctx.matrices();
-		VertexConsumer vc = ctx.consumers().getBuffer(RenderTypes.debugFilledBox());
+		VertexConsumer vc = ctx.consumers().getBuffer(RenderTypes.debugQuads());
 		Matrix4f m = pose.last().pose();
 		float e = 0.04f;
 		for (Cell cell : shown) {
 			float dx = (float) (cell.x - cam.x), dy = (float) (cell.y - cam.y), dz = (float) (cell.z - cam.z);
-			box(vc, m, dx + e, dy + e, dz + e, dx + 1 - e, dy + 1 - e, dz + 1 - e, cell.color);
+			BoxDraw.box(vc, m, dx + e, dy + e, dz + e, dx + 1 - e, dy + 1 - e, dz + 1 - e, cell.color);
 		}
 		if (c.placeBox) {
 			float x0 = (float) (c.placeX - cam.x), y0 = (float) (c.placeY - cam.y), z0 = (float) (c.placeZ - cam.z);
@@ -374,29 +374,21 @@ public final class SchematicPlacer {
 			float t = 0.05f;
 			// 4 senkrechte Kanten, 4 unten, 4 oben
 			float[][] xz = {{x0, z0}, {x1, z0}, {x0, z1}, {x1, z1}};
-			for (float[] p : xz) box(vc, m, p[0] - t, y0 - t, p[1] - t, p[0] + t, y1 + t, p[1] + t, col);
+			for (float[] p : xz) BoxDraw.box(vc, m, p[0] - t, y0 - t, p[1] - t, p[0] + t, y1 + t, p[1] + t, col);
 			for (float y : new float[]{y0, y1}) {
-				box(vc, m, x0 - t, y - t, z0 - t, x1 + t, y + t, z0 + t, col);
-				box(vc, m, x0 - t, y - t, z1 - t, x1 + t, y + t, z1 + t, col);
-				box(vc, m, x0 - t, y - t, z0 - t, x0 + t, y + t, z1 + t, col);
-				box(vc, m, x1 - t, y - t, z0 - t, x1 + t, y + t, z1 + t, col);
+				BoxDraw.box(vc, m, x0 - t, y - t, z0 - t, x1 + t, y + t, z0 + t, col);
+				BoxDraw.box(vc, m, x0 - t, y - t, z1 - t, x1 + t, y + t, z1 + t, col);
+				BoxDraw.box(vc, m, x0 - t, y - t, z0 - t, x0 + t, y + t, z1 + t, col);
+				BoxDraw.box(vc, m, x1 - t, y - t, z0 - t, x1 + t, y + t, z1 + t, col);
 			}
 			// aktuelle Ebene als Fläche markieren
 			if (c.placeLayerMode != 0) {
 				int L = Math.min(c.placeLayer, g.sy - 1);
 				float ly = y0 + L;
 				int lc = 0x30000000 | (Theme.accent() & 0xFFFFFF);
-				box(vc, m, x0, ly, z0, x1, ly + 0.02f, z1, lc);
+				BoxDraw.box(vc, m, x0, ly, z0, x1, ly + 0.02f, z1, lc);
 			}
 		}
 	}
 
-	private static void box(VertexConsumer b, Matrix4f m, float x0, float y0, float z0, float x1, float y1, float z1, int c) {
-		float[][] v = {
-				{x0, y0, z0}, {x0, y0, z0}, {x0, y0, z0}, {x0, y0, z1}, {x0, y1, z0}, {x0, y1, z1}, {x0, y1, z1}, {x0, y0, z1},
-				{x1, y1, z1}, {x1, y0, z1}, {x1, y0, z1}, {x1, y0, z0}, {x1, y1, z1}, {x1, y1, z0}, {x1, y1, z0}, {x1, y0, z0},
-				{x0, y1, z0}, {x0, y0, z0}, {x0, y0, z0}, {x1, y0, z0}, {x0, y0, z1}, {x1, y0, z1}, {x1, y0, z1}, {x0, y1, z0},
-				{x0, y1, z0}, {x0, y1, z1}, {x1, y1, z0}, {x1, y1, z1}, {x1, y1, z1}, {x1, y1, z1}};
-		for (float[] p : v) b.addVertex(m, p[0], p[1], p[2]).setColor(c);
-	}
 }

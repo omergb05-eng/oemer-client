@@ -891,7 +891,7 @@ public class OmerScreen extends Screen {
 		endFlow();
 
 		heading("Platzieren");
-		note("Schau auf einen Block und drück „Dort setzen“ – die Ecke der Schematic kommt direkt daneben.");
+		note("Auf einen Block schauen, „Dort setzen“ drücken – die Schematic erscheint daneben.");
 		button("Dort setzen (Block, auf den ich schaue)", () -> {
 			if (this.minecraft.level == null) return;
 			Minecraft mc = this.minecraft;
