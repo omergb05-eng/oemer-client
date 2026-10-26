@@ -459,7 +459,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		}
 
 		@Override
-		public void render(net.minecraft.client.gui.GuiGraphicsExtractor g, int mx, int my, float pt) {
+		public void extractRenderState(net.minecraft.client.gui.GuiGraphicsExtractor g, int mx, int my, float pt) {
 			OmerLoading.draw(g, 1f, progress, progress >= 0 ? "Welt wird geladen" : "Dimension wird geladen", "test");
 		}
 	}
@@ -584,7 +584,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		});
 
 		// ---------------------------------------------- Startscreen
-		ctx.waitFor(mc -> mc.gui.screen() != null && mc.getOverlay() == null, 1200);
+		ctx.waitFor(mc -> mc.gui.screen() != null && mc.gui.overlay() == null, 1200);
 		ctx.waitTicks(20);
 		String firstScreen = ctx.computeOnClient(mc -> mc.gui.screen() == null ? "null" : mc.gui.screen().getClass().getName());
 		check("first-screen-title", firstScreen.equals(TitleScreen.class.getName()), firstScreen);
@@ -1008,7 +1008,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		try (TestSingleplayerContext sp = ctx.worldBuilder().create()) {
 			check("loading-level-drawn", OmerLoading.levelFrames > 0 || OmerLoading.progressFrames > 0,
 					"level=" + OmerLoading.levelFrames + " progress=" + OmerLoading.progressFrames);
-			sp.getClientWorld().waitForChunksRender();
+			sp.getConnection().waitForChunksRender();
 			sp.getServer().runCommand("time set midnight");
 			ctx.waitTicks(20);
 
@@ -1021,7 +1021,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				mc.player.setYRot(0);
 				mc.player.setXRot(0);
 			});
-			sp.getClientWorld().waitForChunksRender();
+			sp.getConnection().waitForChunksRender();
 			ctx.waitTicks(10);
 			ctx.takeScreenshot("20-welt-nacht");
 
@@ -1268,7 +1268,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			// Shulker Box Tooltip (Daten)
 			boolean shulker = ctx.computeOnClient(mc -> {
 				OemerConfig.get().shulkerTooltip = true;
-				ItemStack box = new ItemStack(Items.PURPLE_SHULKER_BOX);
+				ItemStack box = new ItemStack(Items.SHULKER_BOX);
 				box.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(List.of(new ItemStack(Items.TOTEM_OF_UNDYING, 1), new ItemStack(Items.END_CRYSTAL, 64))));
 				return ShulkerPreview.of(box) != null;
 			});
@@ -1309,7 +1309,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				c.portalLevel = 1;
 				LooksPack.apply(mc);
 			});
-			ctx.waitFor(mc -> mc.getOverlay() == null, 1200);
+			ctx.waitFor(mc -> mc.gui.overlay() == null, 1200);
 			ctx.waitTicks(20);
 			check("portal-texture-faded", ctx.computeOnClient(mc -> {
 				try {
@@ -1400,8 +1400,8 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				c.nameColor1 = 8;
 				c.nameColor2 = 9;
 				c.nameBold = true;
-				mc.gui.hud.getChat().addMessage(net.minecraft.network.chat.Component.translatable("chat.type.text",
-						net.minecraft.network.chat.Component.literal(mc.getUser().getName()), "Hallo Leute, mein Name ist jetzt bunt!"));
+				mc.gui.hud.getChat().addPlayerMessage(net.minecraft.network.chat.Component.translatable("chat.type.text",
+						net.minecraft.network.chat.Component.literal(mc.getUser().getName()), "Hallo Leute, mein Name ist jetzt bunt!"), null, null);
 				mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
 			});
 			ctx.waitTicks(10);
@@ -1469,7 +1469,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				c.totemSelection = "test-totem.png";
 				LooksPack.apply(mc);
 			});
-			ctx.waitFor(mc -> mc.getOverlay() == null, 1200);
+			ctx.waitFor(mc -> mc.gui.overlay() == null, 1200);
 			ctx.waitTicks(10);
 			boolean packOn = ctx.computeOnClient(mc -> mc.getResourcePackRepository().getSelectedIds().contains(LooksPack.PACK_ID));
 			String compat = ctx.computeOnClient(mc -> {
@@ -1495,7 +1495,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				OemerConfig.get().totemMode = 1;
 				LooksPack.apply(mc);
 			});
-			ctx.waitFor(mc -> mc.getOverlay() == null, 1200);
+			ctx.waitFor(mc -> mc.gui.overlay() == null, 1200);
 			ctx.waitTicks(10);
 			ctx.takeScreenshot("30b-totem-skin");
 
