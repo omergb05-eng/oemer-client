@@ -182,7 +182,7 @@ public final class OmerLoading {
 		// Für den CI-Test: ein Bild vom Ladescreen speichern
 		if (kind != null && System.getenv("OEMER_LOADSHOT") != null && !SHOT_DONE.contains(kind) && alpha >= 0.99f) {
 			int n = KIND_FRAMES.merge(kind, 1, Integer::sum);
-			if (n >= 40) shotPending = kind;
+			if (n >= 5) shotPending = kind;
 		}
 	}
 

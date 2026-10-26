@@ -44,8 +44,8 @@ dependencies {
 	include "org.jcodec:jcodec-javase:0.2.5"
 
 	// Distant Horizons (26.3): kommt wieder dazu, sobald die passende Version feststeht
-	// include "maven.modrinth:distanthorizons:${project.distant_horizons_version}"
-	// localRuntime "maven.modrinth:distanthorizons:${project.distant_horizons_version}"
+	include "maven.modrinth:distanthorizons:${project.distant_horizons_version}"
+	localRuntime "maven.modrinth:distanthorizons:${project.distant_horizons_version}"
 }
 
 processResources {

@@ -430,6 +430,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			rp.setYRot(0);
 			rp.setYHeadRot(0);
 			rp.setXRot(0);
+			rp.setId(900001);
 			mc.level.addEntity(rp);
 		});
 		ctx.waitTicks(10);

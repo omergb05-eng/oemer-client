@@ -90,6 +90,17 @@ public class FreeCamera extends AbstractClientPlayer {
 		return true;
 	}
 
+	// Damit die Kamera jeden Tick selbst bewegt wird (nicht vom Server)
+	@Override
+	public boolean isClientAuthoritative() {
+		return true;
+	}
+
+	@Override
+	protected boolean isLocalClientAuthoritative() {
+		return true;
+	}
+
 	@Override
 	protected void applyInput() {
 		Vec2 move = keyboardInput.getMoveVector();
