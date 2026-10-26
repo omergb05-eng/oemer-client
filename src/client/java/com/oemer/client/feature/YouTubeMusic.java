@@ -575,7 +575,7 @@ public final class YouTubeMusic {
 		for (JsonElement e : o.getAsJsonArray("items")) {
 			JsonObject it = e.getAsJsonObject();
 			String vid = it.getAsJsonObject("id").get("videoId").getAsString();
-			if (vid.equals(failed.id)) continue;
+			if (vid.equals(failed.id) || ALT_TRIED.contains(vid)) continue;
 			JsonObject sn = it.getAsJsonObject("snippet");
 			found.add(new Track(vid, unescape(sn.get("title").getAsString()), unescape(sn.get("channelTitle").getAsString())));
 		}
