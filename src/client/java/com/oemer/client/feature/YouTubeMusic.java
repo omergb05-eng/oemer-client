@@ -110,6 +110,9 @@ public final class YouTubeMusic {
 	private static final List<Track> RESULTS = Collections.synchronizedList(new ArrayList<>());
 	private static volatile boolean searching;
 	private static volatile int lastEndedSeq = -1;
+	/** true = du hast den Song selbst gewählt (dann wird bei einem Fehler nicht einfach weitergesprungen). */
+	private static volatile boolean userPicked;
+	private static volatile int errorStreak;
 
 	private static ServerSocket server;
 	private static int port = PORT;
@@ -235,6 +238,7 @@ public final class YouTubeMusic {
 			QUEUE.addAll(list);
 			index = s;
 		}
+		userPicked = true;
 		startCurrent();
 	}
 
@@ -243,6 +247,7 @@ public final class YouTubeMusic {
 			QUEUE.add(Math.max(0, index + 1), t);
 			index = Math.max(0, index + 1);
 		}
+		userPicked = true;
 		startCurrent();
 	}
 
@@ -261,6 +266,7 @@ public final class YouTubeMusic {
 			if (i < 0 || i >= QUEUE.size()) return;
 			index = i;
 		}
+		userPicked = true;
 		startCurrent();
 	}
 
@@ -284,6 +290,7 @@ public final class YouTubeMusic {
 	}
 
 	public static void next() {
+		userPicked = false;
 		synchronized (QUEUE) {
 			if (QUEUE.isEmpty()) return;
 			if (index + 1 >= QUEUE.size()) {
@@ -300,6 +307,7 @@ public final class YouTubeMusic {
 	}
 
 	public static void previous() {
+		userPicked = false;
 		if (position() > 4000) {
 			seek(0);
 			return;
@@ -644,6 +652,7 @@ public final class YouTubeMusic {
 					pageDur = parseLong(q.get("dur"));
 					pageNeedsClick = "1".equals(q.get("click"));
 					pageStatusAt = System.currentTimeMillis();
+					if (pagePlaying) errorStreak = 0;
 					Track cur = current();
 					String title = q.getOrDefault("title", "");
 					if (cur != null && cur.id.equals(pageVideo) && cur.title.isEmpty() && !title.isEmpty()) {
@@ -669,6 +678,26 @@ public final class YouTubeMusic {
 		} catch (Exception e) {
 			OemerClient.LOGGER.debug("Player-Anfrage", e);
 		}
+	}
+
+	/** Ein Video lässt sich nicht abspielen. Selbst gewählt = stehen bleiben und sagen warum; sonst höchstens 3 überspringen. */
+	static void handleError(int code) {
+		Track t = current();
+		String name = t == null ? "Das Video" : "„" + t.shownTitle() + "“";
+		String why = switch (code) {
+			case 101, 150 -> "darf nicht eingebettet werden (der Besitzer hat es verboten) – such eine andere Version";
+			case 100 -> "wurde nicht gefunden oder ist privat";
+			case 153 -> "ließ sich vom Player nicht starten (YouTube-Fehler 153)";
+			default -> "lässt sich nicht abspielen (YouTube-Fehler " + code + ")";
+		};
+		if (userPicked || errorStreak >= 3) {
+			wantPlay = false;
+			message = name + " " + why;
+			return;
+		}
+		errorStreak++;
+		next();
+		message = name + " " + why + " – übersprungen";
 	}
 
 	private static void command(Map<String, String> q) {
@@ -701,11 +730,10 @@ public final class YouTubeMusic {
 			}
 			case "error" -> {
 				int s = (int) parseLong(q.get("seq"));
+				int code = (int) parseLong(q.get("code"));
 				if (s == seq && lastEndedSeq != s) {
 					lastEndedSeq = s;
-					Track t = current();
-					message = (t == null ? "Video" : t.shownTitle()) + " darf nicht eingebettet werden – übersprungen";
-					next();
+					handleError(code);
 				}
 			}
 			case "playid" -> {

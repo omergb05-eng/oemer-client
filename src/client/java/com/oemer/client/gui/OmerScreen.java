@@ -533,6 +533,7 @@ public class OmerScreen extends Screen {
 		}, null));
 		l.add(new ModInfo("loading", "◔", "Ömer-Ladescreen", "Eigener Ladebildschirm beim Start und in Welten", () -> c.customLoading, v -> c.customLoading = v, null));
 		l.add(new ModInfo("nameicon", "☾", "Ömer-Symbol", "Kleines Symbol über deinem Namen und bei Freunden", () -> c.nameIcon, v -> c.nameIcon = v, null));
+		l.add(new ModInfo("armorhud", "⛨", "Armor HUD", "Zeigt deine Rüstung mit Haltbarkeit", () -> c.armorHud, v -> c.armorHud = v, null));
 		l.add(new ModInfo("kithud", "⚔", "Kit-HUD", "Zeigt deine Kit-Items im Spiel", () -> c.kitHud, v -> c.kitHud = v, null));
 		l.add(new ModInfo("appleskin", "🍏", "AppleSkin", "Sättigung + Essens-Vorschau", () -> c.appleSkin, v -> c.appleSkin = v, null));
 		l.add(new ModInfo("clearglass", "◻", "Clear Glass", "Klares Glas ohne Streifen", () -> c.clearGlass, v -> {
@@ -656,6 +657,13 @@ public class OmerScreen extends Screen {
 			case "crosshair" -> buildCrosshair();
 			case "material" -> buildMaterial();
 			case "schematic" -> buildSchematicPlace();
+			case "armorhud" -> {
+				cycle("Ort", OemerConfig.ARMOR_POS, () -> c.armorHudPos, v -> c.armorHudPos = v);
+				cycle("Anzeige", OemerConfig.ARMOR_VALUE, () -> c.armorHudValue, v -> c.armorHudValue = v);
+				toggle("Hände mitzeigen", () -> c.armorHudHands, v -> c.armorHudHands = v, "Zeigt auch Item in der Haupt- und Zweithand");
+				endFlow();
+				info(() -> "Helm, Brustplatte, Hose und Schuhe mit Haltbarkeit (grün = heil, rot = fast kaputt). Größe: Settings → HUD-Größe.");
+			}
 			case "loading" -> info(() -> "Gilt beim Start von Minecraft, beim Betreten einer Welt und bei Portalen. Aus = normaler Ladebildschirm.");
 			case "nameicon" -> info(() -> "Das Symbol steht eine Zeile über dem Namen – bei dir (in F5 / Free Cam), bei Freunden mit Ömer Client und in der Tab-Liste.");
 			case "clipper" -> buildClipper();
@@ -1032,6 +1040,10 @@ public class OmerScreen extends Screen {
 		toggle("Version anzeigen", () -> c.showVersion, v -> c.showVersion = v, "");
 		toggle("Menü-Partikel", () -> c.menuParticles, v -> c.menuParticles = v, "Funkelnde Punkte im Hintergrund");
 		button("Minecraft-Optionen", () -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options)), OmerWidgets.Style.GLASS);
+		heading("Minecraft-Tasten");
+		note("Hier änderst du auch F5, Springen, Inventar … Klick auf eine Taste, dann die neue drücken.");
+		keySharingRows();
+		gameKeyRows();
 		heading("Tasten vom Ömer Client");
 		note("Klick auf eine Taste, dann die neue Taste drücken. ESC löscht sie. Rot = doppelt belegt.");
 		for (OemerKeys.Entry e : OemerKeys.ALL) {
@@ -1039,7 +1051,7 @@ public class OmerScreen extends Screen {
 			keyRow(e.key(), e.label(), e.group());
 		}
 		endFlow();
-		info(() -> "Kit-Tasten findest du unter Kits.");
+		info(() -> "Die Tasten zum Kit-Wechseln findest du unter Kits.");
 	}
 
 	// ================================================================== Design
@@ -2160,8 +2172,32 @@ public class OmerScreen extends Screen {
 		cycle("Kit-HUD", new String[]{"Aus", "An"}, () -> c.kitHud ? 1 : 0, v -> c.kitHud = v == 1);
 		endFlow();
 
-		heading("Tasten für " + KitProfiles.name(active));
-		note("Klick auf eine Taste, dann die neue drücken (auch Maustasten). ESC löscht sie. Danach „Speichern“.");
+		heading(c.sharedKeys ? "Minecraft-Tasten (für alle Kits)" : "Tasten für " + KitProfiles.name(active));
+		note("Klick auf eine Taste, dann die neue drücken (auch Maustasten). ESC löscht sie.");
+		keySharingRows();
+		gameKeyRows();
+		endFlow();
+		heading("Kit wechseln");
+		keyRow(OemerKeys.kitNext, "Nächstes Kit", "");
+		for (int i = 0; i < OemerKeys.KIT.length; i++) keyRow(OemerKeys.KIT[i], "Direkt zu: " + OemerConfig.KITS[i], "");
+		endFlow();
+		info(() -> "Jedes Kit merkt sich deine kompletten Minecraft-Einstellungen. Wechseln lädt sie sofort.");
+	}
+
+	
+	/** Umschalter + Knopf: gelten die Minecraft-Tasten für alle Kits? */
+	private void keySharingRows() {
+		OemerConfig c = OemerConfig.get();
+		endFlow();
+		toggle("Tasten für alle Kits gleich", () -> c.sharedKeys, v -> c.sharedKeys = v,
+				"An: eine Belegung für alle Kits (z. B. F5 → R überall). Aus: jedes Kit hat seine eigene");
+		button("Meine Tasten in alle Kits kopieren", KitProfiles::copyKeysToAll, OmerWidgets.Style.GLASS,
+				"Schreibt die jetzige Belegung in jedes gespeicherte Kit");
+		endFlow();
+	}
+
+	/** Die wichtigsten Minecraft-Tasten (Settings und Kits benutzen dieselbe Liste). */
+	private void gameKeyRows() {
 		var o = this.minecraft.options;
 		keyRow(o.keyAttack, "Angreifen / Abbauen", "");
 		keyRow(o.keyUse, "Benutzen / Platzieren", "");
@@ -2182,11 +2218,6 @@ public class OmerScreen extends Screen {
 		keyRow(o.keyCommand, "Befehl", "");
 		keyRow(o.keyPlayerList, "Spielerliste", "");
 		endFlow();
-		heading("Kit wechseln");
-		keyRow(OemerKeys.kitNext, "Nächstes Kit", "");
-		for (int i = 0; i < OemerKeys.KIT.length; i++) keyRow(OemerKeys.KIT[i], "Direkt zu: " + OemerConfig.KITS[i], "");
-		endFlow();
-		info(() -> "Jedes Kit merkt sich deine kompletten Minecraft-Einstellungen. Wechseln lädt sie sofort.");
 	}
 
 	// ============================================================== Eingaben

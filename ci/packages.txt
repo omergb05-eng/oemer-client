@@ -10,3 +10,5 @@ Tnt
 ^net/minecraft/client/[A-Z]
 ^net/minecraft/client/gui/screens/[A-Z]
 ^net/minecraft/client/multiplayer/[A-Z]
+^net/minecraft/client/renderer/block/
+^net/minecraft/client/resources/model/

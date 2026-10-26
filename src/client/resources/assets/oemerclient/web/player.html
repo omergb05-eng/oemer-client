@@ -173,7 +173,7 @@ function onYouTubeIframeAPIReady() {
     events: {
       onReady: () => { ready = true; apply(); },
       onStateChange: onState,
-      onError: () => fetch('/api/cmd?do=error&seq=' + loadedSeq)
+      onError: (e) => fetch('/api/cmd?do=error&code=' + e.data + '&seq=' + loadedSeq)
     }
   });
 }

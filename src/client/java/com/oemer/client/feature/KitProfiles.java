@@ -62,7 +62,8 @@ public final class KitProfiles {
 	}
 
 	private static boolean keep(String key) {
-		return KEEP.contains(key) || key.startsWith("key_key.oemerclient");
+		return KEEP.contains(key) || key.startsWith("key_key.oemerclient")
+				|| (OemerConfig.get().sharedKeys && key.startsWith("key_"));
 	}
 
 	private static Map<String, String> read(Path p) throws Exception {
@@ -155,6 +156,26 @@ public final class KitProfiles {
 			if (toKit == active()) load(toKit);
 		} catch (Exception e) {
 			OemerClient.LOGGER.warn("Kit konnte nicht kopiert werden", e);
+		}
+	}
+
+	/** Deine jetzigen Minecraft-Tasten in alle gespeicherten Kits schreiben. */
+	public static void copyKeysToAll() {
+		Minecraft mc = Minecraft.getInstance();
+		try {
+			mc.options.save();
+			Map<String, String> keys = new LinkedHashMap<>();
+			for (var e : read(mc.options.getFile().toPath()).entrySet()) {
+				if (e.getKey().startsWith("key_") && !e.getKey().startsWith("key_key.oemerclient")) keys.put(e.getKey(), e.getValue());
+			}
+			for (int i = 0; i < OemerConfig.KITS.length; i++) {
+				if (!hasSaved(i)) continue;
+				Map<String, String> kit = read(file(i));
+				kit.putAll(keys);
+				write(file(i), kit);
+			}
+		} catch (Exception e) {
+			OemerClient.LOGGER.warn("Tasten konnten nicht in alle Kits kopiert werden", e);
 		}
 	}
 

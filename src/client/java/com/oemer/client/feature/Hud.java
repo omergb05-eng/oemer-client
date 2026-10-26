@@ -67,7 +67,85 @@ public final class Hud {
 		if (c.kitHud) renderKit(g, mc, c);
 		if (c.materialList) renderMaterials(g, mc, c);
 		if (c.spotifyHud) renderSpotify(g, c);
+		if (c.armorHud) renderArmor(g, mc, c);
 	}
+
+	// ------------------------------------------------------------ Armor-HUD
+
+	private static final net.minecraft.world.entity.EquipmentSlot[] ARMOR_SLOTS = {
+			net.minecraft.world.entity.EquipmentSlot.HEAD, net.minecraft.world.entity.EquipmentSlot.CHEST,
+			net.minecraft.world.entity.EquipmentSlot.LEGS, net.minecraft.world.entity.EquipmentSlot.FEET};
+
+	/** Was die Rüstungs-Anzeige gerade zeigt (auch für Tests). */
+	public static List<ItemStack> armorStacks(net.minecraft.world.entity.player.Player p, boolean hands) {
+		List<ItemStack> list = new ArrayList<>();
+		for (var slot : ARMOR_SLOTS) list.add(p.getItemBySlot(slot));
+		if (hands) {
+			list.add(p.getMainHandItem());
+			list.add(p.getOffhandItem());
+		}
+		return list;
+	}
+
+	private static void renderArmor(GuiGraphics g, Minecraft mc, OemerConfig c) {
+		List<ItemStack> stacks = armorStacks(mc.player, c.armorHudHands);
+		List<ItemStack> shown = new ArrayList<>();
+		for (ItemStack s : stacks) if (!s.isEmpty()) shown.add(s);
+		if (shown.isEmpty()) return;
+		float scale = OemerConfig.HUD_SCALES[Math.floorMod(c.hudScale, OemerConfig.HUD_SCALES.length)];
+		int rowH = 20;
+		int w = c.armorHudValue == 1 ? 86 : c.armorHudValue == 0 ? 60 : 30;
+		int h = shown.size() * rowH + 6;
+		int sw = g.guiWidth(), sh = g.guiHeight();
+		float bx, by;
+		switch (c.armorHudPos) {
+			case 1 -> {
+				bx = sw - 6 - w * scale;
+				by = sh / 2f - h * scale / 2f;
+			}
+			case 2 -> {
+				bx = sw / 2f - 91 - 8 - w * scale;
+				by = sh - 4 - h * scale;
+			}
+			case 3 -> {
+				bx = sw / 2f + 91 + 8 + 30;
+				by = sh - 4 - h * scale;
+			}
+			default -> {
+				bx = 6;
+				by = sh / 2f - h * scale / 2f;
+			}
+		}
+		g.pose().pushMatrix();
+		g.pose().translate(bx, by);
+		g.pose().scale(scale);
+		Draw.round(g, 0, 0, w, h, 6, 0xA00B0B0F);
+		Draw.roundBorder(g, 0, 0, w, h, 6, Theme.white(0x28));
+		int y = 3;
+		for (ItemStack s : shown) {
+			g.renderItem(s, 4, y + 1);
+			if (c.armorHudValue != 2 && s.isDamageableItem()) {
+				int max = s.getMaxDamage(), left = max - s.getDamageValue();
+				float f = max <= 0 ? 1f : Math.max(0f, Math.min(1f, left / (float) max));
+				int col = java.awt.Color.HSBtoRGB(f * 0.33f, 0.75f, 1f) | 0xFF000000;
+				String text = c.armorHudValue == 0 ? Math.round(f * 100) + " %" : left + "/" + max;
+				Draw.text(g, text, 24, y + 6, col);
+			} else if (c.armorHudValue != 2 && s.getCount() > 1) {
+				Draw.text(g, "x" + s.getCount(), 24, y + 6, Theme.TEXT_SOFT);
+			}
+			if (s.isDamageableItem() && c.armorHudValue == 2) {
+				int max = s.getMaxDamage(), left = max - s.getDamageValue();
+				float f = max <= 0 ? 1f : Math.max(0f, Math.min(1f, left / (float) max));
+				int col = java.awt.Color.HSBtoRGB(f * 0.33f, 0.75f, 1f) | 0xFF000000;
+				int bh = Math.max(1, Math.round(16 * f));
+				g.fill(23, y + 1, 26, y + 17, Theme.white(0x20));
+				g.fill(23, y + 17 - bh, 26, y + 17, col);
+			}
+			y += rowH;
+		}
+		g.pose().popMatrix();
+	}
+
 
 	// ------------------------------------------------------------- Spotify
 

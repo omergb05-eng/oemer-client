@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.oemer.client.feature.Clipper;
 import com.oemer.client.feature.KitProfiles;
 import com.oemer.client.feature.Music;
+import com.oemer.client.feature.Spotify;
 import com.oemer.client.feature.SchematicPlacer;
 import com.oemer.client.gui.MaterialListScreen;
 import com.oemer.client.gui.OmerScreen;
@@ -29,7 +30,7 @@ public final class OemerKeys {
 
 	public static KeyMapping menu, freecam, fullbright, zoom, kitNext, materialToggle, materialOpen,
 			cosmeticsToggle, crosshairToggle, weatherToggle, musicPlay, musicNext, musicPrev, musicOpen,
-			placeToggle, placeLayerUp, placeLayerDown, placeHere, clipSave, clipToggle;
+			placeToggle, placeLayerUp, placeLayerDown, placeHere, clipSave, clipToggle, musicVolUp, musicVolDown;
 	public static final KeyMapping[] KIT = new KeyMapping[OemerConfig.KITS.length];
 
 	private static KeyMapping.Category category;
@@ -61,6 +62,8 @@ public final class OemerKeys {
 		musicNext = key("music_next", none, "Nächster Song", "Musik");
 		musicPrev = key("music_prev", none, "Vorheriger Song", "Musik");
 		musicOpen = key("music_open", none, "Musik-Player öffnen", "Musik");
+		musicVolUp = key("music_vol_up", GLFW.GLFW_KEY_UP, "Musik lauter", "Musik");
+		musicVolDown = key("music_vol_down", GLFW.GLFW_KEY_DOWN, "Musik leiser", "Musik");
 		clipSave = key("clip_save", GLFW.GLFW_KEY_F9, "Clip speichern (letzte Sekunden)", "Clipper");
 		clipToggle = key("clip_toggle", none, "Clipper an/aus", "Clipper");
 		placeToggle = key("place_toggle", none, "Schematic anzeigen an/aus", "Schematic");
@@ -71,6 +74,20 @@ public final class OemerKeys {
 
 	private static void say(Minecraft mc, String name, boolean on) {
 		if (mc.player != null) mc.player.displayClientMessage(Component.literal("§f" + name + (on ? " §aan" : " §caus")), true);
+	}
+
+	private static void volume(Minecraft mc, int delta) {
+		if (mc.screen != null || mc.player == null) return;
+		int v;
+		if (Music.youtube()) {
+			Music.volume(delta);
+			v = OemerConfig.get().ytVolume;
+		} else {
+			Spotify.Track t = Spotify.track();
+			v = Math.max(0, Math.min(100, (t == null || t.volume() < 0 ? 50 : t.volume()) + delta));
+			Music.volume(delta);
+		}
+		mc.player.displayClientMessage(Component.literal("§fMusik-Lautstärke §b" + v + " %"), true);
 	}
 
 	public static void tick(Minecraft mc) {
@@ -141,6 +158,8 @@ public final class OemerKeys {
 		while (musicPlay.consumeClick()) Music.playPause();
 		while (musicNext.consumeClick()) Music.next();
 		while (musicPrev.consumeClick()) Music.previous();
+		while (musicVolUp.consumeClick()) volume(mc, 5);
+		while (musicVolDown.consumeClick()) volume(mc, -5);
 		while (musicOpen.consumeClick()) {
 			if (mc.screen == null) OmerScreen.openMusic();
 		}
