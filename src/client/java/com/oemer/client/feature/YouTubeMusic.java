@@ -457,12 +457,29 @@ public final class YouTubeMusic {
 			searching = true;
 			EXEC.execute(() -> {
 				Track t = resolve(vid);
+				List<Track> res = new ArrayList<>();
+				String msg;
+				if (embeddable(vid)) {
+					res.add(t);
+					msg = "Gefunden: " + t.shownTitle();
+				} else if (hasKey()) {
+					try {
+						res.addAll(alternatives(t, 5));
+					} catch (Exception e) {
+						OemerClient.LOGGER.warn("YouTube-Ersatzsuche", e);
+					}
+					msg = res.isEmpty() ? "„" + t.shownTitle() + "“ darf nicht eingebettet werden und ich habe keine andere Version gefunden"
+							: "Das Original lässt Einbetten nicht zu – das sind Versionen, die funktionieren";
+				} else {
+					res.add(t);
+					msg = "„" + t.shownTitle() + "“ darf nicht eingebettet werden – mit YouTube-Schlüssel suche ich automatisch eine andere Version";
+				}
 				synchronized (RESULTS) {
 					RESULTS.clear();
-					RESULTS.add(t);
+					RESULTS.addAll(res);
 				}
 				searching = false;
-				message = "Gefunden: " + t.shownTitle();
+				message = msg;
 			});
 			return;
 		}
@@ -488,11 +505,14 @@ public final class YouTubeMusic {
 					JsonObject sn = it.getAsJsonObject("snippet");
 					out.add(new Track(vid, unescape(sn.get("title").getAsString()), unescape(sn.get("channelTitle").getAsString())));
 				}
+				int before = out.size();
+				out = onlyEmbeddable(out);
 				synchronized (RESULTS) {
 					RESULTS.clear();
 					RESULTS.addAll(out);
 				}
-				message = out.isEmpty() ? "Nichts gefunden" : out.size() + " Ergebnisse";
+				message = before == 0 ? "Nichts gefunden" : out.isEmpty() ? "Alle Treffer verbieten das Einbetten – such nach einer anderen Version (z. B. „lyrics“)"
+						: out.size() + " Ergebnisse" + (out.size() < before ? " (" + (before - out.size()) + " gesperrte ausgeblendet)" : "");
 			} catch (Exception e) {
 				message = "Suche ging nicht: " + e.getMessage();
 				OemerClient.LOGGER.warn("YouTube-Suche", e);
@@ -500,6 +520,67 @@ public final class YouTubeMusic {
 				searching = false;
 			}
 		});
+	}
+
+	private static final Map<String, Boolean> EMBED = new java.util.concurrent.ConcurrentHashMap<>();
+	private static final java.util.Set<String> ALT_TRIED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+	/** Darf das Video auf anderen Seiten (also in unserem Player) laufen? YouTube antwortet bei gesperrten mit 401. */
+	public static boolean embeddable(String vid) {
+		Boolean known = EMBED.get(vid);
+		if (known != null) return known;
+		try {
+			HttpResponse<Void> r = HTTP.send(HttpRequest.newBuilder(URI.create("https://www.youtube.com/oembed?format=json&url="
+					+ URLEncoder.encode("https://www.youtube.com/watch?v=" + vid, StandardCharsets.UTF_8)))
+					.timeout(Duration.ofSeconds(8)).header("User-Agent", "OemerClient").build(), HttpResponse.BodyHandlers.discarding());
+			int c = r.statusCode();
+			boolean ok = !(c == 401 || c == 403 || c == 404);
+			EMBED.put(vid, ok);
+			return ok;
+		} catch (Exception e) {
+			return true; // nicht sicher -> lieber versuchen
+		}
+	}
+
+	private static List<Track> onlyEmbeddable(List<Track> in) {
+		List<java.util.concurrent.CompletableFuture<Boolean>> fs = new ArrayList<>();
+		for (Track t : in) fs.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> embeddable(t.id), EXEC));
+		List<Track> out = new ArrayList<>();
+		for (int i = 0; i < in.size(); i++) {
+			boolean ok = true;
+			try {
+				ok = fs.get(i).get(10, java.util.concurrent.TimeUnit.SECONDS);
+			} catch (Exception ignored) {
+			}
+			if (ok) out.add(in.get(i));
+		}
+		return out;
+	}
+
+	/** Suchtext für eine andere Version desselben Songs, z. B. "Madison Beer - bad enough lyrics". */
+	public static String altQuery(Track t) {
+		String title = t.title.replaceAll("[\\(\\[][^\\)\\]]*[\\)\\]]", " ").replaceAll("(?i)official|music video|video|audio|lyrics|HD|4K", " ")
+				.replaceAll("\\s+", " ").trim();
+		String artist = t.artist.replaceAll("(?i)VEVO|\\s*-\\s*Topic|official", "").replaceAll("\\s+", " ").trim();
+		String q = title.contains(" - ") || artist.isEmpty() ? title : artist + " " + title;
+		return q.trim() + " lyrics";
+	}
+
+	/** Andere Versionen des Songs, die sich einbetten lassen (braucht den YouTube-Schlüssel). */
+	private static List<Track> alternatives(Track failed, int max) throws Exception {
+		String u = "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=15&q="
+				+ URLEncoder.encode(altQuery(failed), StandardCharsets.UTF_8) + "&key=" + URLEncoder.encode(OemerConfig.get().ytApiKey.trim(), StandardCharsets.UTF_8);
+		JsonObject o = getJson(u);
+		List<Track> found = new ArrayList<>();
+		for (JsonElement e : o.getAsJsonArray("items")) {
+			JsonObject it = e.getAsJsonObject();
+			String vid = it.getAsJsonObject("id").get("videoId").getAsString();
+			if (vid.equals(failed.id)) continue;
+			JsonObject sn = it.getAsJsonObject("snippet");
+			found.add(new Track(vid, unescape(sn.get("title").getAsString()), unescape(sn.get("channelTitle").getAsString())));
+		}
+		List<Track> ok = onlyEmbeddable(found);
+		return ok.size() > max ? new ArrayList<>(ok.subList(0, max)) : ok;
 	}
 
 	/** Titel und Kanal über YouTube oEmbed (ohne Schlüssel). */
@@ -690,6 +771,41 @@ public final class YouTubeMusic {
 			case 153 -> "ließ sich vom Player nicht starten (YouTube-Fehler 153)";
 			default -> "lässt sich nicht abspielen (YouTube-Fehler " + code + ")";
 		};
+		if ((code == 101 || code == 150) && t != null && hasKey() && ALT_TRIED.add(t.id)) {
+			// Selbst eine passende, einbettbare Version suchen und die gesperrte ersetzen
+			final Track failed = t;
+			wantPlay = false;
+			message = name + " darf nicht eingebettet werden – ich suche eine Version, die funktioniert …";
+			EXEC.execute(() -> {
+				try {
+					List<Track> alts = alternatives(failed, 3);
+					if (alts.isEmpty()) {
+						message = name + " " + why;
+						return;
+					}
+					Track alt = alts.get(0);
+					boolean swapped = false;
+					synchronized (QUEUE) {
+						int i = QUEUE.indexOf(failed);
+						if (i >= 0) {
+							QUEUE.set(i, alt);
+							swapped = i == index;
+						}
+					}
+					if (swapped) {
+						errorStreak = 0;
+						startCurrent();
+						message = "Original gesperrt – spiele stattdessen: " + alt.shownTitle();
+					} else {
+						message = name + " ersetzt durch: " + alt.shownTitle();
+					}
+				} catch (Exception e) {
+					OemerClient.LOGGER.warn("YouTube-Ersatzsuche", e);
+					message = name + " " + why;
+				}
+			});
+			return;
+		}
 		if (userPicked || errorStreak >= 3) {
 			wantPlay = false;
 			message = name + " " + why;

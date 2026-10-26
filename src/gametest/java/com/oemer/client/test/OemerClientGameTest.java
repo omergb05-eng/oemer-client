@@ -611,6 +611,14 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		check("yt-state", state.contains("\"volume\""), state.length() > 80 ? state.substring(0, 80) : state);
 		YouTubeMusic.Track zoo = YouTubeMusic.resolve("jNQXAC9IVRw");
 		check("yt-oembed", zoo.title.toLowerCase().contains("zoo"), zoo.title);
+		check("yt-embeddable-yes", YouTubeMusic.embeddable("jNQXAC9IVRw"), "");
+		boolean badEnough = YouTubeMusic.embeddable("07SeT_QSJ08");
+		boolean vevoMain = YouTubeMusic.embeddable("dQw4w9WgXcQ");
+		check("yt-embeddable-info", true, "bad enough (VEVO)=" + badEnough + " rickroll=" + vevoMain);
+		String aq = YouTubeMusic.altQuery(new YouTubeMusic.Track("x", "Madison Beer - bad enough (Official Music Video)", "MadisonBeerMusicVEVO"));
+		check("yt-alt-query", aq.equals("Madison Beer - bad enough lyrics"), aq);
+		String aq2 = YouTubeMusic.altQuery(new YouTubeMusic.Track("x", "Bad Enough [Official Audio]", "Madison Beer - Topic"));
+		check("yt-alt-query-topic", aq2.equals("Madison Beer Bad Enough lyrics"), aq2);
 
 		// ---------------------------------------------- Songs löschen, Playlists im Spiel
 	httpGet(page + "api/state"); // Player-Seite gilt als verbunden → im Browser öffnet sich nichts
