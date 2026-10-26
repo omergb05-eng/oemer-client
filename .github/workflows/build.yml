@@ -41,13 +41,13 @@ jobs:
           path: build/libs/
 
       - name: read minecraft signatures
-        if: always()
+        if: false
         continue-on-error: true
         run: bash ci/javap.sh
 
       - name: install xvfb
         if: steps.build.outcome == 'success'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb mesa-utils libgl1-mesa-dri libegl1 libglx-mesa0 mesa-vulkan-drivers x11-utils
       - name: start firebase emulator (für den Freunde-Test)
         if: steps.build.outcome == 'success'
         continue-on-error: true
@@ -67,7 +67,31 @@ jobs:
           OEMER_LOADSHOT: '1'
         run: |
           set -o pipefail
-          xvfb-run -a -s "-screen 0 1920x1080x24" ./gradlew runClientGameTest --stacktrace 2>&1 | tee ci-out/test.log
+          # Minecraft 26.x nutzt SDL; wir probieren mehrere Grafik-Varianten durch, bis ein Fenster aufgeht
+          export LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe MESA_GL_VERSION_OVERRIDE=4.6 MESA_GLSL_VERSION_OVERRIDE=460
+          xvfb-run -a -s "-screen 0 1920x1080x24 +extension GLX +render -noreset" bash -c 'glxinfo -B | head -20; glxinfo -s | grep -c "visual" ' > ci-out/glx.log 2>&1 || true
+          run_test() {
+            echo "=== Variante: $1 ===" | tee -a ci-out/test.log
+            shift
+            ( while sleep 5; do
+                if grep -q "Failed to create backend Vulkan" ci-out/test.log; then sleep 3; pkill -f devlaunchinjector; break; fi
+              done ) &
+            WATCH=$!
+            "$@" 2>&1 | tee -a ci-out/test.log
+            RC=${PIPESTATUS[0]}
+            kill $WATCH 2>/dev/null
+            return $RC
+          }
+          : > ci-out/test.log
+          if ! run_test "xvfb+GLX" xvfb-run -a -s "-screen 0 1920x1080x24 +extension GLX +render -noreset" ./gradlew runClientGameTest --stacktrace; then
+            if grep -q "Failed to create backend" ci-out/test.log; then
+              cp ci-out/test.log ci-out/test-variant1.log
+              : > ci-out/test.log
+              SDL_VIDEO_DRIVER=offscreen run_test "offscreen" ./gradlew runClientGameTest --stacktrace
+            else
+              exit 1
+            fi
+          fi
 
       - name: publish results to branch ci-results
         if: always()
