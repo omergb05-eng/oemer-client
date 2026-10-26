@@ -1,32 +1,34 @@
 package com.oemer.client.mixin;
 
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.fog.FogData;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
 import com.oemer.client.OemerConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.fog.FogRenderer;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.effect.MobEffects;
-import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 
-import java.nio.ByteBuffer;
 
 /** No Fog: kein Nebel an Land (unter Wasser, in Lava und bei Blindheit bleibt er). */
 @Mixin(FogRenderer.class)
 public class FogRendererMixin {
-	@WrapOperation(method = "setupFog", at = @At(value = "INVOKE",
-			target = "Lnet/minecraft/client/renderer/fog/FogRenderer;updateBuffer(Ljava/nio/ByteBuffer;ILorg/joml/Vector4f;FFFFFF)V"),
-			require = 0)
-	private void oemer$noFog(FogRenderer self, ByteBuffer buffer, int offset, Vector4f color, float a, float b, float c, float d,
-							 float sky, float cloud, Operation<Void> original) {
-		if (OemerConfig.get().noFog && oemer$clearAir()) {
-			original.call(self, buffer, offset, color, 1.0e7f, 2.0e7f, 1.0e7f, 2.0e7f, sky, cloud);
-			return;
+	@Inject(method = "setupFog", at = @At("RETURN"), require = 0)
+	private void oemer$noFog(Camera camera, int renderDistance, DeltaTracker tracker, float partial, ClientLevel level, CallbackInfoReturnable<FogData> cir) {
+		FogData fog = cir.getReturnValue();
+		if (fog != null && OemerConfig.get().noFog && oemer$clearAir()) {
+			fog.environmentalStart = 1.0e7f;
+			fog.environmentalEnd = 2.0e7f;
+			fog.renderDistanceStart = 1.0e7f;
+			fog.renderDistanceEnd = 2.0e7f;
 		}
-		original.call(self, buffer, offset, color, a, b, c, d, sky, cloud);
 	}
 
 	@Unique
