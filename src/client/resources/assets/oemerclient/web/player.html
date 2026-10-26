@@ -105,6 +105,7 @@
         <button class="btn" type="submit">Los</button>
       </form>
       <div class="msg" id="msg"></div>
+      <a id="ytopen" target="_blank" rel="noopener" hidden style="display:inline-block;margin-top:6px;color:#fff;font-size:12px;text-decoration:underline">▶ Auf YouTube öffnen (läuft dort mit deinem Login)</a>
       <div class="list" id="results"></div>
       <div class="key" id="keyhint" hidden>Für die Suche brauchst du einen kostenlosen YouTube-Schlüssel (im Ömer-Menü unter Musik eintragen).
         Links und Playlist-Links gehen immer.</div>
@@ -312,6 +313,7 @@ function render() {
   $('repeat').classList.toggle('on', !!st.repeat);
   if (!volDrag) { $('vol').value = st.volume ?? 60; $('volv').textContent = (st.volume ?? 60) + '%'; }
   if (st.message) $('msg').textContent = st.message;
+  { const a = $('ytopen'); a.hidden = !st.blockedUrl; if (st.blockedUrl) a.href = st.blockedUrl; }
   $('keyhint').hidden = !!st.hasKey;
   if (ready && player.getDuration) {
     const d = player.getDuration() || 0, p = player.getCurrentTime() || 0;

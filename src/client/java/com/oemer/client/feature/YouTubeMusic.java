@@ -113,6 +113,7 @@ public final class YouTubeMusic {
 	/** true = du hast den Song selbst gewählt (dann wird bei einem Fehler nicht einfach weitergesprungen). */
 	private static volatile boolean userPicked;
 	private static volatile int errorStreak;
+	private static volatile String blockedUrl = "";
 
 	private static ServerSocket server;
 	private static int port = PORT;
@@ -276,6 +277,7 @@ public final class YouTubeMusic {
 		pagePos = 0;
 		pageDur = 0;
 		message = "";
+		blockedUrl = "";
 		ensurePage();
 	}
 
@@ -771,6 +773,7 @@ public final class YouTubeMusic {
 			case 153 -> "ließ sich vom Player nicht starten (YouTube-Fehler 153)";
 			default -> "lässt sich nicht abspielen (YouTube-Fehler " + code + ")";
 		};
+		if ((code == 101 || code == 150) && t != null) blockedUrl = "https://www.youtube.com/watch?v=" + t.id;
 		if ((code == 101 || code == 150) && t != null && hasKey() && ALT_TRIED.add(t.id)) {
 			// Selbst eine passende, einbettbare Version suchen und die gesperrte ersetzen
 			final Track failed = t;
@@ -963,6 +966,7 @@ public final class YouTubeMusic {
 		m.put("repeat", c.ytRepeat);
 		m.put("hasKey", hasKey());
 		m.put("message", message);
+		m.put("blockedUrl", blockedUrl);
 		m.put("importList", pendingImport);
 		return m;
 	}
