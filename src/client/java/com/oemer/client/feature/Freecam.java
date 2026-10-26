@@ -61,7 +61,7 @@ public final class Freecam {
 		dummyInput.keyPresses = new Input(false, false, false, false, false, playerInput.keyPresses.shift(), false);
 		mc.player.input = dummyInput;
 
-		if (mc.gameRenderer.getMainCamera().isDetached()) {
+		if (mc.gameRenderer.mainCamera().isDetached()) {
 			mc.options.setCameraType(CameraType.FIRST_PERSON);
 		}
 

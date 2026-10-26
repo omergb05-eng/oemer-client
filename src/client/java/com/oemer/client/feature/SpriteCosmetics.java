@@ -262,7 +262,7 @@ public final class SpriteCosmetics {
 					pose.pushPose();
 					model.body.translateAndRotate(pose);
 					pose.translate(side * 0.5f * px, 3.5f * px, 2.4f * px);
-					pose.mulPose(new Quaternionf().rotationZYX(side * -0.18f, side * -spread, 0f));
+					pose.rotate(new Quaternionf().rotationZYX(side * -0.18f, side * -spread, 0f));
 					pose.scale(k * aspect, k, 1f);
 					Identifier id = side > 0
 							? atlas(item.id() + "_l", stamp, mirror(left), left)
@@ -278,8 +278,8 @@ public final class SpriteCosmetics {
 				model.head.translateAndRotate(pose);
 				float bob = anim ? (float) Math.sin(t * 2.0) * 0.5f : 0f;
 				pose.translate(0f, (-12.5f + bob) * px, 0f);
-				if (anim) pose.mulPose(new Quaternionf().rotationY(t * 0.8f));
-				pose.mulPose(new Quaternionf().rotationX((float) Math.PI / 2));
+				if (anim) pose.rotate(new Quaternionf().rotationY(t * 0.8f));
+				pose.rotate(new Quaternionf().rotationX((float) Math.PI / 2));
 				pose.scale(0.75f, 0.75f, 1f);
 				Identifier id = atlas(item.id(), stamp, img, img);
 				collector.submitModelPart(planeCenter, pose, RenderTypes.entityTranslucentEmissive(id), 0xF000F0, ov, null);
@@ -290,7 +290,7 @@ public final class SpriteCosmetics {
 				for (int i = 0; i < 4; i++) {
 					pose.pushPose();
 					model.head.translateAndRotate(pose);
-					pose.mulPose(new Quaternionf().rotationY((float) (i * Math.PI / 2)));
+					pose.rotate(new Quaternionf().rotationY((float) (i * Math.PI / 2)));
 					pose.translate(0f, -7.6f * px, -4.7f * px);
 					pose.scale(9.4f / 16f, 4.7f / 16f, 1f);
 					collector.submitModelPart(planeBottom, pose, RenderTypes.entityTranslucent(id), lit, ov, null);
@@ -302,7 +302,7 @@ public final class SpriteCosmetics {
 					pose.pushPose();
 					model.head.translateAndRotate(pose);
 					pose.translate(side * 2.6f * px, -8.2f * px, -0.5f * px);
-					pose.mulPose(new Quaternionf().rotationZ(side * 0.22f));
+					pose.rotate(new Quaternionf().rotationZ(side * 0.22f));
 					pose.scale(4.5f / 16f, 4.5f / 16f, 1f);
 					BufferedImage f = side > 0 ? img : mirror(img);
 					Identifier id = atlas(item.id() + (side > 0 ? "_a" : "_b"), stamp, f, mirror(f));
@@ -325,7 +325,7 @@ public final class SpriteCosmetics {
 				pose.pushPose();
 				float bob = anim ? (float) Math.sin(t * 2.2) * 1.3f : 0f;
 				pose.translate(14f * px, (-5f + bob) * px, 1f * px);
-				if (anim) pose.mulPose(new Quaternionf().rotationY((float) Math.sin(t * 0.9) * 0.7f));
+				if (anim) pose.rotate(new Quaternionf().rotationY((float) Math.sin(t * 0.9) * 0.7f));
 				float aspect = (float) img.getWidth() / img.getHeight();
 				pose.scale(0.55f * Math.min(1.5f, aspect), 0.55f, 1f);
 				Identifier id = atlas(item.id(), stamp, img, mirror(img));

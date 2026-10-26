@@ -8,7 +8,7 @@ import com.oemer.client.feature.ModHud;
 import com.oemer.client.feature.ShulkerPreview;
 import com.oemer.client.feature.YouTubeMusic;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.TooltipComponentCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.ClientTooltipComponentCallback;
 import com.oemer.client.feature.Crosshair;
 import com.oemer.client.feature.GalaxyArt;
 import com.oemer.client.feature.SkinTotem;
@@ -25,11 +25,11 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
-import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityRenderLayerRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
-import net.fabricmc.fabric.api.client.gui.screen().v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.gui.screen().v1.Screens;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -79,7 +79,7 @@ public class OemerClient implements ClientModInitializer {
 		// Eigenes Crosshair statt dem normalen
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, tracker) -> {
 			if (!Crosshair.render(graphics, tracker)) {
-				original.render(graphics, tracker);
+				original.extractRenderState(graphics, tracker);
 			}
 		});
 
@@ -89,13 +89,13 @@ public class OemerClient implements ClientModInitializer {
 		HudElementRegistry.attachElementAfter(VanillaHudElements.FOOD_BAR, Identifier.fromNamespaceAndPath(MOD_ID, "appleskin"), ModHud::food);
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(MOD_ID, "notetuner"), ModHud::noteTuner);
 		ItemTooltipCallback.EVENT.register((stack, context, flag, lines) -> ModHud.foodTooltip(stack, lines));
-		TooltipComponentCallback.EVENT.register(data -> data instanceof ShulkerPreview.Data d ? new ShulkerPreview.Client(d) : null);
+		ClientTooltipComponentCallback.EVENT.register(data -> data instanceof ShulkerPreview.Data d ? new ShulkerPreview.Client(d) : null);
 
 		// Material List: Kisten markieren
 		ChestMarker.register();
 
 		// Cosmetics an den Spieler-Renderer hängen
-		LivingEntityFeatureRendererRegistrationCallback.EVENT.register((entityType, renderer, helper, context) -> {
+		LivingEntityRenderLayerRegistrationCallback.EVENT.register((entityType, renderer, helper, context) -> {
 			if (renderer instanceof AvatarRenderer avatar) {
 				helper.register(new Cosmetics.Layer(avatar));
 			}
@@ -122,7 +122,7 @@ public class OemerClient implements ClientModInitializer {
 					}
 				});
 			} else if (screen instanceof PauseScreen) {
-				Screens.getButtons(screen).add(new OmerWidgets.Flat(6, 6, 90, 20, "Ömer Client",
+				Screens.getWidgets(screen).add(new OmerWidgets.Flat(6, 6, 90, 20, "Ömer Client",
 						() -> client.gui.setScreen(new OmerScreen(screen))));
 			}
 		});
@@ -137,7 +137,7 @@ public class OemerClient implements ClientModInitializer {
 
 	/** Setzt "Ömer Client" direkt unter den Multiplayer-Button. */
 	private static void addTitleButton(Minecraft client, Screen screen) {
-		List<AbstractWidget> buttons = Screens.getButtons(screen);
+		List<AbstractWidget> buttons = Screens.getWidgets(screen);
 		String multiplayer = Component.translatable("menu.multiplayer").getString();
 
 		AbstractWidget mp = null;

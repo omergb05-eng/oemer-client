@@ -10,7 +10,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
@@ -232,7 +232,7 @@ public final class NameShare {
 		float x1 = -nameWidth / 2f - 3f, x0 = x1 - 10f, y0 = -1f, y1 = 9f;
 		pose.pushPose();
 		pose.translate(attachment.x, attachment.y + 0.5, attachment.z); // wie das Namensschild selbst
-		pose.mulPose(camera.orientation);
+		pose.rotate(camera.orientation);
 		pose.scale(0.025f, -0.025f, 0.025f);
 		try {
 			if (seeThrough) {

@@ -53,7 +53,7 @@ public final class ShulkerPreview {
 		}
 
 		@Override
-		public void renderImage(Font font, int x, int y, int w, int h, GuiGraphicsExtractor g) {
+		public void extractImage(Font font, int x, int y, int w, int h, GuiGraphicsExtractor g) {
 			for (int i = 0; i < items.size(); i++) {
 				int sx = x + 1 + (i % 9) * 18, sy = y + 2 + (i / 9) * 18;
 				g.fill(sx, sy, sx + 17, sy + 17, 0x40000000);

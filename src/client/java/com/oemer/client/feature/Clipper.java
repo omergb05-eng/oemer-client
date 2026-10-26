@@ -127,7 +127,7 @@ public final class Clipper {
 		PENDING.incrementAndGet();
 		final int targetW = OemerConfig.CLIP_WIDTHS[c.clipQuality];
 		try {
-			Screenshot.takeScreenshot(mc.getMainRenderTarget(), image -> {
+			Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {
 				int w = image.getWidth(), h = image.getHeight();
 				int[] px;
 				try {

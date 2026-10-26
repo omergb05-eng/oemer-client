@@ -8,7 +8,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
@@ -31,7 +31,7 @@ public class AvatarRendererMixin {
 	}
 
 	// Ömer-Symbol eine Zeile über dem Namen (bei dir und bei Freunden mit dem Client)
-	@Inject(method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
+	@Inject(method = "submitNameDisplay(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
 			at = @At("RETURN"), require = 0)
 	private void oemer$badge(AvatarRenderState state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
 		if (state.nameTag == null || state.nameTagAttachment == null) return;
@@ -47,6 +47,6 @@ public class AvatarRendererMixin {
 		if (!OmerBadge.enabled() || !OmerBadge.isOmer(e.getUUID())) return;
 		OmerBadge.drawn++;
 		int line = state.scoreText != null ? -20 : -10;
-		collector.submitNameTag(pose, state.nameTagAttachment, line, OmerBadge.icon(), !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
+		collector.submitNameTag(pose, state.nameTagAttachment, line, OmerBadge.icon(), !state.isDiscrete, state.lightCoords, camera);
 	}
 }

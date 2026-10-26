@@ -235,7 +235,7 @@ public final class Spotify {
 						+ "&redirect_uri=" + enc(REDIRECT)
 						+ "&state=" + state
 						+ "&code_challenge_method=S256&code_challenge=" + challenge(verifier);
-				Util.getPlatform().openUri(url);
+				com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(url));
 
 				String code = null, error = null;
 				while (code == null && error == null) {

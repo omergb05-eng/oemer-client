@@ -116,8 +116,8 @@ public final class KitProfiles {
 			KeyMapping.releaseAll();
 			mc.options.load();
 			KeyMapping.resetMapping();
-			if (mc.options.guiScale().get() != oldGui) mc.resizeDisplay();
-			if (mc.level != null) mc.levelRenderer.allChanged();
+			if (mc.options.guiScale().get() != oldGui) mc.resizeGui();
+			if (mc.level != null) mc.levelExtractor.allChanged();
 			mc.options.broadcastOptions();
 			return true;
 		} catch (Exception e) {

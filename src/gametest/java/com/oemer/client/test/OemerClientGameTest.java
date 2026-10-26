@@ -50,7 +50,7 @@ import net.minecraft.world.item.component.ItemContainerContents;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
-import net.fabricmc.fabric.api.client.gui.screen().v1.Screens;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.screens.PauseScreen;
@@ -501,7 +501,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	}
 
 	private static boolean hasButton(Minecraft mc, String text) {
-		return mc.gui.screen() != null && Screens.getButtons(mc.gui.screen()).stream()
+		return mc.gui.screen() != null && Screens.getWidgets(mc.gui.screen()).stream()
 				.anyMatch(w -> w.getMessage().getString().equals(text));
 	}
 

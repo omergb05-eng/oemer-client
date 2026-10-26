@@ -193,7 +193,7 @@ public final class OmerLoading {
 		shotPending = null;
 		SHOT_DONE.add(kind);
 		try {
-			Screenshot.takeScreenshot(mc.getMainRenderTarget(), image -> {
+			Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {
 				try {
 					int w = image.getWidth(), h = image.getHeight();
 					int[] px = image.getPixelsABGR();

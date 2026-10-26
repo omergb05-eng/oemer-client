@@ -2,9 +2,6 @@ package com.oemer.client.feature;
 
 import com.oemer.client.OemerClient;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,6 +14,63 @@ public final class FilePicker {
 	}
 
 	private static volatile boolean open;
+
+	private static String os() {
+		return System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT);
+	}
+
+	/** Startet ein Programm und liest die erste Ausgabezeile (null = abgebrochen / nicht vorhanden). */
+	private static String run(String... cmd) {
+		try {
+			Process p = new ProcessBuilder(cmd).redirectErrorStream(false).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+			String out;
+			try (var in = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+				out = in.readLine();
+			}
+			int code = p.waitFor();
+			return code == 0 && out != null && !out.isBlank() ? out.trim() : null;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private static boolean has(String bin) {
+		String path = System.getenv("PATH");
+		if (path == null) return false;
+		for (String d : path.split(java.io.File.pathSeparator)) if (new java.io.File(d, bin).canExecute()) return true;
+		return false;
+	}
+
+	/** Nativer Dialog des Systems (Windows: PowerShell, Mac: osascript, Linux: zenity/kdialog). */
+	private static String dialog(boolean folder, String title, String start, String[] patterns, String description) {
+		String os = os();
+		String home = start == null || start.isBlank() ? System.getProperty("user.home") : start;
+		if (os.contains("win")) {
+			String filter = folder ? "" : String.join(";", patterns);
+			String script = folder
+					? "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = '" + title.replace("'", "") + "'; if ($d.ShowDialog() -eq 'OK') { $d.SelectedPath }"
+					: "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.OpenFileDialog; $d.Title = '" + title.replace("'", "") + "'; $d.Filter = '" + description.replace("'", "") + "|" + filter + "'; if ($d.ShowDialog() -eq 'OK') { $d.FileName }";
+			return run("powershell", "-NoProfile", "-STA", "-Command", script);
+		}
+		if (os.contains("mac")) {
+			String script = folder
+					? "POSIX path of (choose folder with prompt \"" + title.replace("\"", "") + "\")"
+					: "POSIX path of (choose file with prompt \"" + title.replace("\"", "") + "\")";
+			return run("osascript", "-e", script);
+		}
+		if (has("zenity")) {
+			java.util.List<String> cmd = new java.util.ArrayList<>(java.util.List.of("zenity", "--file-selection", "--title=" + title, "--filename=" + home + "/"));
+			if (folder) cmd.add("--directory");
+			else cmd.add("--file-filter=" + description + " | " + String.join(" ", patterns));
+			return run(cmd.toArray(new String[0]));
+		}
+		if (has("kdialog")) {
+			return folder ? run("kdialog", "--getexistingdirectory", home, "--title", title)
+					: run("kdialog", "--getopenfilename", home, String.join(" ", patterns) + "|" + description, "--title", title);
+		}
+		OemerClient.LOGGER.warn("Kein Datei-Dialog gefunden (zenity/kdialog fehlt)");
+		return null;
+	}
 
 	public static boolean isOpen() {
 		return open;
@@ -40,7 +94,7 @@ public final class FilePicker {
 			String chosen = null;
 			try {
 				String def = start == null || start.isBlank() ? System.getProperty("user.home") + "/" : start;
-				chosen = TinyFileDialogs.tinyfd_selectFolderDialog(title, def);
+				chosen = dialog(true, title, def, new String[0], "");
 			} catch (Throwable e) {
 				OemerClient.LOGGER.warn("Ordner-Fenster ging nicht auf", e);
 			}
@@ -58,11 +112,8 @@ public final class FilePicker {
 		open = true;
 		Thread t = new Thread(() -> {
 			String chosen = null;
-			try (MemoryStack stack = MemoryStack.stackPush()) {
-				PointerBuffer filters = stack.mallocPointer(patterns.length);
-				for (String p : patterns) filters.put(stack.UTF8(p));
-				filters.flip();
-				chosen = TinyFileDialogs.tinyfd_openFileDialog(title, System.getProperty("user.home") + "/", filters, description, false);
+			try {
+				chosen = dialog(false, title, null, patterns, description);
 			} catch (Throwable e) {
 				OemerClient.LOGGER.warn("Datei-Fenster ging nicht auf", e);
 			}

@@ -91,11 +91,6 @@ public class FreeCamera extends AbstractClientPlayer {
 	}
 
 	@Override
-	public boolean canSimulateMovement() {
-		return true;
-	}
-
-	@Override
 	protected void applyInput() {
 		Vec2 move = keyboardInput.getMoveVector();
 		if (move.lengthSquared() != 0.0F) {

@@ -6,7 +6,7 @@ import com.oemer.client.OemerConfig;
 import com.oemer.client.OemerConfig.MarkedChest;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.fabricmc.fabric.api.client.gui.screen().v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;

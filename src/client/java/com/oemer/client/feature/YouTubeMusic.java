@@ -216,7 +216,7 @@ public final class YouTubeMusic {
 
 	public static void openPlayer() {
 		start();
-		Util.getPlatform().openUri(url());
+		com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(url()));
 	}
 
 	private static void ensurePage() {
@@ -225,7 +225,7 @@ public final class YouTubeMusic {
 			Track t = current();
 			if (t != null) {
 				start();
-				Util.getPlatform().openUri("https://www.youtube.com/watch?v=" + t.id + "&omer=1");
+				com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create("https://www.youtube.com/watch?v=" + t.id + "&omer=1"));
 			}
 			return;
 		}

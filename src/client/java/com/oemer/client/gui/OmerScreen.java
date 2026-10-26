@@ -1291,7 +1291,7 @@ public class OmerScreen extends Screen {
 		String name = tab.name();
 		if (name.equals("YouTube")) {
 			button("Player im Browser öffnen", YouTubeMusic::openPlayer, OmerWidgets.Style.GLASS);
-			button("Schlüssel holen", () -> Util.getPlatform().openUri(YouTubeMusic.GUIDE), OmerWidgets.Style.GLASS);
+			button("Schlüssel holen", () -> com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(YouTubeMusic.GUIDE)), OmerWidgets.Style.GLASS);
 			endFlow();
 		} else if (name.equals("Jedes Lied")) {
 			button("Erweiterung „Ömer Bridge“ installieren", () -> Util.getPlatform().openPath(YouTubeMusic.installExtension()), OmerWidgets.Style.GLASS);
@@ -1301,7 +1301,7 @@ public class OmerScreen extends Screen {
 			}, OmerWidgets.Style.GLASS);
 			endFlow();
 		} else if (name.equals("Spotify")) {
-			button("Spotify-Dashboard öffnen", () -> Util.getPlatform().openUri(Spotify.DASHBOARD), OmerWidgets.Style.GLASS);
+			button("Spotify-Dashboard öffnen", () -> com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(Spotify.DASHBOARD)), OmerWidgets.Style.GLASS);
 			endFlow();
 		}
 		for (MusicHelp.Block b : tab.blocks()) {
@@ -1498,7 +1498,7 @@ public class OmerScreen extends Screen {
 			});
 			addContent(keyBox);
 			addContent(new OmerWidgets.Flat(cx0 + cw - 110, cy, 110, ROW_H, "Schlüssel holen", () ->
-					Util.getPlatform().openUri(YouTubeMusic.GUIDE)).tip("Google Cloud → YouTube Data API v3 aktivieren → Anmeldedaten → API-Schlüssel"));
+					com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(YouTubeMusic.GUIDE))).tip("Google Cloud → YouTube Data API v3 aktivieren → Anmeldedaten → API-Schlüssel"));
 			cy += ROW_H + GAP;
 		}
 		endFlow();
@@ -1637,7 +1637,7 @@ public class OmerScreen extends Screen {
 			addContent(keyBox);
 			cy += ROW_H + GAP;
 			button("Mit Spotify verbinden", Spotify::connect, OmerWidgets.Style.PRIMARY);
-			button("Anleitung: App erstellen", () -> Util.getPlatform().openUri(Spotify.DASHBOARD), OmerWidgets.Style.GLASS);
+			button("Anleitung: App erstellen", () -> com.mojang.blaze3d.Blaze3D.openUri(java.net.URI.create(Spotify.DASHBOARD)), OmerWidgets.Style.GLASS);
 			endFlow();
 			info(() -> "Redirect-URI: " + Spotify.REDIRECT + " · Spotify-Steuerung braucht Premium.");
 		} else {
