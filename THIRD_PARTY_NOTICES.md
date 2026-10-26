@@ -37,6 +37,15 @@ Die fertige `.jar` enthält die **unveränderte** Original-Mod *Distant Horizons
 
 Ömer Client spricht Distant Horizons nur über seine öffentliche API an (an/aus).
 
+## Sodium und Iris Shaders
+
+Die fertige `.jar` enthält die **unveränderten** Original-Mods *Sodium* und *Iris Shaders* (Jar-in-Jar), damit man Shader Packs nutzen kann.
+
+- Sodium: https://modrinth.com/mod/sodium · Quellcode: https://github.com/CaffeineMC/sodium · Lizenz: PolyForm Shield License 1.0.0
+- Iris: https://modrinth.com/mod/iris · Quellcode: https://github.com/IrisShaders/Iris · Lizenz: GNU Lesser General Public License v3.0 (mit Zusatz, siehe Projekt)
+
+Ömer Client verändert beide Mods nicht und öffnet nur ihre Einstellungsfenster.
+
 ## Hintergrund-Fotos (Vorlagen)
 
 Die Foto-Vorlagen im Design-Menü kommen von Unsplash (https://unsplash.com, Unsplash-Lizenz) und werden beim ersten Anzeigen heruntergeladen:

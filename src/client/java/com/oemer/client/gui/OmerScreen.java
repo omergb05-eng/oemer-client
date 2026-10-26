@@ -549,6 +549,8 @@ public class OmerScreen extends Screen {
 			c.distantHorizons = v;
 			DistantHorizonsBridge.changed();
 		}, null));
+		l.add(new ModInfo("shaders", "✧", "Shader (Iris + Sodium)", "Eingebaut: Shader Packs und schnelle Grafik", () -> com.oemer.client.feature.ShaderBridge.iris(), v -> {
+		}, null));
 		l.add(new ModInfo("lowfire", "🔥", "Low Fire", "Feuer am Bildschirm tiefer", () -> c.lowFire, v -> c.lowFire = v, null));
 		l.add(new ModInfo("lowshield", "⛨", "Low Shield", "Schild in der Hand tiefer", () -> c.lowShield, v -> c.lowShield = v, null));
 		l.add(new ModInfo("nodarkness", "☾", "No Darkness", "Kein Dunkelheits-Effekt", () -> c.noDarkness, v -> c.noDarkness = v, null));
@@ -665,6 +667,21 @@ public class OmerScreen extends Screen {
 				toggle("Schwert, Axt, Schild", () -> c.armorHudGear, v -> c.armorHudGear = v, "Zeigt die Haltbarkeit von Schwert, Axt und Schild aus der Hotbar");
 				endFlow();
 				info(() -> "Helm, Brustplatte, Hose und Schuhe mit Haltbarkeit (grün = heil, rot = fast kaputt). Größe: Settings → HUD-Größe.");
+			}
+			case "shaders" -> {
+				button("Shader Packs wählen", () -> {
+					Screen s = com.oemer.client.feature.ShaderBridge.shaderScreen(this);
+					if (s != null) this.minecraft.gui.setScreen(s);
+				}, OmerWidgets.Style.PRIMARY);
+				button("Sodium-Einstellungen", () -> {
+					Screen s = com.oemer.client.feature.ShaderBridge.sodiumScreen(this);
+					if (s != null) this.minecraft.gui.setScreen(s);
+				}, OmerWidgets.Style.GLASS);
+				button("Shader-Ordner öffnen", () -> open(com.oemer.client.feature.ShaderBridge.shaderFolder()), OmerWidgets.Style.GLASS);
+				info(() -> com.oemer.client.feature.ShaderBridge.iris()
+						? "Iris " + com.oemer.client.feature.ShaderBridge.irisVersion() + " · Sodium " + com.oemer.client.feature.ShaderBridge.sodiumVersion()
+						: "Iris ist nicht geladen.");
+				info(() -> "Shader Pack (.zip) in den Ordner legen, dann „Shader Packs wählen“. Sodium ist die Render-Grundlage dafür.");
 			}
 			case "chestsearch" -> {
 				toggle("Kisten leuchten", () -> c.chestSearchGlow, v -> c.chestSearchGlow = v, "Kisten im Umkreis von 20 Blöcken mit gesuchten Items leuchten leicht");

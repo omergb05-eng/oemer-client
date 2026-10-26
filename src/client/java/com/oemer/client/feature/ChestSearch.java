@@ -82,6 +82,7 @@ public final class ChestSearch {
 			BlockPos target = pending != null && System.currentTimeMillis() - pendingAt < 4000 ? pending : null;
 			pending = null;
 			addSearchBox(screen, w);
+			ScreenEvents.afterExtract(screen).register((s, g, mx, my, d) -> highlightSlots(acs, s, g));
 			if (target != null) {
 				ScreenEvents.afterTick(screen).register(s -> record(acs, target));
 				ScreenEvents.remove(screen).register(s -> {
@@ -117,6 +118,25 @@ public final class ChestSearch {
 		widgets.add(box);
 		widgets.add(new OmerWidgets.Flat(x + bw + 6, 3, 74, 20, "Items …", () -> mc.gui.setScreen(new ChestSearchScreen(screen)))
 				.tip("Alle Items durchsuchen – Kisten mit diesen Items im Umkreis leuchten"));
+	}
+
+	/** Treffer in der offenen Kiste leuchten gold, alles andere in der Kiste wird abgedunkelt. */
+	private static void highlightSlots(AbstractContainerScreen<?> acs, net.minecraft.client.gui.screens.Screen s,
+			net.minecraft.client.gui.GuiGraphicsExtractor g) {
+		if (!on() || !OemerConfig.get().chestSearchSlots || !searching() || !(acs.getMenu() instanceof ChestMenu menu)) return;
+		int left = (s.width - 176) / 2;
+		int top = (s.height - (114 + menu.getRowCount() * 18)) / 2;
+		float pulse = (float) (0.5 + 0.5 * Math.sin(System.currentTimeMillis() / 300.0));
+		for (Slot slot : menu.slots) {
+			if (slot.container instanceof Inventory) continue;
+			int x = left + slot.x, y = top + slot.y;
+			if (matches(slot.getItem())) {
+				g.fill(x, y, x + 16, y + 16, ((0x30 + Math.round(0x28 * pulse)) << 24) | 0xFFD76A);
+				com.oemer.client.gui.Draw.roundBorder(g, x - 1, y - 1, 18, 18, 2, 0xFFFFD76A);
+			} else {
+				g.fill(x, y, x + 16, y + 16, 0x99101018);
+			}
+		}
 	}
 
 	/** Das Suchfeld im Kisten-Fenster hat gerade den Fokus (Tasten wie E dürfen dann das Fenster nicht schließen). */

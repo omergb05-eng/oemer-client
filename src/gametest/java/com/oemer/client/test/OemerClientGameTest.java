@@ -438,6 +438,10 @@ public class OemerClientGameTest implements FabricClientGameTest {
 		ctx.waitTicks(10);
 		check("badge-nametag-drawn", OmerBadge.drawn > 0, "drawn=" + OmerBadge.drawn);
 		check("friend-logo-drawn", NameShare.drawn > 0, "drawn=" + NameShare.drawn);
+		check("sodium-loaded", com.oemer.client.feature.ShaderBridge.sodium(), "");
+		check("iris-loaded", com.oemer.client.feature.ShaderBridge.iris(), "");
+		check("cape-fps-frame", com.oemer.client.feature.CapeManager.fpsFrame(10, 20, 1000) == 0
+				&& com.oemer.client.feature.CapeManager.fpsFrame(10, 20, 100) == 2, "");
 		check("anim-frame-at", com.oemer.client.feature.CapeManager.frameAt(new int[]{100, 100, 100}, 300, 150) == 1
 				&& com.oemer.client.feature.CapeManager.frameAt(new int[]{100, 100, 100}, 300, 310) == 0, "");
 		ctx.runOnClient(mc -> com.oemer.client.online.Notify.push("§bTest§r hat dir geschrieben"));

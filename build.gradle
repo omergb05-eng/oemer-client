@@ -43,6 +43,12 @@ dependencies {
 	include "org.jcodec:jcodec:0.2.5"
 	include "org.jcodec:jcodec-javase:0.2.5"
 
+	// Sodium (Render-Grundlage) + Iris Shaders: Originale, unverändert eingebaut (Jar-in-Jar), siehe THIRD_PARTY_NOTICES.md
+	include "maven.modrinth:sodium:${project.sodium_version}"
+	localRuntime "maven.modrinth:sodium:${project.sodium_version}"
+	include "maven.modrinth:iris:${project.iris_version}"
+	localRuntime "maven.modrinth:iris:${project.iris_version}"
+
 	// Distant Horizons (26.3): kommt wieder dazu, sobald die passende Version feststeht
 	include "maven.modrinth:distanthorizons:${project.distant_horizons_version}"
 	localRuntime "maven.modrinth:distanthorizons:${project.distant_horizons_version}"
