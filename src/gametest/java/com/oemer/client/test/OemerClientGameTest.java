@@ -1453,6 +1453,13 @@ public class OemerClientGameTest implements FabricClientGameTest {
 				OemerConfig.get().customName = false;
 			});
 			check("logo-needs-custom-name", ctx.computeOnClient(mc -> NameShare.ownPng() == null), "");
+			ctx.runOnClient(mc -> OemerConfig.get().customName = true);
+			OmerScreen.sectionForTest("MODS", "customname");
+			ctx.setScreen(() -> new OmerScreen(null));
+			ctx.waitTicks(15);
+			ctx.takeScreenshot("49c-menue-name-logo");
+			ctx.setScreen(() -> null);
+			ctx.runOnClient(mc -> OemerConfig.get().customName = false);
 
 			// ------------------------------------------ Sounds + Totem (Ressourcenpaket)
 			ctx.runOnClient(mc -> {
