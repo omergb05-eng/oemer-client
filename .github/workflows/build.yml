@@ -83,15 +83,9 @@ jobs:
             return $RC
           }
           : > ci-out/test.log
-          if ! run_test "xvfb+GLX" xvfb-run -a -s "-screen 0 1920x1080x24 +extension GLX +render -noreset" ./gradlew runClientGameTest --stacktrace; then
-            if grep -q "Failed to create backend" ci-out/test.log; then
-              cp ci-out/test.log ci-out/test-variant1.log
-              : > ci-out/test.log
-              SDL_VIDEO_DRIVER=offscreen run_test "offscreen" ./gradlew runClientGameTest --stacktrace
-            else
-              exit 1
-            fi
-          fi
+          # SDL "offscreen" + Mesa-Software-OpenGL (llvmpipe) funktioniert; xvfb-GLX findet kein passendes Fenster-Format
+          export SDL_VIDEO_DRIVER=offscreen
+          run_test "offscreen" xvfb-run -a -s "-screen 0 1920x1080x24 +extension GLX +render -noreset" ./gradlew runClientGameTest --stacktrace
 
       - name: publish results to branch ci-results
         if: always()
