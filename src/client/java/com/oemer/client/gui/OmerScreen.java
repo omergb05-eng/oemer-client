@@ -851,7 +851,7 @@ public class OmerScreen extends Screen {
 			Draw.text(g, c.nameLogo.isEmpty() ? "Noch kein Logo" : "Logo: " + c.nameLogo.replace(".png", ""), tx, y + 18, Theme.TEXT_DIM);
 		}, null));
 		cy += 44 + GAP;
-		info(() -> "Du und deine Freunde mit dem Ömer Client sehen Namensstil und Logo (Namensschild, Tab-Liste und Chat; das Logo am Namensschild). Alle anderen sehen den normalen Namen.");
+		info(() -> "Freunde mit dem Ömer Client sehen Namensstil und Logo. Alle anderen sehen den normalen Namen.");
 	}
 
 	private void buildMaterial() {
