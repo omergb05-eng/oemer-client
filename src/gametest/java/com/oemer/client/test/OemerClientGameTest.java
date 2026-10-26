@@ -708,6 +708,31 @@ public class OemerClientGameTest implements FabricClientGameTest {
 	int stopIdx = YouTubeMusic.index();
 	httpGet(page + "api/cmd?do=error&code=150&seq=" + seqOf(httpGet(page + "api/state")));
 	check("yt-error-stops", YouTubeMusic.index() == stopIdx && httpGet(page + "api/state").contains("\"play\":false"), "index=" + YouTubeMusic.index());
+	// ---- YouTube-Seite mit Erweiterung "Ömer Bridge": Minecraft steuert, Seite meldet zurueck
+	ctx.runOnClient(mc -> {
+		OemerConfig.get().ytMode = 1;
+		YouTubeMusic.playList(six, 2);
+	});
+	String extState = httpGet(page + "api/state?ext=1");
+	check("bridge-state-mode", extState.contains("\"mode\":1") && extState.contains("aaaaaaaaaa2") && YouTubeMusic.extensionConnected(), extState.length() > 60 ? extState.substring(0, 60) : extState);
+	httpGet(page + "api/status?ext=1&click=0&id=aaaaaaaaaa2&playing=1&pos=12000&dur=200000&title=Bridge%20Song&author=Bridge%20Kanal&ad=0");
+	check("bridge-status-accepted", YouTubeMusic.playing() && YouTubeMusic.position() >= 12000 && YouTubeMusic.position() < 20000 && YouTubeMusic.duration() == 200000,
+			YouTubeMusic.playing() + " " + YouTubeMusic.position() + " " + YouTubeMusic.duration());
+	httpGet(page + "api/status?click=0&id=aaaaaaaaaa2&playing=1&pos=99000&dur=200000");
+	check("bridge-embedded-status-ignored", YouTubeMusic.position() < 30000, "" + YouTubeMusic.position());
+	httpGet(page + "api/status?ext=1&click=0&id=aaaaaaaaaa2&playing=1&pos=13000&dur=200000&ad=1");
+	check("bridge-ad-message", YouTubeMusic.message().contains("Werbung"), YouTubeMusic.message());
+	httpGet(page + "api/status?ext=1&click=0&id=aaaaaaaaaa2&playing=1&pos=14000&dur=200000&ad=0");
+	check("bridge-ad-message-gone", !YouTubeMusic.message().contains("Werbung"), YouTubeMusic.message());
+	httpGet(page + "api/cmd?do=ended&seq=" + seqOf(httpGet(page + "api/state?ext=1")));
+	check("bridge-ended-next", YouTubeMusic.index() == 3, "" + YouTubeMusic.index());
+	java.nio.file.Path extDir = YouTubeMusic.installExtension();
+	check("bridge-extension-files", Files.isRegularFile(extDir.resolve("manifest.json")) && Files.isRegularFile(extDir.resolve("content.js"))
+			&& Files.isRegularFile(extDir.resolve("background.js")) && Files.readString(extDir.resolve("manifest.json")).contains("Ömer Bridge"), extDir.toString());
+	ctx.runOnClient(mc -> {
+		OemerConfig.get().ytMode = 0;
+		YouTubeMusic.clearQueue();
+	});
 	httpGet(page + "api/cmd?do=clearqueue");
 	// dieselben Löschbefehle wie in der Player-Seite
 	httpGet(page + "api/cmd?do=unlib&id=" + tr[1].id);

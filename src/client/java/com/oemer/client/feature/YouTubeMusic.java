@@ -104,7 +104,7 @@ public final class YouTubeMusic {
 	// vom Browser gemeldet
 	private static volatile String pageVideo = "";
 	private static volatile boolean pagePlaying;
-	private static volatile long pagePos, pageDur, pageStatusAt, lastPoll;
+	private static volatile long pagePos, pageDur, pageStatusAt, lastPoll, extPoll;
 	private static volatile String message = "";
 	private static volatile boolean pageNeedsClick = true;
 	private static final List<Track> RESULTS = Collections.synchronizedList(new ArrayList<>());
@@ -156,7 +156,7 @@ public final class YouTubeMusic {
 
 	/** Ist die Player-Seite gerade offen (meldet sich regelmäßig)? */
 	public static boolean pageConnected() {
-		return System.currentTimeMillis() - lastPoll < 4000;
+		return System.currentTimeMillis() - (OemerConfig.get().ytMode == 1 ? extPoll : lastPoll) < 4000;
 	}
 
 	public static boolean needsClick() {
@@ -220,7 +220,36 @@ public final class YouTubeMusic {
 	}
 
 	private static void ensurePage() {
-		if (!pageConnected()) openPlayer();
+		if (pageConnected()) return;
+		if (OemerConfig.get().ytMode == 1) {
+			Track t = current();
+			if (t != null) {
+				start();
+				Util.getPlatform().openUri("https://www.youtube.com/watch?v=" + t.id + "&omer=1");
+			}
+			return;
+		}
+		openPlayer();
+	}
+
+	public static boolean extensionConnected() {
+		return System.currentTimeMillis() - extPoll < 4000;
+	}
+
+	/** Schreibt die Erweiterung "Ömer Bridge" in einen Ordner im Spielverzeichnis und gibt ihn zurück. */
+	public static java.nio.file.Path installExtension() {
+		java.nio.file.Path dir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("oemer-extension");
+		try {
+			java.nio.file.Files.createDirectories(dir);
+			for (String f : new String[]{"manifest.json", "background.js", "content.js"}) {
+				try (InputStream in = YouTubeMusic.class.getResourceAsStream("/assets/oemerclient/extension/" + f)) {
+					if (in != null) java.nio.file.Files.copy(in, dir.resolve(f), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+				}
+			}
+		} catch (Exception e) {
+			OemerClient.LOGGER.warn("Erweiterung konnte nicht geschrieben werden", e);
+		}
+		return dir;
 	}
 
 	/** Liste abspielen, beginnend bei start. */
@@ -724,11 +753,22 @@ public final class YouTubeMusic {
 					type = "text/html; charset=utf-8";
 				}
 				case "/api/state" -> {
-					lastPoll = System.currentTimeMillis();
+					if ("1".equals(q.get("ext"))) extPoll = System.currentTimeMillis();
+					else lastPoll = System.currentTimeMillis();
 					body = GSON.toJson(state()).getBytes(StandardCharsets.UTF_8);
 				}
 				case "/api/status" -> {
-					lastPoll = System.currentTimeMillis();
+					boolean fromExt = "1".equals(q.get("ext"));
+					if (fromExt != (OemerConfig.get().ytMode == 1)) {
+						// nur die Seite, die gerade zuständig ist, darf den Stand melden
+						body = "{}".getBytes(StandardCharsets.UTF_8);
+						break;
+					}
+					if (fromExt) {
+						extPoll = System.currentTimeMillis();
+						if ("1".equals(q.get("ad"))) message = "Werbung läuft – im YouTube-Tab „Überspringen“ klicken";
+						else if (message.startsWith("Werbung läuft")) message = "";
+					} else lastPoll = System.currentTimeMillis();
 					pageVideo = q.getOrDefault("id", "");
 					pagePlaying = "1".equals(q.get("playing"));
 					pagePos = parseLong(q.get("pos"));
@@ -966,6 +1006,7 @@ public final class YouTubeMusic {
 		m.put("repeat", c.ytRepeat);
 		m.put("hasKey", hasKey());
 		m.put("message", message);
+		m.put("mode", c.ytMode);
 		m.put("blockedUrl", blockedUrl);
 		m.put("importList", pendingImport);
 		return m;

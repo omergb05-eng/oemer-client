@@ -1356,6 +1356,20 @@ public class OmerScreen extends Screen {
 		heading("Einstellungen");
 		button("Player im Browser öffnen", YouTubeMusic::openPlayer, OmerWidgets.Style.GLASS,
 				"Die Musik läuft im offiziellen YouTube-Player in deinem Browser – Tab einfach offen lassen");
+		endFlow();
+		cycle("Wiedergabe", OemerConfig.YT_MODES, () -> c.ytMode, v -> {
+			c.ytMode = v;
+			OemerConfig.save();
+		});
+		button("Erweiterung „Ömer Bridge“ installieren", () -> {
+			java.nio.file.Path dir = YouTubeMusic.installExtension();
+			Util.getPlatform().openPath(dir);
+		}, OmerWidgets.Style.GLASS,
+				"Für „YouTube-Seite“: Ordner öffnet sich. In Chrome/Edge/Brave: chrome://extensions → Entwicklermodus an → „Entpackte Erweiterung laden“ → diesen Ordner wählen");
+		endFlow();
+		info(() -> c.ytMode != 1 ? ""
+				: YouTubeMusic.extensionConnected() ? "Erweiterung verbunden ✔ – der YouTube-Tab wird von Minecraft gesteuert. Werbung kommt normal, „Überspringen“ klickst du im Tab."
+				: "Erweiterung noch nicht verbunden: „Erweiterung installieren“ klicken und im Browser laden (Anleitung beim Knopf), dann einen Song starten.");
 		toggle("Zufall", () -> c.ytShuffle, v -> c.ytShuffle = v, "");
 		toggle("Wiederholen", () -> c.ytRepeat, v -> c.ytRepeat = v, "Am Ende von vorne");
 		toggle("Musik-HUD", () -> c.spotifyHud, v -> c.spotifyHud = v, "Zeigt den Song im Spiel");

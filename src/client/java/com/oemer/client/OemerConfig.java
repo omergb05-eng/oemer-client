@@ -80,6 +80,7 @@ public class OemerConfig {
 	public int ytVolume = 70;
 	public boolean ytShuffle = false;
 	public boolean ytRepeat = true;
+	public int ytMode = 0;               // 0 = eingebetteter Player, 1 = YouTube-Seite (Erweiterung Ömer Bridge)
 	public String ytApiKey = "";         // kostenloser YouTube-Data-API-Schlüssel (nur für die Suche)
 	public java.util.List<com.oemer.client.feature.YouTubeMusic.Track> ytLibrary = new java.util.ArrayList<>();
 	public java.util.List<com.oemer.client.feature.YouTubeMusic.Playlist> ytPlaylists = new java.util.ArrayList<>();
@@ -220,6 +221,7 @@ public class OemerConfig {
 	public static final float[] SMALL_SCALES = {0.75f, 0.5f, 0.3f};
 	public static final String[] ARMOR_POS = {"Links in der Mitte", "Rechts in der Mitte", "Links neben der Hotbar", "Rechts neben der Hotbar"};
 	public static final String[] ARMOR_VALUE = {"Prozent", "Haltbarkeit (Zahl)", "Nur Balken"};
+	public static final String[] YT_MODES = {"Eingebetteter Player (Standard)", "YouTube-Seite (Erweiterung, jedes Lied)"};
 	public static final String[] PLACE_MODES = {"Alle Ebenen", "Nur diese Ebene", "Bis zu dieser Ebene", "Ab dieser Ebene"};
 	public static final String[] PLACE_MIRRORS = {"Aus", "Links ↔ rechts", "Vorne ↔ hinten"};
 	public static final int[] PLACE_RANGES = {32, 64, 128, Integer.MAX_VALUE / 4};
@@ -297,6 +299,7 @@ public class OemerConfig {
 		if (ytLibrary == null) ytLibrary = new java.util.ArrayList<>();
 		if (ytPlaylists == null) ytPlaylists = new java.util.ArrayList<>();
 		if (ytApiKey == null) ytApiKey = "";
+		ytMode = Math.floorMod(ytMode, 2);
 		ytVolume = Math.max(0, Math.min(100, ytVolume));
 		musicService = Math.floorMod(musicService, 2);
 		if (chatRead == null) chatRead = new java.util.HashMap<>();

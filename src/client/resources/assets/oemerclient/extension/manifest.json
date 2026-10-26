@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Ömer Bridge",
+  "version": "1.0.0",
+  "description": "Steuert den YouTube-Tab von Minecraft aus (Ömer Client): Pause, Lautstärke, Weiter. Läuft nur in Tabs, die Ömer Client geöffnet hat.",
+  "background": { "service_worker": "background.js" },
+  "host_permissions": ["http://127.0.0.1/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

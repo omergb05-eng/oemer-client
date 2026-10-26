@@ -190,6 +190,11 @@ function onState(e) {
 
 function apply() {
   if (!ready || !player || !player.getPlayerState) return;
+  if (st.mode === 1) {
+    // Wiedergabe läuft im echten YouTube-Tab (Erweiterung Ömer Bridge) – dieser Player bleibt still
+    if (player.getPlayerState() === 1) player.pauseVideo();
+    return;
+  }
   if (!volDrag) player.setVolume(st.volume ?? 60);
   if (lastSeek === null) lastSeek = st.seekSeq;
   if (st.videoId && st.seq !== loadedSeq) {
@@ -206,6 +211,7 @@ function apply() {
 }
 
 function report() {
+  if (st.mode === 1) return;
   let q = 'click=' + (clicked ? 0 : 1);
   if (ready && player && player.getPlayerState) {
     const d = player.getVideoData ? player.getVideoData() : {};
@@ -223,6 +229,7 @@ async function poll() {
   $('conn').textContent = on ? 'mit Minecraft verbunden' : 'Minecraft ist nicht offen';
   if (!s) return;
   st = s; apply(); render(); report();
+  if (st.mode === 1) { $('start').hidden = true; if (!st.message) $('msg').textContent = 'Wiedergabe läuft im YouTube-Tab (Ömer Bridge). Hier steuerst du nur die Listen.'; }
 }
 setInterval(poll, 700); poll();
 
