@@ -707,7 +707,7 @@ public class OemerClientGameTest implements FabricClientGameTest {
 			&& !YouTubeMusic.message().contains("übersprungen") && st1.contains("\"play\":false"), "index=" + YouTubeMusic.index() + " " + YouTubeMusic.message());
 	ctx.runOnClient(mc -> YouTubeMusic.playList(six, 0));
 	httpGet(page + "api/cmd?do=next");
-	check("yt-blocked-link", st1.contains("\"blockedUrl\":\"https://www.youtube.com/watch?v=aaaaaaaaaa3\""), st1.length() > 0 ? "ok" : "leer");
+	check("yt-blocked-link", st1.contains("\"blockedUrl\":\"https://www.youtube.com/watch?v\\u003daaaaaaaaaa3"), st1.length() > 0 ? "ok" : "leer");
 	check("yt-next-index", YouTubeMusic.index() == 1, "" + YouTubeMusic.index());
 	httpGet(page + "api/cmd?do=error&code=150&seq=" + seqOf(httpGet(page + "api/state")));
 	check("yt-error-auto-skips", YouTubeMusic.index() == 2 && YouTubeMusic.message().contains("übersprungen"), "index=" + YouTubeMusic.index() + " " + YouTubeMusic.message());
